@@ -39,4 +39,15 @@ export const api = {
 
   // Queue
   getQueueStatus: () => fetch("/api/queue/status").then(res => res.json()),
+
+  // Enhanced Load Balancing & Scheduling
+  getInboxStats: () => fetch("/api/inbox/stats").then(res => res.json()),
+  getInboxStatsById: (id: number) => fetch(`/api/inbox/stats/${id}`).then(res => res.json()),
+  pauseInbox: (id: number, reason?: string) => apiRequest("POST", `/api/inbox/${id}/pause`, { reason }),
+  resumeInbox: (id: number) => apiRequest("POST", `/api/inbox/${id}/resume`),
+  getLoadBalancingConfig: () => fetch("/api/inbox/config").then(res => res.json()),
+  updateLoadBalancingConfig: (config: any) => apiRequest("PUT", "/api/inbox/config", config),
+  getBookedSlots: (accountEmail: string) => fetch(`/api/inbox/${accountEmail}/booked-slots`).then(res => res.json()),
+  resetDailyCounters: () => apiRequest("POST", "/api/inbox/reset-daily"),
+  clearOldSlots: () => apiRequest("POST", "/api/scheduling/clear-old-slots"),
 };

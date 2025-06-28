@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { googleAuthService } from "./services/google-auth";
 import { campaignProcessor } from "./services/campaign-processor";
 import { queueManager } from "./services/queue-manager";
+import { inboxLoadBalancer } from "./services/inbox-load-balancer";
+import { timeSlotManager } from "./services/time-slot-manager";
 import { insertCampaignSchema, insertSystemSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -239,6 +241,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(status);
     } catch (error) {
       res.status(500).json({ error: "Failed to get queue status" });
+    }
+  });
+
+  // Enhanced Load Balancing & Scheduling API
+  app.get("/api/inbox/stats", async (req, res) => {
+    try {
+      const stats = await inboxLoadBalancer.getAllUsageStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get inbox stats" });
+    }
+  });
+
+  app.get("/api/inbox/stats/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const stats = await inboxLoadBalancer.getInboxStats(id);
+      
+      if (!stats) {
+        return res.status(404).json({ error: "Inbox stats not found" });
+      }
+
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get inbox stats" });
+    }
+  });
+
+  app.post("/api/inbox/:id/pause", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { reason } = req.body;
+      
+      await inboxLoadBalancer.pauseInbox(id, reason || "Manual pause");
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to pause inbox" });
+    }
+  });
+
+  app.post("/api/inbox/:id/resume", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      await inboxLoadBalancer.resumeInbox(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to resume inbox" });
+    }
+  });
+
+  app.get("/api/inbox/config", async (req, res) => {
+    try {
+      const config = inboxLoadBalancer.getConfig();
+      res.json(config);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get load balancing config" });
+    }
+  });
+
+  app.put("/api/inbox/config", async (req, res) => {
+    try {
+      const updates = req.body;
+      inboxLoadBalancer.updateConfig(updates);
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update load balancing config" });
+    }
+  });
+
+  app.get("/api/inbox/:accountEmail/booked-slots", async (req, res) => {
+    try {
+      const { accountEmail } = req.params;
+      const slots = timeSlotManager.getBookedSlots(accountEmail);
+      res.json(slots);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get booked slots" });
+    }
+  });
+
+  app.post("/api/inbox/reset-daily", async (req, res) => {
+    try {
+      await inboxLoadBalancer.resetDailyCounters();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reset daily counters" });
+    }
+  });
+
+  app.post("/api/scheduling/clear-old-slots", async (req, res) => {
+    try {
+      timeSlotManager.clearOldBookedSlots();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear old slots" });
     }
   });
 

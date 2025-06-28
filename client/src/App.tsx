@@ -8,6 +8,7 @@ import { useAutoRefresh } from "@/hooks/use-realtime";
 import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
 import Accounts from "@/pages/accounts";
+import EnhancedAccounts from "@/pages/enhanced-accounts";
 import Activity from "@/pages/activity";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
@@ -28,6 +29,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/accounts" component={Accounts} />
+        <Route path="/accounts-enhanced" component={EnhancedAccounts} />
         <Route path="/activity" component={Activity} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />

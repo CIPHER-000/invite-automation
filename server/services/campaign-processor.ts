@@ -1,7 +1,9 @@
 import { storage } from "../storage";
-import { googleSheetsService } from "./google-sheets";
+import { googleSheetsService, ProspectData } from "./google-sheets";
 import { googleCalendarService } from "./google-calendar";
-import type { Campaign, GoogleAccount, ProspectData } from "@shared/schema";
+import { timeSlotManager, ProspectScheduleData } from "./time-slot-manager";
+import { inboxLoadBalancer } from "./inbox-load-balancer";
+import type { Campaign, GoogleAccount } from "@shared/schema";
 
 export class CampaignProcessor {
   async processCampaign(campaign: Campaign): Promise<void> {
@@ -29,21 +31,61 @@ export class CampaignProcessor {
       const existingInvites = await storage.getInvites(campaign.id);
       const existingEmails = new Set(existingInvites.map(invite => invite.prospectEmail));
 
-      // Add new prospects to the queue
+      // Add new prospects to the queue with smart scheduling
       for (const [index, prospect] of prospects.entries()) {
         if (existingEmails.has(prospect.email)) {
           continue; // Skip already processed prospects
         }
 
-        // Calculate when this invite should be sent
-        const scheduledFor = this.calculateScheduleTime(index);
+        // Convert prospect data to scheduling format
+        const prospectScheduleData: ProspectScheduleData = {
+          email: prospect.email,
+          timezone: prospect.timezone || prospect.time_zone,
+          preferredHours: prospect.preferred_hours || prospect.preferredHours,
+          preferredDays: prospect.preferred_days || prospect.preferredDays,
+        };
+
+        // Get best available inbox for this prospect
+        const availableInbox = await inboxLoadBalancer.getBestAvailableInbox();
+        if (!availableInbox) {
+          console.warn(`No available inbox for prospect ${prospect.email}, using fallback scheduling`);
+          // Fallback to old method if no inbox available
+          const scheduledFor = this.calculateScheduleTime(index);
+          await storage.createQueueItem({
+            campaignId: campaign.id,
+            prospectData: prospect as any,
+            scheduledFor,
+            status: "pending",
+            attempts: 0,
+          });
+          continue;
+        }
+
+        // Generate smart time slot
+        const scheduledFor = timeSlotManager.generateTimeSlot(
+          prospectScheduleData,
+          campaign,
+          availableInbox.email,
+          new Date()
+        );
 
         await storage.createQueueItem({
           campaignId: campaign.id,
-          prospectData: prospect as any,
+          prospectData: {
+            ...prospect,
+            assignedInboxId: availableInbox.id,
+            assignedInboxEmail: availableInbox.email,
+          } as any,
           scheduledFor,
           status: "pending",
           attempts: 0,
+        });
+
+        await storage.createActivityLog({
+          type: "prospect_scheduled",
+          message: `Prospect ${prospect.email} scheduled for ${scheduledFor.toLocaleString()} via ${availableInbox.email}`,
+          campaignId: campaign.id,
+          googleAccountId: availableInbox.id,
         });
       }
 
@@ -88,13 +130,28 @@ export class CampaignProcessor {
       throw new Error("Campaign not found");
     }
 
-    // Find available Google account
-    const availableAccount = await this.findAvailableAccount();
+    // Use load balancer to get best available inbox
+    let availableAccount: GoogleAccount | null = null;
+    
+    // Check if prospect has pre-assigned inbox
+    const prospectData = queueItem.prospectData as ProspectData;
+    if (prospectData.assignedInboxId) {
+      const assignedAccount = await storage.getGoogleAccount(prospectData.assignedInboxId);
+      if (assignedAccount && assignedAccount.isActive) {
+        availableAccount = assignedAccount;
+      }
+    }
+    
+    // If no assigned account or it's not available, get best one
+    if (!availableAccount) {
+      availableAccount = await inboxLoadBalancer.getBestAvailableInbox();
+    }
+    
     if (!availableAccount) {
       throw new Error("No available Google account");
     }
 
-    const prospect = queueItem.prospectData as ProspectData;
+    const prospect = prospectData;
     
     // Create the invite record
     const invite = await storage.createInvite({
@@ -148,10 +205,8 @@ export class CampaignProcessor {
         sentAt: new Date(),
       });
 
-      // Update Google account last used time
-      await storage.updateGoogleAccount(availableAccount.id, {
-        lastUsed: new Date(),
-      });
+      // Record successful usage in load balancer
+      await inboxLoadBalancer.recordUsage(availableAccount.id, true);
 
       // Update Google Sheets
       try {
@@ -196,6 +251,9 @@ export class CampaignProcessor {
         errorMessage: error instanceof Error ? error.message : "Unknown error",
       });
 
+      // Record failed usage in load balancer
+      await inboxLoadBalancer.recordUsage(availableAccount.id, false);
+
       await storage.updateQueueItem(queueItem.id, {
         status: "failed",
         attempts: queueItem.attempts + 1,
@@ -207,9 +265,9 @@ export class CampaignProcessor {
         campaignId: campaign.id,
         inviteId: invite.id,
         googleAccountId: availableAccount.id,
-        message: `Failed to send invite to ${prospect.email}: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: `Failed to send invite to ${queueItem.prospectData.email}: ${error instanceof Error ? error.message : "Unknown error"}`,
         metadata: { 
-          prospectEmail: prospect.email,
+          prospectEmail: queueItem.prospectData.email,
           error: error instanceof Error ? error.message : "Unknown error",
         },
       });
