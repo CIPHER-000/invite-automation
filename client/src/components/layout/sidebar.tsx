@@ -6,7 +6,8 @@ import {
   Megaphone,
   Clock,
   Settings,
-  Users
+  Users,
+  Mail
 } from "lucide-react";
 
 const navigation = [
@@ -24,6 +25,11 @@ const navigation = [
     name: "Google Accounts",
     href: "/accounts",
     icon: Users,
+  },
+  {
+    name: "Multi-Provider Accounts",
+    href: "/accounts-enhanced",
+    icon: Mail,
   },
   {
     name: "Activity Log",

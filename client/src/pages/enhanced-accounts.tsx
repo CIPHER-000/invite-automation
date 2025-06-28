@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { AccountStatus } from "@/components/accounts/account-status";
 import { InboxStats } from "@/components/accounts/inbox-stats";
+import { MultiProviderAccounts } from "@/components/accounts/multi-provider-accounts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -199,84 +200,7 @@ export default function EnhancedAccounts() {
           </TabsList>
 
           <TabsContent value="accounts" className="space-y-4">
-            {accounts?.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center space-y-4">
-                    <div className="mx-auto w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
-                      <Users className="h-6 w-6 text-slate-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-slate-800">No Google accounts connected</h3>
-                      <p className="text-sm text-slate-600">Connect your first Google account to start sending calendar invites</p>
-                    </div>
-                    <Button 
-                      onClick={() => connectAccountMutation.mutate()}
-                      disabled={connectAccountMutation.isPending}
-                      className="w-full"
-                    >
-                      <Plus size={16} className="mr-2" />
-                      Connect Google Account
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                {/* Alerts */}
-                {cooldownAccounts.length > 0 && (
-                  <Alert>
-                    <Clock className="h-4 w-4" />
-                    <AlertTitle>Accounts in Cooldown</AlertTitle>
-                    <AlertDescription>
-                      {cooldownAccounts.length} account(s) are currently in cooldown period and temporarily unavailable.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {activeAccounts.length === 0 && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>No Active Accounts</AlertTitle>
-                    <AlertDescription>
-                      All accounts are inactive. Enable at least one account to send invites.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Active Accounts */}
-                {activeAccounts.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-medium flex items-center space-x-2">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span>Active Accounts ({activeAccounts.length})</span>
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {activeAccounts.map((account: AccountWithStatus) => (
-                        <AccountStatus key={account.id} account={account} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Inactive Accounts */}
-                {inactiveAccounts.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-medium flex items-center space-x-2 mb-4">
-                      <Power className="h-5 w-5 text-slate-400" />
-                      <span>Inactive Accounts ({inactiveAccounts.length})</span>
-                    </h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {inactiveAccounts.map((account: AccountWithStatus) => (
-                        <AccountStatus key={account.id} account={account} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+            <MultiProviderAccounts />
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-4">

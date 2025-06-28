@@ -32,6 +32,14 @@ export interface IStorage {
   deleteGoogleAccount(id: number): Promise<void>;
   getAccountsWithStatus(): Promise<AccountWithStatus[]>;
 
+  // Outlook Accounts
+  getOutlookAccounts(): Promise<OutlookAccount[]>;
+  getOutlookAccount(id: number): Promise<OutlookAccount | undefined>;
+  getOutlookAccountByEmail(email: string): Promise<OutlookAccount | undefined>;
+  createOutlookAccount(account: InsertOutlookAccount): Promise<OutlookAccount>;
+  updateOutlookAccount(id: number, updates: Partial<OutlookAccount>): Promise<OutlookAccount>;
+  deleteOutlookAccount(id: number): Promise<void>;
+
   // Campaigns
   getCampaigns(): Promise<Campaign[]>;
   getCampaign(id: number): Promise<Campaign | undefined>;
@@ -69,6 +77,7 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private googleAccounts: Map<number, GoogleAccount> = new Map();
+  private outlookAccounts: Map<number, OutlookAccount> = new Map();
   private campaigns: Map<number, Campaign> = new Map();
   private invites: Map<number, Invite> = new Map();
   private activityLogs: Map<number, ActivityLog> = new Map();
@@ -124,6 +133,44 @@ export class MemStorage implements IStorage {
 
   async deleteGoogleAccount(id: number): Promise<void> {
     this.googleAccounts.delete(id);
+  }
+
+  async getOutlookAccounts(): Promise<OutlookAccount[]> {
+    return Array.from(this.outlookAccounts.values());
+  }
+
+  async getOutlookAccount(id: number): Promise<OutlookAccount | undefined> {
+    return this.outlookAccounts.get(id);
+  }
+
+  async getOutlookAccountByEmail(email: string): Promise<OutlookAccount | undefined> {
+    return Array.from(this.outlookAccounts.values()).find(account => account.email === email);
+  }
+
+  async createOutlookAccount(account: InsertOutlookAccount): Promise<OutlookAccount> {
+    const id = this.currentId++;
+    const newAccount: OutlookAccount = {
+      ...account,
+      id,
+      createdAt: new Date(),
+      isActive: account.isActive ?? true,
+      lastUsed: account.lastUsed ?? null,
+    };
+    this.outlookAccounts.set(id, newAccount);
+    return newAccount;
+  }
+
+  async updateOutlookAccount(id: number, updates: Partial<OutlookAccount>): Promise<OutlookAccount> {
+    const account = this.outlookAccounts.get(id);
+    if (!account) throw new Error("Outlook account not found");
+    
+    const updated = { ...account, ...updates };
+    this.outlookAccounts.set(id, updated);
+    return updated;
+  }
+
+  async deleteOutlookAccount(id: number): Promise<void> {
+    this.outlookAccounts.delete(id);
   }
 
   async getAccountsWithStatus(): Promise<AccountWithStatus[]> {

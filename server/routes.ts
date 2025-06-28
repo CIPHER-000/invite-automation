@@ -2,10 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { googleAuthService } from "./services/google-auth";
+import { outlookAuthService } from "./services/outlook-auth";
 import { campaignProcessor } from "./services/campaign-processor";
 import { queueManager } from "./services/queue-manager";
 import { inboxLoadBalancer } from "./services/inbox-load-balancer";
 import { timeSlotManager } from "./services/time-slot-manager";
+import { multiProviderEmailService } from "./services/multi-provider-email";
 import { insertCampaignSchema, insertSystemSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -26,6 +28,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Google OAuth routes
   app.get("/api/auth/google", (req, res) => {
     const authUrl = googleAuthService.getAuthUrl();
+    res.json({ authUrl });
+  });
+
+  // Outlook OAuth routes
+  app.get("/api/auth/outlook", (req, res) => {
+    const authUrl = outlookAuthService.getAuthUrl();
     res.json({ authUrl });
   });
 
@@ -65,6 +73,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.redirect("/?connected=true");
     } catch (error) {
       console.error("OAuth callback error:", error);
+      res.status(500).json({ error: "Authentication failed" });
+    }
+  });
+
+  app.get("/api/auth/outlook/callback", async (req, res) => {
+    try {
+      const { code } = req.query;
+      if (!code || typeof code !== "string") {
+        return res.status(400).json({ error: "Missing authorization code" });
+      }
+
+      const { accessToken, refreshToken, expiresAt, userInfo } = 
+        await outlookAuthService.exchangeCodeForTokens(code);
+
+      // Check if account already exists
+      const existingAccount = await storage.getOutlookAccountByEmail(userInfo.email);
+      
+      if (existingAccount) {
+        // Update existing account
+        await storage.updateOutlookAccount(existingAccount.id, {
+          accessToken,
+          refreshToken,
+          expiresAt,
+          isActive: true,
+        });
+      } else {
+        // Create new account
+        await storage.createOutlookAccount({
+          email: userInfo.email,
+          name: userInfo.name,
+          microsoftId: userInfo.id,
+          accessToken,
+          refreshToken,
+          expiresAt,
+          isActive: true,
+        });
+      }
+
+      res.redirect("/?connected=outlook");
+    } catch (error) {
+      console.error("Outlook OAuth callback error:", error);
       res.status(500).json({ error: "Authentication failed" });
     }
   });
@@ -337,6 +386,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to clear old slots" });
+    }
+  });
+
+  // Email Provider Management
+  app.get("/api/email/providers", async (req, res) => {
+    try {
+      const providers = await multiProviderEmailService.getAvailableProviders();
+      res.json(providers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get email providers" });
+    }
+  });
+
+  app.get("/api/email/providers/stats", async (req, res) => {
+    try {
+      const stats = await multiProviderEmailService.getProviderStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get provider stats" });
+    }
+  });
+
+  app.post("/api/email/providers/:id/test", async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.id);
+      const providers = await multiProviderEmailService.getAvailableProviders();
+      const provider = providers.find(p => p.accountId === providerId);
+      
+      if (!provider) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      const result = await multiProviderEmailService.testEmailProvider(provider);
+      res.json({ success: result });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to test email provider" });
+    }
+  });
+
+  // Outlook Account Management
+  app.get("/api/outlook/accounts", async (req, res) => {
+    try {
+      const accounts = await storage.getOutlookAccounts();
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get Outlook accounts" });
+    }
+  });
+
+  app.delete("/api/outlook/accounts/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteOutlookAccount(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete Outlook account" });
+    }
+  });
+
+  app.put("/api/outlook/accounts/:id/toggle", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const account = await storage.getOutlookAccount(id);
+      
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      await storage.updateOutlookAccount(id, {
+        isActive: !account.isActive,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to toggle Outlook account" });
     }
   });
 

@@ -50,4 +50,13 @@ export const api = {
   getBookedSlots: (accountEmail: string) => fetch(`/api/inbox/${accountEmail}/booked-slots`).then(res => res.json()),
   resetDailyCounters: () => apiRequest("POST", "/api/inbox/reset-daily"),
   clearOldSlots: () => apiRequest("POST", "/api/scheduling/clear-old-slots"),
+
+  // Multi-Provider Email & Calendar
+  getOutlookAuthUrl: () => fetch("/api/auth/outlook").then(res => res.json()),
+  getOutlookAccounts: () => fetch("/api/outlook/accounts").then(res => res.json()),
+  toggleOutlookAccount: (id: number) => apiRequest("PUT", `/api/outlook/accounts/${id}/toggle`),
+  deleteOutlookAccount: (id: number) => apiRequest("DELETE", `/api/outlook/accounts/${id}`),
+  getEmailProviders: () => fetch("/api/email/providers").then(res => res.json()),
+  getEmailProviderStats: () => fetch("/api/email/providers/stats").then(res => res.json()),
+  testEmailProvider: (id: number) => apiRequest("POST", `/api/email/providers/${id}/test`),
 };

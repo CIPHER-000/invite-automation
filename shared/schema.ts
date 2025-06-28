@@ -15,6 +15,37 @@ export const googleAccounts = pgTable("google_accounts", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Outlook/Office 365 Accounts for OAuth2 connections
+export const outlookAccounts = pgTable("outlook_accounts", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  microsoftId: text("microsoft_id").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  lastUsed: timestamp("last_used"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Email providers for multi-provider email sending
+export const emailProviders = pgTable("email_providers", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // 'gmail' | 'outlook'
+  accountId: integer("account_id").notNull(),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  priority: integer("priority").notNull().default(1),
+  lastUsed: timestamp("last_used"),
+  emailsSent: integer("emails_sent").notNull().default(0),
+  successCount: integer("success_count").notNull().default(0),
+  errorCount: integer("error_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Campaigns for organizing invite sequences
 export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
@@ -37,7 +68,9 @@ export const campaigns = pgTable("campaigns", {
 export const invites = pgTable("invites", {
   id: serial("id").primaryKey(),
   campaignId: integer("campaign_id").notNull().references(() => campaigns.id),
-  googleAccountId: integer("google_account_id").notNull().references(() => googleAccounts.id),
+  googleAccountId: integer("google_account_id").references(() => googleAccounts.id),
+  outlookAccountId: integer("outlook_account_id").references(() => outlookAccounts.id),
+  calendarProvider: text("calendar_provider").notNull().default("google"), // 'google' | 'outlook'
   prospectEmail: text("prospect_email").notNull(),
   prospectName: text("prospect_name"),
   prospectCompany: text("prospect_company"),
@@ -95,6 +128,17 @@ export const insertGoogleAccountSchema = createInsertSchema(googleAccounts).omit
   createdAt: true,
 });
 
+export const insertOutlookAccountSchema = createInsertSchema(outlookAccounts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEmailProviderSchema = createInsertSchema(emailProviders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertCampaignSchema = createInsertSchema(campaigns).omit({
   id: true,
   createdAt: true,
@@ -126,6 +170,12 @@ export const insertInviteQueueSchema = createInsertSchema(inviteQueue).omit({
 // Types
 export type GoogleAccount = typeof googleAccounts.$inferSelect;
 export type InsertGoogleAccount = z.infer<typeof insertGoogleAccountSchema>;
+
+export type OutlookAccount = typeof outlookAccounts.$inferSelect;
+export type InsertOutlookAccount = z.infer<typeof insertOutlookAccountSchema>;
+
+export type EmailProvider = typeof emailProviders.$inferSelect;
+export type InsertEmailProvider = z.infer<typeof insertEmailProviderSchema>;
 
 export type Campaign = typeof campaigns.$inferSelect;
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
