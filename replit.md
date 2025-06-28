@@ -1,0 +1,116 @@
+# Calendar Invite Campaign Automation System
+
+## Overview
+
+This is a full-stack web application built to automate Google Calendar invite campaigns with merge fields, multiple inbox support, and Google Sheets data synchronization. The system allows users to create and manage email marketing campaigns that automatically send personalized calendar invitations to prospects from Google Sheets data, with support for multiple Google accounts and comprehensive tracking.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **UI Library**: Shadcn/ui components with Radix UI primitives
+- **Styling**: Tailwind CSS with CSS variables for theming
+- **State Management**: TanStack React Query for server state management
+- **Routing**: Wouter for client-side routing
+- **Form Handling**: React Hook Form with Zod validation
+- **Build Tool**: Vite with custom configuration for development and production
+
+### Backend Architecture
+- **Runtime**: Node.js with Express.js framework
+- **Language**: TypeScript with ES modules
+- **API Design**: RESTful API with JSON responses
+- **Database ORM**: Drizzle ORM with PostgreSQL dialect
+- **Authentication**: Google OAuth2 with multiple account support
+- **Background Processing**: Custom queue manager for asynchronous task processing
+
+### Database Architecture
+- **Database**: PostgreSQL (configured for Neon serverless)
+- **ORM**: Drizzle ORM with schema-first approach
+- **Migrations**: Drizzle Kit for database migrations
+- **Connection**: Neon serverless driver for PostgreSQL connections
+
+## Key Components
+
+### Database Schema
+The system uses five main tables:
+- **google_accounts**: Stores OAuth tokens and account information for multiple Google accounts
+- **campaigns**: Campaign configurations with templates and Google Sheets integration
+- **invites**: Individual invite records with status tracking and merge data
+- **activity_logs**: System activity and audit trail
+- **invite_queue**: Background job queue for processing invites
+- **system_settings**: Global system configuration
+
+### Google API Integrations
+- **Google OAuth2**: Multi-account authentication with refresh token management
+- **Google Calendar API**: Calendar event creation and invite management
+- **Google Sheets API**: Reading prospect data and updating status information
+
+### Background Processing System
+- **Queue Manager**: Processes invite queue with configurable intervals
+- **Campaign Processor**: Reads Google Sheets and creates invite jobs
+- **Email Service**: Sends confirmation emails using nodemailer
+- **Status Tracking**: Monitors invite acceptance and updates records
+
+### UI Components
+- **Dashboard**: Real-time statistics and system health monitoring
+- **Campaign Management**: Create, edit, and monitor campaigns
+- **Account Management**: Connect and manage multiple Google accounts
+- **Activity Log**: Real-time activity tracking and filtering
+- **Settings**: System configuration and limits management
+
+## Data Flow
+
+1. **Campaign Creation**: Users create campaigns with Google Sheets URLs and email templates
+2. **Sheet Processing**: System reads prospect data from Google Sheets using Google Sheets API
+3. **Queue Population**: Prospects are added to the invite queue with scheduled send times
+4. **Invite Processing**: Background queue manager processes pending invites
+5. **Calendar Event Creation**: System creates calendar events and sends invites via Google Calendar API
+6. **Status Updates**: Google Sheets are updated with invite status and timestamps
+7. **Acceptance Monitoring**: System periodically checks for invite acceptances
+8. **Confirmation Emails**: Automated confirmation emails are sent upon acceptance
+
+## External Dependencies
+
+### Google APIs
+- **Google Calendar API**: For creating calendar events and managing invitations
+- **Google Sheets API**: For reading prospect data and updating status information
+- **Google OAuth2 API**: For user authentication and token management
+
+### Third-party Services
+- **Neon Database**: Serverless PostgreSQL hosting
+- **Nodemailer**: Email sending functionality with Gmail integration
+
+### Development Tools
+- **Replit Integration**: Custom Vite plugins for Replit development environment
+- **Error Monitoring**: Runtime error overlay for development
+
+## Deployment Strategy
+
+### Development Environment
+- **Local Development**: Vite dev server with hot module replacement
+- **Database**: Local PostgreSQL or Neon development instance
+- **Environment Variables**: Google OAuth credentials and database URL
+
+### Production Build
+- **Frontend**: Vite build process generating optimized static assets
+- **Backend**: ESBuild compilation to ESM format with external packages
+- **Database**: Drizzle migrations applied to production PostgreSQL instance
+- **Deployment**: Node.js server serving built frontend and API endpoints
+
+### Environment Configuration
+Required environment variables:
+- `DATABASE_URL`: PostgreSQL connection string
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+- `GOOGLE_REDIRECT_URI`: OAuth callback URL
+
+## Changelog
+```
+Changelog:
+- June 28, 2025. Initial setup
+```
+
+## User Preferences
+```
+Preferred communication style: Simple, everyday language.
+```
