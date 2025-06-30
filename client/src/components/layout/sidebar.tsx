@@ -24,12 +24,7 @@ const navigation = [
     icon: Megaphone,
   },
   {
-    name: "Gmail Setup",
-    href: "/gmail-setup",
-    icon: Mail,
-  },
-  {
-    name: "Service Account Setup",
+    name: "Account Setup",
     href: "/accounts",
     icon: Key,
   },

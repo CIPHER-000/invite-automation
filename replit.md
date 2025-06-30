@@ -116,6 +116,10 @@ Changelog:
 - June 30, 2025. Successfully configured Google Service Account authentication
 - June 30, 2025. Enabled Google Calendar API and Google Sheets API access
 - June 30, 2025. Deployed working calendar automation system with access code protection
+- June 30, 2025. Implemented hybrid authentication model: Service Account + App Passwords
+- June 30, 2025. Integrated organizational user management with Gmail app password requirements
+- June 30, 2025. Added inbox selection functionality to campaign creation
+- June 30, 2025. Unified account setup page combining service account and user management
 ```
 
 ## User Preferences

@@ -58,6 +58,7 @@ export const campaigns = pgTable("campaigns", {
   confirmationEmailTemplate: text("confirmation_email_template").notNull(),
   eventDuration: integer("event_duration").notNull().default(30), // minutes
   timeZone: text("time_zone").notNull().default("UTC"),
+  selectedInboxes: integer("selected_inboxes").array().notNull().default([]), // Array of account IDs
   status: text("status").notNull().default("active"), // active, paused, completed
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),

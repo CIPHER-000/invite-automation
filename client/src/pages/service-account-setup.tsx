@@ -7,7 +7,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   CheckCircle,
   XCircle,
@@ -18,13 +20,19 @@ import {
   Copy,
   ExternalLink,
   Plus,
-  Users
+  Users,
+  Mail,
+  Eye,
+  EyeOff,
+  Trash2
 } from "lucide-react";
 
 export default function ServiceAccountSetup() {
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserName, setNewUserName] = useState("");
+  const [newUserAppPassword, setNewUserAppPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -54,28 +62,50 @@ export default function ServiceAccountSetup() {
 
   // Add organizational user mutation
   const addUserMutation = useMutation({
-    mutationFn: async ({ email, name }: { email: string; name: string }) => {
-      const response = await fetch("/api/accounts/organization-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name }),
+    mutationFn: async ({ email, name, appPassword }: { email: string; name: string; appPassword: string }) => {
+      const response = await apiRequest("POST", "/api/auth/gmail/app-password", {
+        email,
+        name,
+        appPassword
       });
-      if (!response.ok) throw new Error("Failed to add organizational user");
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts"] });
       setNewUserEmail("");
       setNewUserName("");
+      setNewUserAppPassword("");
       toast({
         title: "User Added",
-        description: "Organizational user added successfully",
+        description: "Organizational user added successfully with app password authentication",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
         description: error.message || "Failed to add organizational user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest("DELETE", `/api/accounts/${userId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts"] });
+      toast({
+        title: "User Removed",
+        description: "Organizational user removed successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove user",
         variant: "destructive",
       });
     },
@@ -95,7 +125,8 @@ export default function ServiceAccountSetup() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Service Account Setup</h1>
+          <h1 className="text-3xl font-bold">Account Setup</h1>
+          <p className="text-gray-600">Configure service account and organizational users</p>
         </div>
         <div className="grid gap-6">
           <Card>
@@ -300,9 +331,25 @@ export default function ServiceAccountSetup() {
             {/* Add new organizational user */}
             <div className="border rounded-lg p-4 space-y-4">
               <h4 className="font-medium">Add Organizational User</h4>
+              <Alert>
+                <Mail className="h-4 w-4" />
+                <AlertTitle>Gmail App Password Required</AlertTitle>
+                <AlertDescription>
+                  Each organizational user needs a Gmail app password for email authentication.
+                  <a 
+                    href="https://myaccount.google.com/apppasswords" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline ml-1"
+                  >
+                    Generate app password here
+                  </a>
+                </AlertDescription>
+              </Alert>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="userEmail">Email Address</Label>
+                  <Label htmlFor="userEmail">Gmail Address</Label>
                   <Input
                     id="userEmail"
                     type="email"
@@ -321,30 +368,75 @@ export default function ServiceAccountSetup() {
                   />
                 </div>
               </div>
+              
+              <div>
+                <Label htmlFor="appPassword">Gmail App Password</Label>
+                <div className="relative">
+                  <Input
+                    id="appPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="xxxx xxxx xxxx xxxx"
+                    value={newUserAppPassword}
+                    onChange={(e) => setNewUserAppPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              
               <Button
-                onClick={() => addUserMutation.mutate({ email: newUserEmail, name: newUserName })}
-                disabled={!newUserEmail || addUserMutation.isPending}
+                onClick={() => addUserMutation.mutate({ 
+                  email: newUserEmail, 
+                  name: newUserName || newUserEmail.split('@')[0],
+                  appPassword: newUserAppPassword 
+                })}
+                disabled={!newUserEmail || !newUserAppPassword || addUserMutation.isPending}
                 className="w-full md:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {addUserMutation.isPending ? "Adding..." : "Add Organizational User"}
+                {addUserMutation.isPending ? "Adding..." : "Add User with App Password"}
               </Button>
             </div>
 
             {/* List existing organizational users */}
             {organizationalUsers.length > 0 && (
               <div>
-                <h4 className="font-medium mb-3">Current Organizational Users</h4>
+                <h4 className="font-medium mb-3">Current Organizational Users ({organizationalUsers.length})</h4>
                 <div className="space-y-2">
                   {organizationalUsers.map((user: any) => (
                     <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                      <div className="flex items-center gap-3">
+                        <Mail className="h-4 w-4 text-blue-500" />
+                        <div>
+                          <div className="font-medium">{user.name}</div>
+                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                        </div>
                       </div>
-                      <Badge variant={user.isActive ? "default" : "secondary"}>
-                        {user.isActive ? "Active" : "Inactive"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={user.isActive ? "default" : "secondary"}>
+                          {user.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteUserMutation.mutate(user.id)}
+                          disabled={deleteUserMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

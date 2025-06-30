@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,9 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Users } from "lucide-react";
 
 const createCampaignSchema = z.object({
   name: z.string().min(1, "Campaign name is required"),
@@ -43,6 +44,7 @@ const createCampaignSchema = z.object({
   confirmationEmailTemplate: z.string().min(1, "Confirmation email template is required"),
   eventDuration: z.number().min(15).max(480).default(30),
   timeZone: z.string().default("UTC"),
+  selectedInboxes: z.array(z.number()).min(1, "At least one inbox must be selected"),
 });
 
 type CreateCampaignForm = z.infer<typeof createCampaignSchema>;
@@ -56,6 +58,18 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch available user accounts
+  const { data: accounts } = useQuery({
+    queryKey: ["/api/accounts"],
+    queryFn: async () => {
+      const response = await fetch("/api/accounts");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    },
+  });
+
+  const organizationalUsers = accounts?.filter((acc: any) => !acc.email?.includes('iam.gserviceaccount.com')) || [];
+
   const form = useForm<CreateCampaignForm>({
     resolver: zodResolver(createCampaignSchema),
     defaultValues: {
@@ -68,6 +82,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       confirmationEmailTemplate: "Hi {{name}},\n\nThank you for accepting our calendar invitation! We're excited to connect with you and {{company}}.\n\nWe'll send you a reminder closer to the date.\n\nBest regards",
       eventDuration: 30,
       timeZone: "UTC",
+      selectedInboxes: [],
     },
   });
 
@@ -215,6 +230,73 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                   <FormDescription>
                     This email will be sent when someone accepts the calendar invite
                   </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Inbox Selection */}
+            <FormField
+              control={form.control}
+              name="selectedInboxes"
+              render={() => (
+                <FormItem>
+                  <div className="mb-4">
+                    <FormLabel className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Select Sender Inboxes
+                    </FormLabel>
+                    <FormDescription>
+                      Choose which organizational users will send invites for this campaign
+                    </FormDescription>
+                  </div>
+                  {organizationalUsers.length === 0 ? (
+                    <div className="text-sm text-muted-foreground p-4 border rounded-lg">
+                      No organizational users configured. 
+                      <a href="/accounts" className="text-blue-600 hover:underline ml-1">
+                        Add users in Account Setup
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-48 overflow-y-auto border rounded-lg p-3">
+                      {organizationalUsers.map((user: any) => (
+                        <FormField
+                          key={user.id}
+                          control={form.control}
+                          name="selectedInboxes"
+                          render={({ field }) => (
+                            <FormItem
+                              key={user.id}
+                              className="flex flex-row items-start space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(user.id)}
+                                  onCheckedChange={(checked) => {
+                                    const currentValues = field.value || [];
+                                    if (checked) {
+                                      field.onChange([...currentValues, user.id]);
+                                    } else {
+                                      field.onChange(
+                                        currentValues.filter((value: number) => value !== user.id)
+                                      );
+                                    }
+                                  }}
+                                />
+                              </FormControl>
+                              <div className="grid gap-1.5 leading-none">
+                                <div className="flex items-center gap-2">
+                                  <Mail className="h-3 w-3 text-blue-500" />
+                                  <span className="text-sm font-medium">{user.name}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground">{user.email}</div>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
