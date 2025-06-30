@@ -91,13 +91,13 @@ export default function Activity() {
   const stats = getActivityStats();
 
   return (
-    <div className="flex-1 ml-64">
-      <Header 
-        title="Activity Log" 
-        subtitle="Monitor all system activities and events"
-      />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Activity Log</h1>
+        <p className="text-gray-600 mt-2">Monitor all system activities and events</p>
+      </div>
 
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Activity Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <Card>

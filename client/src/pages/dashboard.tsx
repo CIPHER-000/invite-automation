@@ -21,19 +21,17 @@ export default function Dashboard() {
   const { data: accounts, isLoading: accountsLoading } = useRealtimeAccounts();
 
   return (
-    <div className="flex-1 ml-64">
-      <Header 
-        title="Shady 5.0 Dashboard" 
-        subtitle="Monitor your calendar invite campaigns"
-        showCreateButton
-      />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-2">Monitor your calendar invite campaigns</p>
+      </div>
 
-      <div className="p-6 space-y-6">
-        <StatsGrid />
+      <StatsGrid />
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Campaigns List */}
-          <div className="xl:col-span-2">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Campaigns List */}
+        <div className="xl:col-span-2">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -89,7 +87,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   ))
-                ) : accounts && accounts.length > 0 ? (
+                ) : accounts && Array.isArray(accounts) && accounts.length > 0 ? (
                   accounts.slice(0, 3).map((account: any) => (
                     <AccountStatus key={account.id} account={account} />
                   ))
@@ -110,8 +108,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <SystemHealth />
       </div>
+
+      <SystemHealth />
     </div>
   );
 }

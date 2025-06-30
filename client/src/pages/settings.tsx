@@ -121,9 +121,12 @@ export default function Settings() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 ml-64">
-        <Header title="Settings" subtitle="Configure system behavior and limits" />
-        <div className="p-6 space-y-6">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+          <p className="text-gray-600 mt-2">Configure system behavior and limits</p>
+        </div>
+        <div className="space-y-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
               <CardHeader>
@@ -143,10 +146,13 @@ export default function Settings() {
   }
 
   return (
-    <div className="flex-1 ml-64">
-      <Header title="Settings" subtitle="Configure system behavior and limits" />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-600 mt-2">Configure system behavior and limits</p>
+      </div>
 
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* System Status */}
         <Card>
           <CardHeader>

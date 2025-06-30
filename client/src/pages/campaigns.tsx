@@ -108,14 +108,19 @@ export default function Campaigns() {
   };
 
   return (
-    <div className="flex-1 ml-64">
-      <Header 
-        title="Campaigns" 
-        subtitle="Manage your calendar invite campaigns"
-        showCreateButton
-      />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Campaigns</h1>
+          <p className="text-gray-600 mt-2">Manage your calendar invite campaigns</p>
+        </div>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Create Campaign
+        </Button>
+      </div>
 
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Search and Filters */}
         <Card>
           <CardContent className="p-6">
