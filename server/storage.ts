@@ -5,8 +5,11 @@ import {
   activityLogs,
   systemSettings,
   inviteQueue,
+  outlookAccounts,
   type GoogleAccount,
   type InsertGoogleAccount,
+  type OutlookAccount,
+  type InsertOutlookAccount,
   type Campaign,
   type InsertCampaign,
   type Invite,
@@ -21,6 +24,10 @@ import {
   type CampaignWithStats,
   type AccountWithStatus,
 } from "@shared/schema";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { neon } from "@neondatabase/serverless";
+import { eq, desc, and, sql, count } from "drizzle-orm";
+import * as schema from "@shared/schema";
 
 export interface IStorage {
   // Google Accounts
@@ -429,4 +436,266 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database storage implementation - imports moved to top
+
+class PostgresStorage implements IStorage {
+  private db: any;
+
+  constructor() {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is required");
+    }
+    const client = neon(process.env.DATABASE_URL);
+    this.db = drizzle(client, { schema });
+  }
+
+  // Google Accounts
+  async getGoogleAccounts(): Promise<GoogleAccount[]> {
+    return await this.db.select().from(schema.googleAccounts);
+  }
+
+  async getGoogleAccount(id: number): Promise<GoogleAccount | undefined> {
+    const result = await this.db.select().from(schema.googleAccounts).where(eq(schema.googleAccounts.id, id));
+    return result[0];
+  }
+
+  async getGoogleAccountByEmail(email: string): Promise<GoogleAccount | undefined> {
+    const result = await this.db.select().from(schema.googleAccounts).where(eq(schema.googleAccounts.email, email));
+    return result[0];
+  }
+
+  async createGoogleAccount(account: InsertGoogleAccount): Promise<GoogleAccount> {
+    const result = await this.db.insert(schema.googleAccounts).values(account).returning();
+    return result[0];
+  }
+
+  async updateGoogleAccount(id: number, updates: Partial<GoogleAccount>): Promise<GoogleAccount> {
+    const result = await this.db.update(schema.googleAccounts).set(updates).where(eq(schema.googleAccounts.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteGoogleAccount(id: number): Promise<void> {
+    await this.db.delete(schema.googleAccounts).where(eq(schema.googleAccounts.id, id));
+  }
+
+  async getAccountsWithStatus(): Promise<AccountWithStatus[]> {
+    const accounts = await this.getGoogleAccounts();
+    return accounts.map(account => ({
+      ...account,
+      nextAvailable: null,
+      isInCooldown: false
+    }));
+  }
+
+  // Outlook Accounts
+  async getOutlookAccounts(): Promise<OutlookAccount[]> {
+    return await this.db.select().from(schema.outlookAccounts);
+  }
+
+  async getOutlookAccount(id: number): Promise<OutlookAccount | undefined> {
+    const result = await this.db.select().from(schema.outlookAccounts).where(eq(schema.outlookAccounts.id, id));
+    return result[0];
+  }
+
+  async getOutlookAccountByEmail(email: string): Promise<OutlookAccount | undefined> {
+    const result = await this.db.select().from(schema.outlookAccounts).where(eq(schema.outlookAccounts.email, email));
+    return result[0];
+  }
+
+  async createOutlookAccount(account: InsertOutlookAccount): Promise<OutlookAccount> {
+    const result = await this.db.insert(schema.outlookAccounts).values(account).returning();
+    return result[0];
+  }
+
+  async updateOutlookAccount(id: number, updates: Partial<OutlookAccount>): Promise<OutlookAccount> {
+    const result = await this.db.update(schema.outlookAccounts).set(updates).where(eq(schema.outlookAccounts.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteOutlookAccount(id: number): Promise<void> {
+    await this.db.delete(schema.outlookAccounts).where(eq(schema.outlookAccounts.id, id));
+  }
+
+  // Campaigns
+  async getCampaigns(): Promise<Campaign[]> {
+    return await this.db.select().from(schema.campaigns).orderBy(desc(schema.campaigns.createdAt));
+  }
+
+  async getCampaign(id: number): Promise<Campaign | undefined> {
+    const result = await this.db.select().from(schema.campaigns).where(eq(schema.campaigns.id, id));
+    return result[0];
+  }
+
+  async createCampaign(campaign: InsertCampaign): Promise<Campaign> {
+    const result = await this.db.insert(schema.campaigns).values(campaign).returning();
+    return result[0];
+  }
+
+  async updateCampaign(id: number, updates: Partial<Campaign>): Promise<Campaign> {
+    const result = await this.db.update(schema.campaigns).set(updates).where(eq(schema.campaigns.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteCampaign(id: number): Promise<void> {
+    await this.db.delete(schema.campaigns).where(eq(schema.campaigns.id, id));
+  }
+
+  async getCampaignsWithStats(): Promise<CampaignWithStats[]> {
+    const campaigns = await this.getCampaigns();
+    const campaignsWithStats: CampaignWithStats[] = [];
+
+    for (const campaign of campaigns) {
+      const invites = await this.db.select().from(schema.invites).where(eq(schema.invites.campaignId, campaign.id));
+      const accepted = invites.filter(invite => invite.status === 'accepted').length;
+      
+      campaignsWithStats.push({
+        ...campaign,
+        invitesSent: invites.length,
+        accepted,
+        totalProspects: invites.length,
+        progress: invites.length > 0 ? Math.round((invites.length / invites.length) * 100) : 0
+      });
+    }
+
+    return campaignsWithStats;
+  }
+
+  // Invites
+  async getInvites(campaignId?: number): Promise<Invite[]> {
+    if (campaignId) {
+      return await this.db.select().from(schema.invites).where(eq(schema.invites.campaignId, campaignId));
+    }
+    return await this.db.select().from(schema.invites).orderBy(desc(schema.invites.createdAt));
+  }
+
+  async getInvite(id: number): Promise<Invite | undefined> {
+    const result = await this.db.select().from(schema.invites).where(eq(schema.invites.id, id));
+    return result[0];
+  }
+
+  async createInvite(invite: InsertInvite): Promise<Invite> {
+    const result = await this.db.insert(schema.invites).values(invite).returning();
+    return result[0];
+  }
+
+  async updateInvite(id: number, updates: Partial<Invite>): Promise<Invite> {
+    const result = await this.db.update(schema.invites).set(updates).where(eq(schema.invites.id, id)).returning();
+    return result[0];
+  }
+
+  async getInvitesByStatus(status: string): Promise<Invite[]> {
+    return await this.db.select().from(schema.invites).where(eq(schema.invites.status, status));
+  }
+
+  async getInvitesToday(): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const result = await this.db.select({ count: count() }).from(schema.invites)
+      .where(sql`${schema.invites.createdAt} >= ${today}`);
+    return result[0]?.count || 0;
+  }
+
+  async getAcceptedInvites(): Promise<number> {
+    const result = await this.db.select({ count: count() }).from(schema.invites)
+      .where(eq(schema.invites.status, 'accepted'));
+    return result[0]?.count || 0;
+  }
+
+  // Activity Logs
+  async getActivityLogs(limit = 50): Promise<ActivityLog[]> {
+    return await this.db.select().from(schema.activityLogs)
+      .orderBy(desc(schema.activityLogs.createdAt))
+      .limit(limit);
+  }
+
+  async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
+    const result = await this.db.insert(schema.activityLogs).values(log).returning();
+    return result[0];
+  }
+
+  // System Settings
+  async getSystemSettings(): Promise<SystemSettings> {
+    const result = await this.db.select().from(schema.systemSettings).limit(1);
+    if (result.length === 0) {
+      // Create default settings
+      const defaultSettings = {
+        dailyInviteLimit: 100,
+        inboxCooldownMinutes: 30,
+        inviteIntervalMinutes: 5,
+        enableEmailConfirmations: true,
+        enableTimeSlotScheduling: true
+      };
+      const created = await this.db.insert(schema.systemSettings).values(defaultSettings).returning();
+      return created[0];
+    }
+    return result[0];
+  }
+
+  async updateSystemSettings(updates: Partial<SystemSettings>): Promise<SystemSettings> {
+    const settings = await this.getSystemSettings();
+    const result = await this.db.update(schema.systemSettings).set(updates).where(eq(schema.systemSettings.id, settings.id)).returning();
+    return result[0];
+  }
+
+  // Queue
+  async getQueueItems(status?: string): Promise<InviteQueue[]> {
+    if (status) {
+      return await this.db.select().from(schema.inviteQueue).where(eq(schema.inviteQueue.status, status));
+    }
+    return await this.db.select().from(schema.inviteQueue).orderBy(schema.inviteQueue.scheduledAt);
+  }
+
+  async createQueueItem(item: InsertInviteQueue): Promise<InviteQueue> {
+    const result = await this.db.insert(schema.inviteQueue).values(item).returning();
+    return result[0];
+  }
+
+  async updateQueueItem(id: number, updates: Partial<InviteQueue>): Promise<InviteQueue> {
+    const result = await this.db.update(schema.inviteQueue).set(updates).where(eq(schema.inviteQueue.id, id)).returning();
+    return result[0];
+  }
+
+  async getNextQueueItem(): Promise<InviteQueue | undefined> {
+    const result = await this.db.select().from(schema.inviteQueue)
+      .where(eq(schema.inviteQueue.status, 'pending'))
+      .orderBy(schema.inviteQueue.scheduledAt)
+      .limit(1);
+    return result[0];
+  }
+
+  // Dashboard
+  async getDashboardStats(): Promise<DashboardStats> {
+    const campaigns = await this.db.select({ count: count() }).from(schema.campaigns)
+      .where(eq(schema.campaigns.status, 'active'));
+    const activeCampaigns = campaigns[0]?.count || 0;
+
+    const invitesToday = await this.getInvitesToday();
+    const acceptedInvites = await this.getAcceptedInvites();
+    
+    const accounts = await this.db.select({ count: count() }).from(schema.googleAccounts);
+    const outlookAccounts = await this.db.select({ count: count() }).from(schema.outlookAccounts);
+    const connectedAccounts = (accounts[0]?.count || 0) + (outlookAccounts[0]?.count || 0);
+
+    const acceptanceRate = invitesToday > 0 ? (acceptedInvites / invitesToday) * 100 : 0;
+
+    const pendingQueue = await this.db.select({ count: count() }).from(schema.inviteQueue)
+      .where(eq(schema.inviteQueue.status, 'pending'));
+    const queueCount = pendingQueue[0]?.count || 0;
+
+    const settings = await this.getSystemSettings();
+
+    return {
+      activeCampaigns,
+      invitesToday,
+      acceptedInvites,
+      connectedAccounts,
+      acceptanceRate: Math.round(acceptanceRate * 10) / 10,
+      dailyLimit: settings.dailyInviteLimit,
+      apiUsage: Math.round((invitesToday / settings.dailyInviteLimit) * 100),
+      queueStatus: queueCount > 0 ? `Processing ${queueCount} items` : "Idle",
+    };
+  }
+}
+
+// Use PostgreSQL database for persistent storage
+export const storage = process.env.DATABASE_URL ? new PostgresStorage() : new MemStorage();
