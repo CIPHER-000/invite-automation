@@ -45,15 +45,9 @@ export function Sidebar() {
 
   return (
     <aside className="fixed left-0 top-0 w-64 bg-white shadow-lg border-r border-gray-200 h-screen flex-shrink-0 z-10">
-      {/* Logo/Brand Section */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <img src={logoPath} alt="Shady 5.0" className="w-10 h-10" />
-          <div>
-            <h1 className="font-bold text-xl text-gray-900">Shady 5.0</h1>
-            <p className="text-sm text-gray-500">Calendar Automation</p>
-          </div>
-        </div>
+      {/* Logo Section */}
+      <div className="p-6 border-b border-gray-200 flex justify-center">
+        <img src={logoPath} alt="Logo" className="w-16 h-16 object-contain" />
       </div>
       
       <nav className="p-4 space-y-2">

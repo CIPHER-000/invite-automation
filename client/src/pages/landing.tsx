@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Calendar, Mail, Users, BarChart3, Shield } from "lucide-react";
 import { Link } from "wouter";
+import logoPath from "@assets/shady5_no_bg_cropped_strict_1751121425277.png";
 
 export default function Landing() {
   return (
@@ -13,7 +14,7 @@ export default function Landing() {
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-gray-900">Shady 5.0</h1>
+                <img src={logoPath} alt="Logo" className="h-12 w-auto" />
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -37,7 +38,7 @@ export default function Landing() {
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             Transform your Google Sheets into powerful calendar invite campaigns. 
-            Shady 5.0 intelligently schedules, sends, and tracks personalized meeting invitations 
+            Intelligently schedule, send, and track personalized meeting invitations 
             with advanced load balancing and real-time analytics.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -180,7 +181,7 @@ export default function Landing() {
             Ready to Automate Your Calendar Campaigns?
           </h2>
           <p className="text-lg text-gray-600 mb-8">
-            Get started with Shady 5.0 and transform how you manage calendar invitations
+            Get started and transform how you manage calendar invitations
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/dashboard">

@@ -54,7 +54,7 @@ app.get('/login', (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Shady 5.0 - Access Required</title>
+      <title>Calendar Automation - Access Required</title>
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <style>
         body { 
@@ -91,8 +91,8 @@ app.get('/login', (req, res) => {
     <body>
       <div class="container">
         <div class="logo">
-          <h1>Shady 5.0</h1>
-          <p>Calendar Automation Platform</p>
+          <h1>Calendar Automation</h1>
+          <p>Secure Access Required</p>
         </div>
         <form method="POST" action="/login">
           <div class="form-group">

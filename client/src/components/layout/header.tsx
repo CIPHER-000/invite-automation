@@ -20,8 +20,8 @@ export function Header({ title, subtitle, showCreateButton = false }: HeaderProp
           <div className="flex items-center space-x-4">
             <img 
               src={logoPath} 
-              alt="Shady 5.0 Logo" 
-              className="h-8 w-auto"
+              alt="Logo" 
+              className="h-12 w-auto"
             />
             <div>
               <h2 className="text-2xl font-semibold text-slate-800">{title}</h2>
