@@ -24,24 +24,14 @@ const navigation = [
     icon: Megaphone,
   },
   {
-    name: "Google Accounts",
+    name: "Service Account Setup",
     href: "/accounts",
-    icon: Users,
-  },
-  {
-    name: "Multi-Provider Accounts",
-    href: "/accounts-enhanced",
-    icon: Mail,
+    icon: Key,
   },
   {
     name: "Activity Log",
     href: "/activity",
     icon: Clock,
-  },
-  {
-    name: "Service Account",
-    href: "/service-account",
-    icon: Key,
   },
   {
     name: "Settings",
@@ -55,6 +45,17 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-white shadow-sm border-r border-slate-200 fixed h-full z-10">
+      {/* Logo/Brand Section */}
+      <div className="p-4 border-b border-slate-200">
+        <div className="flex items-center space-x-3">
+          <img src={logoPath} alt="Shady 5.0" className="w-8 h-8" />
+          <div>
+            <h1 className="font-bold text-lg text-slate-900">Shady 5.0</h1>
+            <p className="text-xs text-slate-500">Calendar Automation</p>
+          </div>
+        </div>
+      </div>
+      
       <nav className="p-4 space-y-1">
         {navigation.map((item) => {
           const isActive = location === item.href;
