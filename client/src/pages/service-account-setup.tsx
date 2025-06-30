@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { 
   CheckCircle,
@@ -14,11 +16,15 @@ import {
   FileSpreadsheet,
   Settings,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Plus,
+  Users
 } from "lucide-react";
 
 export default function ServiceAccountSetup() {
   const [isConfiguring, setIsConfiguring] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserName, setNewUserName] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -43,7 +49,37 @@ export default function ServiceAccountSetup() {
   });
 
   const serviceAccount = accounts?.find((acc: any) => acc.email?.includes('iam.gserviceaccount.com'));
+  const organizationalUsers = accounts?.filter((acc: any) => !acc.email?.includes('iam.gserviceaccount.com')) || [];
   const isConfigured = serviceStatus?.configured && serviceAccount;
+
+  // Add organizational user mutation
+  const addUserMutation = useMutation({
+    mutationFn: async ({ email, name }: { email: string; name: string }) => {
+      const response = await fetch("/api/accounts/organization-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name }),
+      });
+      if (!response.ok) throw new Error("Failed to add organizational user");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts"] });
+      setNewUserEmail("");
+      setNewUserName("");
+      toast({
+        title: "User Added",
+        description: "Organizational user added successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add organizational user",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleCopyEmail = () => {
     if (serviceAccount) {
@@ -230,6 +266,90 @@ export default function ServiceAccountSetup() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Organizational Users Management */}
+      {isConfigured && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Organizational Users
+            </CardTitle>
+            <CardDescription>
+              Add organizational email accounts to send invites from. Requires domain-wide delegation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Domain-wide delegation instructions */}
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Domain-Wide Delegation Required</AlertTitle>
+              <AlertDescription>
+                To use organizational users, configure domain-wide delegation in Google Workspace Admin Console:
+                <ol className="list-decimal list-inside mt-2 space-y-1">
+                  <li>Go to Google Workspace Admin Console → Security → API Controls</li>
+                  <li>Add the service account client ID: <code className="bg-muted px-1 rounded text-xs">inviteautomate@new-app-464423.iam.gserviceaccount.com</code></li>
+                  <li>Grant scopes: <code className="bg-muted px-1 rounded text-xs">https://www.googleapis.com/auth/calendar, https://www.googleapis.com/auth/spreadsheets</code></li>
+                </ol>
+              </AlertDescription>
+            </Alert>
+
+            {/* Add new organizational user */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <h4 className="font-medium">Add Organizational User</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="userEmail">Email Address</Label>
+                  <Input
+                    id="userEmail"
+                    type="email"
+                    placeholder="shaw@getmemeetings.com"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="userName">Display Name (Optional)</Label>
+                  <Input
+                    id="userName"
+                    placeholder="Shaw"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={() => addUserMutation.mutate({ email: newUserEmail, name: newUserName })}
+                disabled={!newUserEmail || addUserMutation.isPending}
+                className="w-full md:w-auto"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {addUserMutation.isPending ? "Adding..." : "Add Organizational User"}
+              </Button>
+            </div>
+
+            {/* List existing organizational users */}
+            {organizationalUsers.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-3">Current Organizational Users</h4>
+                <div className="space-y-2">
+                  {organizationalUsers.map((user: any) => (
+                    <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                      </div>
+                      <Badge variant={user.isActive ? "default" : "secondary"}>
+                        {user.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
