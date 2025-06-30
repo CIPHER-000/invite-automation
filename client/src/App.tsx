@@ -31,7 +31,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/landing" component={Landing} />
         <Route path="/campaigns" component={Campaigns} />
-        <Route path="/accounts" component={Accounts} />
+        <Route path="/accounts" component={ServiceAccountSetup} />
         <Route path="/accounts-enhanced" component={EnhancedAccounts} />
         <Route path="/activity" component={Activity} />
         <Route path="/settings" component={Settings} />
