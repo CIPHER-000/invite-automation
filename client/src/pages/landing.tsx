@@ -14,7 +14,7 @@ export default function Landing() {
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <img src={logoPath} alt="Logo" className="h-16 w-auto" />
+                <img src={logoPath} alt="Logo" className="h-20 w-auto" />
               </div>
             </div>
             <div className="flex items-center space-x-4">
