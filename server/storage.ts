@@ -697,5 +697,5 @@ class PostgresStorage implements IStorage {
   }
 }
 
-// Use PostgreSQL database for persistent storage
-export const storage = process.env.DATABASE_URL ? new PostgresStorage() : new MemStorage();
+// Use in-memory storage temporarily while fixing database connection issues
+export const storage = new MemStorage();
