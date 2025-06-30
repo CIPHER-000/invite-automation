@@ -11,6 +11,7 @@ import Accounts from "@/pages/accounts";
 import Activity from "@/pages/activity";
 import Settings from "@/pages/settings";
 import ServiceAccountSetup from "@/pages/service-account-setup";
+import GmailSetup from "@/pages/gmail-setup";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 
@@ -34,6 +35,7 @@ function Router() {
               <Route path="/landing" component={Landing} />
               <Route path="/campaigns" component={Campaigns} />
               <Route path="/accounts" component={ServiceAccountSetup} />
+              <Route path="/gmail-setup" component={GmailSetup} />
               <Route path="/activity" component={Activity} />
               <Route path="/settings" component={Settings} />
               <Route path="/service-account" component={ServiceAccountSetup} />

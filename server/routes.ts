@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { googleAuthService } from "./services/google-auth";
 import { googleServiceAuthService } from "./services/google-service-auth";
+import { gmailAppPasswordService } from "./services/gmail-app-password";
 import { outlookAuthService } from "./services/outlook-auth";
 import { campaignProcessor } from "./services/campaign-processor";
 import { queueManager } from "./services/queue-manager";
@@ -35,6 +36,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating Google Auth URL:", error);
       res.status(500).json({ error: "Failed to generate authentication URL" });
+    }
+  });
+
+  // Gmail App Password authentication
+  app.post("/api/auth/gmail/app-password", async (req, res) => {
+    try {
+      const { email, appPassword, name } = req.body;
+      
+      if (!email || !appPassword) {
+        return res.status(400).json({ error: "Email and app password are required" });
+      }
+
+      const account = await gmailAppPasswordService.addAccount(email, appPassword, name);
+      
+      res.json({ 
+        success: true, 
+        message: "Gmail account connected successfully",
+        account
+      });
+    } catch (error) {
+      console.error("Gmail app password setup error:", error);
+      res.status(500).json({ error: error.message || "Failed to connect Gmail account" });
     }
   });
 
