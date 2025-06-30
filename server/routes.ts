@@ -27,8 +27,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Google OAuth routes
   app.get("/api/auth/google", (req, res) => {
-    const authUrl = googleAuthService.getAuthUrl();
-    res.json({ authUrl });
+    try {
+      const authUrl = googleAuthService.getAuthUrl();
+      console.log("Generated Google Auth URL:", authUrl);
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error generating Google Auth URL:", error);
+      res.status(500).json({ error: "Failed to generate authentication URL" });
+    }
   });
 
   // Outlook OAuth routes

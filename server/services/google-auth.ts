@@ -2,9 +2,9 @@ import { google } from "googleapis";
 import { storage } from "../storage";
 import type { GoogleAccount } from "@shared/schema";
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || "";
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET || "";
-const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/auth/google/callback";
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "381269710030-5sv8n28iiuns98lcqqsuc9lj97g6kunu.apps.googleusercontent.com";
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
+const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "https://6a2391b4-c08c-4318-89e8-f4587ae39044-00-3u78hq3a9p26b.worf.replit.dev/api/auth/google/callback";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar",
@@ -30,7 +30,8 @@ export class GoogleAuthService {
     expiresAt: Date;
     userInfo: { email: string; name: string };
   }> {
-    const { tokens } = await this.oauth2Client.getAccessToken(code);
+    const tokenResponse = await this.oauth2Client.getToken(code);
+    const tokens = tokenResponse.tokens;
     
     if (!tokens.access_token || !tokens.refresh_token) {
       throw new Error("Failed to get tokens from Google");
@@ -46,7 +47,7 @@ export class GoogleAuthService {
       throw new Error("Failed to get user info from Google");
     }
 
-    const expiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000);
+    const expiresAt = new Date(Date.now() + ((tokens.expiry_date || Date.now() + 3600000) - Date.now()));
 
     return {
       accessToken: tokens.access_token,
@@ -73,7 +74,7 @@ export class GoogleAuthService {
       throw new Error("Failed to refresh access token");
     }
 
-    const expiresAt = new Date(Date.now() + (credentials.expires_in || 3600) * 1000);
+    const expiresAt = new Date(credentials.expiry_date || Date.now() + 3600000);
 
     return {
       accessToken: credentials.access_token,
