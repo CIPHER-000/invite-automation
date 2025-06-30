@@ -20,7 +20,7 @@ app.use(session({
 }));
 
 // Access code protection middleware
-const ACCESS_CODE = process.env.ACCESS_CODE || 'shady123';
+const ACCESS_CODE = process.env.ACCESS_CODE || 'tyuiop[0';
 
 function requireAccessCode(req: Request, res: Response, next: NextFunction) {
   // Allow access to login routes
@@ -106,6 +106,9 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
   const { accessCode } = req.body;
+  
+  console.log("Login attempt with access code:", accessCode);
+  console.log("Expected access code:", ACCESS_CODE);
   
   if (accessCode === ACCESS_CODE) {
     const session = req.session as any;

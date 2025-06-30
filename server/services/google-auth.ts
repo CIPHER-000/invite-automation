@@ -17,6 +17,16 @@ export class GoogleAuthService {
   private oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 
   getAuthUrl(): string {
+    console.log("OAuth Client Configuration:", {
+      clientId: CLIENT_ID ? "SET" : "MISSING",
+      clientSecret: CLIENT_SECRET ? "SET" : "MISSING", 
+      redirectUri: REDIRECT_URI
+    });
+    
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+      throw new Error("Google OAuth credentials not configured properly");
+    }
+    
     return this.oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: SCOPES,
