@@ -44,19 +44,19 @@ export function Sidebar() {
   const [location] = useLocation();
 
   return (
-    <aside className="fixed left-0 top-0 w-64 bg-white shadow-sm border-r border-slate-200 h-full flex-shrink-0 z-10">
+    <aside className="fixed left-0 top-0 w-64 bg-white shadow-lg border-r border-gray-200 h-screen flex-shrink-0 z-10">
       {/* Logo/Brand Section */}
-      <div className="p-4 border-b border-slate-200">
+      <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <img src={logoPath} alt="Shady 5.0" className="w-8 h-8" />
+          <img src={logoPath} alt="Shady 5.0" className="w-10 h-10" />
           <div>
-            <h1 className="font-bold text-lg text-slate-900">Shady 5.0</h1>
-            <p className="text-xs text-slate-500">Calendar Automation</p>
+            <h1 className="font-bold text-xl text-gray-900">Shady 5.0</h1>
+            <p className="text-sm text-gray-500">Calendar Automation</p>
           </div>
         </div>
       </div>
       
-      <nav className="p-4 space-y-1">
+      <nav className="p-4 space-y-2">
         {navigation.map((item) => {
           const isActive = location === item.href;
           const Icon = item.icon;
@@ -65,10 +65,10 @@ export function Sidebar() {
             <Link key={item.name} href={item.href} asChild>
               <a
                 className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium",
                   isActive
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-blue-50 text-blue-600 border-l-4 border-blue-600"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 )}
               >
                 <Icon size={20} />
