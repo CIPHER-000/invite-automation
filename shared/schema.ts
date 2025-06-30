@@ -51,8 +51,7 @@ export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  sheetUrl: text("sheet_url").notNull(),
-  sheetRange: text("sheet_range").default("A:Z"),
+  csvData: jsonb("csv_data").notNull(), // Store parsed CSV data as JSON
   eventTitleTemplate: text("event_title_template").notNull(),
   eventDescriptionTemplate: text("event_description_template").notNull(),
   confirmationEmailTemplate: text("confirmation_email_template").notNull(),
@@ -68,7 +67,7 @@ export const campaigns = pgTable("campaigns", {
 // Individual invites sent through campaigns
 export const invites = pgTable("invites", {
   id: serial("id").primaryKey(),
-  campaignId: integer("campaign_id").notNull().references(() => campaigns.id),
+  campaignId: integer("campaign_id").references(() => campaigns.id),
   googleAccountId: integer("google_account_id").references(() => googleAccounts.id),
   outlookAccountId: integer("outlook_account_id").references(() => outlookAccounts.id),
   calendarProvider: text("calendar_provider").notNull().default("google"), // 'google' | 'outlook'
@@ -77,7 +76,8 @@ export const invites = pgTable("invites", {
   prospectCompany: text("prospect_company"),
   mergeData: jsonb("merge_data"), // Additional merge fields
   eventId: text("event_id"), // Google Calendar event ID
-  sheetRowIndex: integer("sheet_row_index"),
+  csvRowIndex: integer("csv_row_index"), // Changed from sheetRowIndex
+  isManualTest: boolean("is_manual_test").notNull().default(false), // New field for manual tests
   status: text("status").notNull().default("pending"), // pending, sent, accepted, declined, error
   errorMessage: text("error_message"),
   sentAt: timestamp("sent_at"),

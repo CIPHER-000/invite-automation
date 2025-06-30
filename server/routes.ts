@@ -338,6 +338,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual test invite
+  app.post("/api/invites/manual-test", async (req, res) => {
+    try {
+      const { prospectEmail, prospectName, prospectCompany, eventTitle, eventDescription, eventDuration, selectedAccountId, startTime } = req.body;
+      
+      if (!prospectEmail || !prospectName || !eventTitle || !eventDescription || !selectedAccountId || !startTime) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Get the selected account
+      const account = await storage.getGoogleAccount(selectedAccountId);
+      if (!account) {
+        return res.status(404).json({ error: "Selected account not found" });
+      }
+
+      // Create the invite record for tracking
+      const inviteData = {
+        prospectEmail,
+        prospectName,
+        prospectCompany: prospectCompany || null,
+        googleAccountId: selectedAccountId,
+        calendarProvider: "google" as const,
+        isManualTest: true,
+        status: "pending" as const,
+        mergeData: {
+          name: prospectName,
+          email: prospectEmail,
+          company: prospectCompany || "",
+          eventTitle,
+          eventDescription,
+          duration: eventDuration,
+          startTime
+        }
+      };
+
+      const invite = await storage.createInvite(inviteData);
+
+      // Send the invite using Gmail app password service
+      try {
+        const startDateTime = new Date(startTime);
+        const endDateTime = new Date(startDateTime.getTime() + (eventDuration * 60 * 1000));
+
+        const eventDetails = {
+          title: eventTitle,
+          description: eventDescription,
+          attendeeEmail: prospectEmail,
+          attendeeName: prospectName,
+          startTime: startDateTime,
+          endTime: endDateTime,
+          timeZone: "UTC"
+        };
+
+        // Use Gmail app password service to send the invite
+        const eventId = await gmailAppPasswordService.createCalendarEvent(account, eventDetails);
+        
+        // Update invite with success
+        await storage.updateInvite(invite.id, {
+          status: "sent",
+          eventId,
+          sentAt: new Date()
+        });
+
+        // Log activity
+        await storage.createActivityLog({
+          type: "manual_test_sent",
+          inviteId: invite.id,
+          googleAccountId: selectedAccountId,
+          message: `Manual test invite sent to ${prospectEmail} from ${account.email}`,
+          metadata: { eventId, eventTitle }
+        });
+
+        res.json({ 
+          success: true, 
+          inviteId: invite.id,
+          eventId,
+          message: `Test invite sent successfully to ${prospectEmail}`
+        });
+
+      } catch (error) {
+        // Update invite with error
+        await storage.updateInvite(invite.id, {
+          status: "error",
+          errorMessage: error.message
+        });
+
+        // Log error
+        await storage.createActivityLog({
+          type: "manual_test_error",
+          inviteId: invite.id,
+          googleAccountId: selectedAccountId,
+          message: `Failed to send manual test invite to ${prospectEmail}: ${error.message}`,
+          metadata: { error: error.message }
+        });
+
+        throw error;
+      }
+
+    } catch (error) {
+      console.error("Manual test invite error:", error);
+      res.status(500).json({ 
+        error: "Failed to send test invite",
+        details: error.message 
+      });
+    }
+  });
+
   // Invites
   app.get("/api/invites", async (req, res) => {
     try {

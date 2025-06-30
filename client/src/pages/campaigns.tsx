@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { CampaignCard } from "@/components/campaigns/campaign-card";
 import { CreateCampaignDialog } from "@/components/campaigns/create-campaign-dialog";
+import { ManualTestDialog } from "@/components/test-invite/manual-test-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Plus, Megaphone } from "lucide-react";
+import { Search, Plus, Megaphone, Send } from "lucide-react";
 import type { CampaignWithStats } from "@shared/schema";
 
 export default function Campaigns() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showTestDialog, setShowTestDialog] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignWithStats | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -114,10 +116,16 @@ export default function Campaigns() {
           <h1 className="text-3xl font-bold text-gray-900">Campaigns</h1>
           <p className="text-gray-600 mt-2">Manage your calendar invite campaigns</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Campaign
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => setShowTestDialog(true)}>
+            <Send className="w-4 h-4 mr-2" />
+            Test Invite
+          </Button>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Campaign
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -209,6 +217,11 @@ export default function Campaigns() {
       <CreateCampaignDialog 
         open={showCreateDialog} 
         onOpenChange={setShowCreateDialog} 
+      />
+      
+      <ManualTestDialog 
+        open={showTestDialog} 
+        onOpenChange={setShowTestDialog} 
       />
     </div>
   );

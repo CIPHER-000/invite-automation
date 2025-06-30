@@ -1,9 +1,21 @@
 import { storage } from "../storage";
-import { googleSheetsService, ProspectData } from "./google-sheets";
 import { googleCalendarService } from "./google-calendar";
 import { timeSlotManager, ProspectScheduleData } from "./time-slot-manager";
 import { inboxLoadBalancer } from "./inbox-load-balancer";
 import type { Campaign, GoogleAccount } from "@shared/schema";
+
+interface ProspectData {
+  email: string;
+  name?: string;
+  company?: string;
+  timezone?: string;
+  time_zone?: string;
+  preferred_hours?: string;
+  preferredHours?: string;
+  preferred_days?: string;
+  preferredDays?: string;
+  [key: string]: any;
+}
 
 export class CampaignProcessor {
   async processCampaign(campaign: Campaign): Promise<void> {
@@ -12,16 +24,8 @@ export class CampaignProcessor {
     }
 
     try {
-      // Get a Google account to read the sheet
-      const accounts = await storage.getGoogleAccounts();
-      const activeAccount = accounts.find(acc => acc.isActive);
-      
-      if (!activeAccount) {
-        throw new Error("No active Google account available");
-      }
-
-      // Read prospect data from Google Sheets
-      const prospects = await googleSheetsService.readProspectData(activeAccount, campaign);
+      // Get prospect data from CSV data stored in campaign
+      const prospects = this.parseCSVProspects(campaign.csvData as Record<string, string>[]);
       
       if (prospects.length === 0) {
         return;
@@ -105,6 +109,18 @@ export class CampaignProcessor {
         metadata: { error: error instanceof Error ? error.message : "Unknown error" },
       });
     }
+  }
+
+  private parseCSVProspects(csvData: Record<string, string>[]): ProspectData[] {
+    return csvData.map(row => ({
+      email: row.email || row.Email || "",
+      name: row.name || row.Name || row.first_name || row.firstName || "",
+      company: row.company || row.Company || row.organization || "",
+      timezone: row.timezone || row.time_zone || row.Timezone || "",
+      preferred_hours: row.preferred_hours || row.preferredHours || "",
+      preferred_days: row.preferred_days || row.preferredDays || "",
+      ...row // Include all other fields as merge data
+    })).filter(prospect => prospect.email); // Only include rows with valid email
   }
 
   async processAllCampaigns(): Promise<void> {
