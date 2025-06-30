@@ -13,6 +13,7 @@ import Activity from "@/pages/activity";
 import Settings from "@/pages/settings";
 import ServiceAccountSetup from "@/pages/service-account-setup";
 import NotFound from "@/pages/not-found";
+import Landing from "@/pages/landing";
 
 function Router() {
   // Auto-refresh key data when window gains focus
@@ -28,6 +29,7 @@ function Router() {
       <Sidebar />
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/landing" component={Landing} />
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/accounts" component={Accounts} />
         <Route path="/accounts-enhanced" component={EnhancedAccounts} />

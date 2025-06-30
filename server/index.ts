@@ -28,6 +28,11 @@ function requireAccessCode(req: Request, res: Response, next: NextFunction) {
     return next();
   }
 
+  // Allow service account setup without access code (for initial configuration)
+  if (req.path === '/api/auth/google/service-account' || req.path === '/api/auth/service-account/status') {
+    return next();
+  }
+
   // Check if user has valid access code in session
   const session = req.session as any;
   if (session.accessCodeValid) {

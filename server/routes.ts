@@ -26,19 +26,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Google OAuth routes
+  // Google OAuth routes (disabled due to org_internal restriction)
   app.get("/api/auth/google", (req, res) => {
-    try {
-      const authUrl = googleAuthService.getAuthUrl();
-      console.log("Generated Google Auth URL:", authUrl);
-      res.json({ authUrl });
-    } catch (error) {
-      console.error("Error generating Google Auth URL:", error);
-      res.status(500).json({ error: "Failed to generate authentication URL" });
-    }
+    // Return service account info instead of OAuth URL
+    res.json({ 
+      error: "OAuth disabled - use Service Account authentication",
+      serviceAccountRequired: true,
+      setupUrl: "/service-account"
+    });
   });
 
-  // Google Service Account routes
+  // Google Service Account routes (bypass access code for setup)
   app.post("/api/auth/google/service-account", async (req, res) => {
     try {
       const { email, privateKey, projectId } = req.body;
