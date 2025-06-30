@@ -31,9 +31,26 @@ export default function Accounts() {
     queryFn: api.getAccounts,
   });
 
+  const { data: serviceStatus } = useQuery({
+    queryKey: ["/api/auth/service-account/status"],
+    queryFn: async () => {
+      const response = await fetch("/api/auth/service-account/status");
+      return response.json();
+    },
+  });
+
   const connectMutation = useMutation({
     mutationFn: api.getGoogleAuthUrl,
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
+      if (data.serviceAccountRequired) {
+        toast({
+          title: "Service Account Required",
+          description: "OAuth is disabled. Use Service Account authentication.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       window.open(data.authUrl, "_blank", "width=500,height=600");
       setIsConnecting(true);
       
@@ -51,10 +68,11 @@ export default function Accounts() {
         setIsConnecting(false);
       }, 300000);
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.log("OAuth error:", error);
       toast({
-        title: "Error",
-        description: "Failed to initiate Google connection.",
+        title: "OAuth Unavailable",
+        description: "Using Service Account authentication instead. Go to Service Account setup.",
         variant: "destructive",
       });
     },
@@ -91,6 +109,18 @@ export default function Accounts() {
       />
 
       <div className="p-6 space-y-6">
+        {/* Service Account Status */}
+        {serviceStatus && serviceStatus.configured && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-800">Service Account Active</AlertTitle>
+            <AlertDescription className="text-green-700">
+              Google Calendar and Sheets APIs are connected via Service Account.
+              {serviceStatus.calendar && serviceStatus.sheets ? " All services operational." : " Some services may be limited."}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
