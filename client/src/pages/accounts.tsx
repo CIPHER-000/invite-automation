@@ -28,24 +28,42 @@ export default function Accounts() {
 
   const { data: accounts, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/accounts"],
-    queryFn: api.getAccounts,
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/accounts");
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        const data = await response.json();
+        console.log("Fetched accounts:", data);
+        return data;
+      } catch (err) {
+        console.error("Failed to fetch accounts:", err);
+        throw err;
+      }
+    },
     retry: false,
   });
 
   const { data: serviceStatus } = useQuery({
     queryKey: ["/api/auth/service-account/status"],
     queryFn: async () => {
-      const response = await fetch("/api/auth/service-account/status");
-      if (!response.ok) throw new Error('Failed to fetch');
-      return response.json();
+      try {
+        const response = await fetch("/api/auth/service-account/status");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        console.log("Service status:", data);
+        return data;
+      } catch (err) {
+        console.error("Failed to fetch service status:", err);
+        return { configured: false };
+      }
     },
     retry: false,
   });
 
   // Debug logging
-  console.log("Accounts data:", accounts);
-  console.log("Loading state:", isLoading);
-  console.log("Error:", error);
+  console.log("Component rendered - Accounts:", accounts, "Loading:", isLoading, "Error:", error);
 
   const connectMutation = useMutation({
     mutationFn: api.getGoogleAuthUrl,
