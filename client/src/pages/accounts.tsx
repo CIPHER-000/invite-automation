@@ -26,18 +26,26 @@ export default function Accounts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: accounts, isLoading, refetch } = useQuery({
+  const { data: accounts, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/accounts"],
     queryFn: api.getAccounts,
+    retry: false,
   });
 
   const { data: serviceStatus } = useQuery({
     queryKey: ["/api/auth/service-account/status"],
     queryFn: async () => {
       const response = await fetch("/api/auth/service-account/status");
+      if (!response.ok) throw new Error('Failed to fetch');
       return response.json();
     },
+    retry: false,
   });
+
+  // Debug logging
+  console.log("Accounts data:", accounts);
+  console.log("Loading state:", isLoading);
+  console.log("Error:", error);
 
   const connectMutation = useMutation({
     mutationFn: api.getGoogleAuthUrl,
@@ -100,6 +108,50 @@ export default function Accounts() {
   const activeAccounts = accounts?.filter((acc: AccountWithStatus) => acc.isActive) || [];
   const inactiveAccounts = accounts?.filter((acc: AccountWithStatus) => !acc.isActive) || [];
   const cooldownAccounts = activeAccounts.filter((acc: AccountWithStatus) => acc.isInCooldown);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex-1 ml-64">
+        <Header 
+          title="Google Accounts" 
+          subtitle="Loading account information..."
+        />
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="h-16 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex-1 ml-64">
+        <Header 
+          title="Google Accounts" 
+          subtitle="Error loading accounts"
+        />
+        <div className="p-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>
+              Failed to load accounts: {error.message}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 ml-64">
