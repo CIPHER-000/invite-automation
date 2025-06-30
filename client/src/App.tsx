@@ -27,18 +27,20 @@ function Router() {
   return (
     <div className="min-h-screen flex bg-slate-50">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-auto">
-        <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/landing" component={Landing} />
-          <Route path="/campaigns" component={Campaigns} />
-          <Route path="/accounts" component={ServiceAccountSetup} />
-          <Route path="/accounts-enhanced" component={EnhancedAccounts} />
-          <Route path="/activity" component={Activity} />
-          <Route path="/settings" component={Settings} />
-          <Route path="/service-account" component={ServiceAccountSetup} />
-          <Route component={NotFound} />
-        </Switch>
+      <main className="flex-1 p-6 overflow-auto min-w-0">
+        <div className="max-w-7xl mx-auto">
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/landing" component={Landing} />
+            <Route path="/campaigns" component={Campaigns} />
+            <Route path="/accounts" component={ServiceAccountSetup} />
+            <Route path="/accounts-enhanced" component={EnhancedAccounts} />
+            <Route path="/activity" component={Activity} />
+            <Route path="/settings" component={Settings} />
+            <Route path="/service-account" component={ServiceAccountSetup} />
+            <Route component={NotFound} />
+          </Switch>
+        </div>
       </main>
     </div>
   );
