@@ -142,6 +142,25 @@ export class GoogleServiceAuthService {
     return this.auth;
   }
 
+  // Create impersonated auth client for a specific user
+  getImpersonatedAuth(userEmail: string) {
+    if (!this.auth || !this.credentials) {
+      throw new Error("Service account not configured");
+    }
+
+    // Create JWT auth for domain-wide delegation
+    return new google.auth.JWT({
+      email: this.credentials.email,
+      key: this.credentials.privateKey,
+      scopes: [
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+      ],
+      subject: userEmail, // This impersonates the user
+    });
+  }
+
   isServiceAccountConfigured(): boolean {
     return !!this.auth;
   }
