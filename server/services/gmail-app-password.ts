@@ -15,7 +15,7 @@ export class GmailAppPasswordService {
   async addAccount(email: string, appPassword: string, name?: string): Promise<GoogleAccount> {
     try {
       // Test the credentials first
-      const transporter = nodemailer.createTransporter({
+      const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: email,
@@ -118,7 +118,7 @@ export class GmailAppPasswordService {
       </div>
     `;
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: accountData.email,
@@ -179,7 +179,7 @@ END:VCALENDAR`;
         throw new Error('Account not found');
       }
 
-      const transporter = nodemailer.createTransporter({
+      const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: accountData.email,
