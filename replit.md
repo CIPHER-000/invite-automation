@@ -1,8 +1,8 @@
-# Calendar Invite Campaign Automation System
+# Shady 5.0 - Calendar Invite Campaign Automation System
 
 ## Overview
 
-This is a full-stack web application built to automate Google Calendar invite campaigns with merge fields, multiple inbox support, and Google Sheets data synchronization. The system allows users to create and manage email marketing campaigns that automatically send personalized calendar invitations to prospects from Google Sheets data, with support for multiple Google accounts and comprehensive tracking.
+Shady 5.0 is a comprehensive multi-provider calendar automation platform that supports both Google Workspace and Microsoft 365/Outlook integration. The system provides intelligent campaign management, smart time slot scheduling, advanced load balancing, and multi-provider email capabilities. It allows users to create and manage sophisticated email marketing campaigns that automatically send personalized calendar invitations to prospects from Google Sheets data, with support for multiple calendar providers and comprehensive performance tracking.
 
 ## System Architecture
 
@@ -107,7 +107,12 @@ Required environment variables:
 ## Changelog
 ```
 Changelog:
-- June 28, 2025. Initial setup
+- June 28, 2025. Initial setup with Google Calendar automation
+- June 28, 2025. Added Dynamic Time Slot Logic with timezone-aware scheduling
+- June 28, 2025. Implemented Inbox Load Balancing with health scoring and auto-rotation
+- June 28, 2025. Added Office 365/Outlook integration with Microsoft Graph API
+- June 28, 2025. Created Multi-Provider Email services supporting Gmail and Outlook
+- June 28, 2025. Rebranded to "Shady 5.0" with enhanced multi-provider capabilities
 ```
 
 ## User Preferences

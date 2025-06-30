@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { CreateCampaignDialog } from "@/components/campaigns/create-campaign-dialog";
+import logoPath from "@assets/shady5_no_bg_cropped_strict_1751121425277.png";
 
 interface HeaderProps {
   title: string;
@@ -16,11 +17,18 @@ export function Header({ title, subtitle, showCreateButton = false }: HeaderProp
     <>
       <header className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-800">{title}</h2>
-            {subtitle && (
-              <p className="text-slate-600 mt-1">{subtitle}</p>
-            )}
+          <div className="flex items-center space-x-4">
+            <img 
+              src={logoPath} 
+              alt="Shady 5.0 Logo" 
+              className="h-8 w-auto"
+            />
+            <div>
+              <h2 className="text-2xl font-semibold text-slate-800">{title}</h2>
+              {subtitle && (
+                <p className="text-slate-600 mt-1">{subtitle}</p>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">

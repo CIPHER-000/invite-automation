@@ -53,7 +53,7 @@ export function Sidebar() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <Calendar className="text-white" size={16} />
           </div>
-          <h1 className="text-xl font-semibold text-slate-800">Campaign Auto</h1>
+          <h1 className="text-xl font-semibold text-slate-800">Shady 5.0</h1>
         </div>
       </div>
       

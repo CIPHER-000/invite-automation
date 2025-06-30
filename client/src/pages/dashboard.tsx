@@ -23,7 +23,7 @@ export default function Dashboard() {
   return (
     <div className="flex-1 ml-64">
       <Header 
-        title="Dashboard" 
+        title="Shady 5.0 Dashboard" 
         subtitle="Monitor your calendar invite campaigns"
         showCreateButton
       />

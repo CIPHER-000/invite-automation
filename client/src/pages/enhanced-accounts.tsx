@@ -138,7 +138,7 @@ export default function EnhancedAccounts() {
 
   return (
     <div className="flex-1 ml-64">
-      <Header title="Google Accounts" subtitle="Enhanced account management with smart load balancing" showCreateButton />
+      <Header title="Shady 5.0 Multi-Provider" subtitle="Enhanced account management with smart load balancing" showCreateButton />
       
       <div className="p-6 space-y-6">
         {/* Overview Stats */}
