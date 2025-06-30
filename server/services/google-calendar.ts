@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { googleAuthService } from "./google-auth";
+import { googleServiceAuthService } from "./google-service-auth";
 import { storage } from "../storage";
 import type { GoogleAccount, Invite } from "@shared/schema";
 
@@ -14,8 +15,21 @@ export interface EventDetails {
 
 export class GoogleCalendarService {
   async createEvent(account: GoogleAccount, eventDetails: EventDetails): Promise<string> {
-    const accessToken = await googleAuthService.getValidAccessToken(account);
-    const auth = googleAuthService.createAuthClient(accessToken);
+    let auth;
+
+    // Check if this is a service account or OAuth account
+    if (account.accessToken === "SERVICE_ACCOUNT_TOKEN") {
+      // Use service account auth
+      auth = googleServiceAuthService.getServiceAccountAuth();
+      if (!auth) {
+        throw new Error("Service account not configured");
+      }
+    } else {
+      // Use OAuth auth
+      const accessToken = await googleAuthService.getValidAccessToken(account);
+      auth = googleAuthService.createAuthClient(accessToken);
+    }
+
     const calendar = google.calendar({ version: "v3", auth });
 
     const event = {
@@ -46,7 +60,7 @@ export class GoogleCalendarService {
 
     const response = await calendar.events.insert({
       calendarId: "primary",
-      resource: event,
+      requestBody: event,
       sendNotifications: true,
     });
 

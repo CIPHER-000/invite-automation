@@ -11,6 +11,7 @@ import Accounts from "@/pages/accounts";
 import EnhancedAccounts from "@/pages/enhanced-accounts";
 import Activity from "@/pages/activity";
 import Settings from "@/pages/settings";
+import ServiceAccountSetup from "@/pages/service-account-setup";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -32,6 +33,7 @@ function Router() {
         <Route path="/accounts-enhanced" component={EnhancedAccounts} />
         <Route path="/activity" component={Activity} />
         <Route path="/settings" component={Settings} />
+        <Route path="/service-account" component={ServiceAccountSetup} />
         <Route component={NotFound} />
       </Switch>
     </div>

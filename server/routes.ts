@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { googleAuthService } from "./services/google-auth";
+import { googleServiceAuthService } from "./services/google-service-auth";
 import { outlookAuthService } from "./services/outlook-auth";
 import { campaignProcessor } from "./services/campaign-processor";
 import { queueManager } from "./services/queue-manager";
@@ -34,6 +35,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating Google Auth URL:", error);
       res.status(500).json({ error: "Failed to generate authentication URL" });
+    }
+  });
+
+  // Google Service Account routes
+  app.post("/api/auth/google/service-account", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const account = await googleServiceAuthService.createServiceAccountConnection(email);
+      res.json({ 
+        success: true, 
+        account: {
+          id: account.id,
+          email: account.email,
+          name: account.name,
+          type: "service_account"
+        }
+      });
+    } catch (error) {
+      console.error("Service account connection failed:", error);
+      res.status(500).json({ error: "Failed to create service account connection" });
+    }
+  });
+
+  app.get("/api/auth/service-account/status", async (req, res) => {
+    try {
+      const status = await googleServiceAuthService.testServiceAccountAccess();
+      res.json({
+        configured: googleServiceAuthService.isServiceAccountConfigured(),
+        ...status
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check service account status" });
     }
   });
 

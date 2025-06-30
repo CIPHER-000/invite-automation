@@ -7,7 +7,8 @@ import {
   Clock,
   Settings,
   Users,
-  Mail
+  Mail,
+  Key
 } from "lucide-react";
 import logoPath from "@assets/shady5_no_bg_cropped_strict_1751121425277.png";
 
@@ -36,6 +37,11 @@ const navigation = [
     name: "Activity Log",
     href: "/activity",
     icon: Clock,
+  },
+  {
+    name: "Service Account",
+    href: "/service-account",
+    icon: Key,
   },
   {
     name: "Settings",
