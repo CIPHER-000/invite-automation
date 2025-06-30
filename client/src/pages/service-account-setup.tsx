@@ -8,20 +8,26 @@ import { CheckCircle, XCircle, AlertCircle, Copy } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+interface ServiceAccountStatus {
+  configured: boolean;
+  calendar: boolean;
+  sheets: boolean;
+  error?: string;
+}
+
 export default function ServiceAccountSetup() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("inviteautomate@new-app-464423.iam.gserviceaccount.com");
+  const [privateKey, setPrivateKey] = useState("");
+  const [projectId, setProjectId] = useState("new-app-464423");
   const { toast } = useToast();
 
-  const { data: status } = useQuery({
+  const { data: status } = useQuery<ServiceAccountStatus>({
     queryKey: ["/api/auth/service-account/status"],
   });
 
   const createServiceAccountMutation = useMutation({
-    mutationFn: async (email: string) => {
-      return await apiRequest("/api/auth/google/service-account", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
+    mutationFn: async (credentials: { email: string; privateKey: string; projectId: string }) => {
+      return await apiRequest("POST", "/api/auth/google/service-account", credentials);
     },
     onSuccess: () => {
       toast({
@@ -42,8 +48,15 @@ export default function ServiceAccountSetup() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    createServiceAccountMutation.mutate(email);
+    if (!email || !privateKey || !projectId) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    createServiceAccountMutation.mutate({ email, privateKey, projectId });
   };
 
   const copyToClipboard = (text: string) => {

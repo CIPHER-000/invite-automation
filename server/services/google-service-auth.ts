@@ -2,8 +2,15 @@ import { google } from "googleapis";
 import { storage } from "../storage";
 import type { GoogleAccount } from "@shared/schema";
 
+interface ServiceAccountCredentials {
+  email: string;
+  privateKey: string;
+  projectId: string;
+}
+
 export class GoogleServiceAuthService {
   private auth: any;
+  private credentials: ServiceAccountCredentials | null = null;
 
   constructor() {
     // Initialize with service account credentials
@@ -12,24 +19,51 @@ export class GoogleServiceAuthService {
 
   private async initializeServiceAccount() {
     try {
-      // Service account configuration from environment
+      // Try environment variables first
       const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
       const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
-      const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL || serviceAccountEmail;
+      const projectId = process.env.GOOGLE_PROJECT_ID;
 
-      if (!serviceAccountEmail || !privateKey) {
-        console.log("Service account credentials not configured, falling back to OAuth");
+      if (serviceAccountEmail && privateKey && projectId) {
+        await this.configureServiceAccount({
+          email: serviceAccountEmail,
+          privateKey,
+          projectId
+        });
+        console.log("Google Service Account initialized from environment variables");
         return;
       }
 
+      // Try to load from system settings if available
+      try {
+        const settings = await storage.getSystemSettings();
+        const storedCredentials = (settings as any).serviceAccountCredentials;
+        
+        if (storedCredentials && storedCredentials.email && storedCredentials.privateKey) {
+          await this.configureServiceAccount(storedCredentials);
+          console.log("Google Service Account initialized from stored settings");
+          return;
+        }
+      } catch (error) {
+        // Settings might not exist yet, continue
+      }
+
+      console.log("Service account credentials not configured, falling back to OAuth");
+    } catch (error) {
+      console.error("Failed to initialize Google Service Account:", error);
+    }
+  }
+
+  async configureServiceAccount(credentials: ServiceAccountCredentials): Promise<void> {
+    try {
+      this.credentials = credentials;
+      
       this.auth = new google.auth.GoogleAuth({
         credentials: {
           type: "service_account",
-          project_id: process.env.GOOGLE_PROJECT_ID,
-          private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-          private_key: privateKey,
-          client_email: clientEmail,
-          client_id: process.env.GOOGLE_CLIENT_ID,
+          project_id: credentials.projectId,
+          private_key: credentials.privateKey,
+          client_email: credentials.email,
         },
         scopes: [
           "https://www.googleapis.com/auth/calendar",
@@ -38,13 +72,26 @@ export class GoogleServiceAuthService {
         ],
       });
 
-      console.log("Google Service Account initialized successfully");
+      // Store credentials in system settings for persistence
+      const currentSettings = await storage.getSystemSettings();
+      await storage.updateSystemSettings({
+        ...currentSettings,
+        serviceAccountCredentials: credentials
+      });
+
+      console.log("Google Service Account configured successfully");
     } catch (error) {
-      console.error("Failed to initialize Google Service Account:", error);
+      console.error("Failed to configure Google Service Account:", error);
+      throw error;
     }
   }
 
-  async createServiceAccountConnection(email: string): Promise<GoogleAccount> {
+  async createServiceAccountConnection(email: string, credentials?: ServiceAccountCredentials): Promise<GoogleAccount> {
+    // If credentials are provided, configure the service account first
+    if (credentials) {
+      await this.configureServiceAccount(credentials);
+    }
+    
     if (!this.auth) {
       throw new Error("Service account not configured");
     }

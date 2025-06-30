@@ -41,13 +41,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Google Service Account routes
   app.post("/api/auth/google/service-account", async (req, res) => {
     try {
-      const { email } = req.body;
+      const { email, privateKey, projectId } = req.body;
       
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
+      if (!email || !privateKey || !projectId) {
+        return res.status(400).json({ error: "Email, privateKey, and projectId are required" });
       }
 
-      const account = await googleServiceAuthService.createServiceAccountConnection(email);
+      const credentials = { email, privateKey, projectId };
+      const account = await googleServiceAuthService.createServiceAccountConnection(email, credentials);
+      
       res.json({ 
         success: true, 
         account: {

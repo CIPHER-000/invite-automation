@@ -106,6 +106,7 @@ export const systemSettings = pgTable("system_settings", {
   inboxCooldownMinutes: integer("inbox_cooldown_minutes").notNull().default(30),
   acceptanceCheckIntervalMinutes: integer("acceptance_check_interval_minutes").notNull().default(60),
   isSystemActive: boolean("is_system_active").notNull().default(true),
+  serviceAccountCredentials: jsonb("service_account_credentials"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
