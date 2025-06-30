@@ -49,16 +49,6 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-white shadow-sm border-r border-slate-200 fixed h-full z-10">
-      <div className="p-6 border-b border-slate-200">
-        <div className="flex items-center justify-center">
-          <img 
-            src={logoPath} 
-            alt="Shady 5.0" 
-            className="h-10 w-auto"
-          />
-        </div>
-      </div>
-      
       <nav className="p-4 space-y-1">
         {navigation.map((item) => {
           const isActive = location === item.href;
