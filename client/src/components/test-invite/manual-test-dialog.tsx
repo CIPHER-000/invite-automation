@@ -78,7 +78,7 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
   });
 
   const sendTestMutation = useMutation({
-    mutationFn: async (data: TestInviteFormData) => {
+    mutationFn: async (data: TestInviteFormData & { sendNow?: boolean }) => {
       const response = await fetch("/api/invites/manual-test", {
         method: "POST",
         headers: {
@@ -94,10 +94,10 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
       
       return response.json();
     },
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
       toast({
-        title: "Test invite sent!",
-        description: `Calendar invitation sent successfully to ${form.getValues('prospectEmail')}`,
+        title: variables.sendNow ? "Test invite sent immediately!" : "Test invite scheduled!",
+        description: `Calendar invitation ${variables.sendNow ? 'sent now' : 'scheduled'} to ${form.getValues('prospectEmail')}`,
       });
       onOpenChange(false);
       form.reset();
@@ -111,9 +111,9 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
     },
   });
 
-  const onSubmit = (data: TestInviteFormData) => {
+  const onSubmit = (data: TestInviteFormData, sendNow = false) => {
     setIsScheduling(true);
-    sendTestMutation.mutate(data);
+    sendTestMutation.mutate({ ...data, sendNow });
     setTimeout(() => setIsScheduling(false), 2000);
   };
 
@@ -141,7 +141,7 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <div className="space-y-5">
             {/* Prospect Information */}
             <div className="space-y-4">
               <Label className="text-sm font-medium flex items-center gap-2">
@@ -339,9 +339,35 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
                 Cancel
               </Button>
               <Button
-                type="submit"
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  const data = form.getValues();
+                  onSubmit(data, false);
+                }}
                 disabled={sendTestMutation.isPending || isScheduling || accounts.length === 0}
                 className="flex-1"
+              >
+                {sendTestMutation.isPending || isScheduling ? (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 animate-spin" />
+                    Scheduling...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Schedule
+                  </div>
+                )}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  const data = form.getValues();
+                  onSubmit(data, true);
+                }}
+                disabled={sendTestMutation.isPending || isScheduling || accounts.length === 0}
+                className="flex-1 bg-green-600 hover:bg-green-700"
               >
                 {sendTestMutation.isPending || isScheduling ? (
                   <div className="flex items-center gap-2">
@@ -351,12 +377,12 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
                 ) : (
                   <div className="flex items-center gap-2">
                     <Send className="h-4 w-4" />
-                    Send Test Invite
+                    SEND now
                   </div>
                 )}
               </Button>
             </div>
-          </form>
+          </div>
         </Form>
       </DialogContent>
     </Dialog>
