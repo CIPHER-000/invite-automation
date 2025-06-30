@@ -20,10 +20,8 @@ export default function GmailSetup() {
 
   const connectMutation = useMutation({
     mutationFn: async (data: { email: string; appPassword: string; name?: string }) => {
-      return apiRequest("/api/auth/gmail/app-password", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest("POST", "/api/auth/gmail/app-password", data);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts"] });
