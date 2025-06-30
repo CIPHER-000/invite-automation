@@ -21,7 +21,7 @@ export function Header({ title, subtitle, showCreateButton = false }: HeaderProp
             <img 
               src={logoPath} 
               alt="Logo" 
-              className="h-12 w-auto"
+              className="h-16 w-auto"
             />
             <div>
               <h2 className="text-2xl font-semibold text-slate-800">{title}</h2>
