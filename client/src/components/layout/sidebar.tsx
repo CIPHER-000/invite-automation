@@ -9,6 +9,7 @@ import {
   Users,
   Mail
 } from "lucide-react";
+import logoPath from "@assets/shady5_no_bg_cropped_strict_1751121425277.png";
 
 const navigation = [
   {
@@ -49,11 +50,12 @@ export function Sidebar() {
   return (
     <aside className="w-64 bg-white shadow-sm border-r border-slate-200 fixed h-full z-10">
       <div className="p-6 border-b border-slate-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Calendar className="text-white" size={16} />
-          </div>
-          <h1 className="text-xl font-semibold text-slate-800">Shady 5.0</h1>
+        <div className="flex items-center justify-center">
+          <img 
+            src={logoPath} 
+            alt="Shady 5.0" 
+            className="h-10 w-auto"
+          />
         </div>
       </div>
       
