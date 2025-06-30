@@ -10,7 +10,7 @@ import {
   Mail,
   Key
 } from "lucide-react";
-import logoPath from "@assets/shady5_no_bg_cropped_strict_1751121425277.png";
+import logoPath from "@assets/shady5_no_bg_cropped_strict_1751311214067.png";
 
 const navigation = [
   {

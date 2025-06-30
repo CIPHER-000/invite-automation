@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Calendar, Mail, Users, BarChart3, Shield } from "lucide-react";
 import { Link } from "wouter";
-import logoPath from "@assets/shady5_no_bg_cropped_strict_1751121425277.png";
+import logoPath from "@assets/shady5_no_bg_cropped_strict_1751311214067.png";
 
 export default function Landing() {
   return (

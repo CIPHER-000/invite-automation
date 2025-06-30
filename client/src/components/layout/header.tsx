@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { CreateCampaignDialog } from "@/components/campaigns/create-campaign-dialog";
-import logoPath from "@assets/shady5_no_bg_cropped_strict_1751121425277.png";
+import logoPath from "@assets/shady5_no_bg_cropped_strict_1751311214067.png";
 
 interface HeaderProps {
   title: string;
