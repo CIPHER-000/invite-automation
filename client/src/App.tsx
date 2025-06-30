@@ -27,7 +27,7 @@ function Router() {
   return (
     <div className="min-h-screen flex bg-slate-50">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-auto ml-64">
+      <main className="flex-1 p-6 overflow-auto">
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/landing" component={Landing} />

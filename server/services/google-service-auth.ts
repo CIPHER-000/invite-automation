@@ -30,6 +30,26 @@ export class GoogleServiceAuthService {
           privateKey,
           projectId
         });
+        
+        // Ensure the service account record exists in storage
+        try {
+          const existingAccount = await storage.getGoogleAccountByEmail(serviceAccountEmail);
+          if (!existingAccount) {
+            await this.createServiceAccountConnection(serviceAccountEmail, {
+              email: serviceAccountEmail,
+              privateKey,
+              projectId
+            });
+          }
+        } catch (error) {
+          // Account doesn't exist, create it
+          await this.createServiceAccountConnection(serviceAccountEmail, {
+            email: serviceAccountEmail,
+            privateKey,
+            projectId
+          });
+        }
+        
         console.log("Google Service Account initialized from environment variables");
         return;
       }
