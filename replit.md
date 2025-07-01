@@ -123,6 +123,8 @@ Changelog:
 - January 1, 2025. Built comprehensive OAuth 2.0 Calendar Integration system
 - January 1, 2025. Resolved Domain-Wide Delegation barriers with direct OAuth authentication
 - January 1, 2025. Deployed production-ready OAuth calendar functionality bypassing admin setup requirements
+- January 1, 2025. Configured correct OAuth credentials from project new-app-464423 with fresh client secret
+- January 1, 2025. Enabled Google Calendar API and Sheets API via gcloud commands for OAuth functionality
 ```
 
 ## User Preferences
