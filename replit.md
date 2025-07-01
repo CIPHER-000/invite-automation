@@ -120,6 +120,9 @@ Changelog:
 - June 30, 2025. Integrated organizational user management with Gmail app password requirements
 - June 30, 2025. Added inbox selection functionality to campaign creation
 - June 30, 2025. Unified account setup page combining service account and user management
+- January 1, 2025. Built comprehensive OAuth 2.0 Calendar Integration system
+- January 1, 2025. Resolved Domain-Wide Delegation barriers with direct OAuth authentication
+- January 1, 2025. Deployed production-ready OAuth calendar functionality bypassing admin setup requirements
 ```
 
 ## User Preferences
