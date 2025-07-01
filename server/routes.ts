@@ -343,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { prospectEmail, prospectName, prospectCompany, eventTitle, eventDescription, eventDuration, selectedAccountId, startTime, sendNow } = req.body;
       
-      if (!prospectEmail || !prospectName || !eventTitle || !eventDescription || !selectedAccountId || !startTime) {
+      if (!prospectEmail || !prospectName || !eventTitle || !eventDescription || !selectedAccountId) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
@@ -376,10 +376,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const invite = await storage.createInvite(inviteData);
 
       if (sendNow) {
-        // Send immediately using Gmail app password service
+        // Send immediately using Gmail app password service - use default timing
         try {
-          const startDateTime = new Date(startTime);
-          const endDateTime = new Date(startDateTime.getTime() + (eventDuration * 60 * 1000));
+          const startDateTime = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+          const duration = eventDuration || 30; // Default 30 minutes
+          const endDateTime = new Date(startDateTime.getTime() + (duration * 60 * 1000));
 
           const eventDetails = {
             title: eventTitle,
@@ -428,7 +429,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw error;
         }
       } else {
-        // Schedule for later
+        // Schedule for later - require timing fields for scheduling
+        if (!startTime || !eventDuration) {
+          return res.status(400).json({ error: "Start time and duration are required for scheduling" });
+        }
+        
         const scheduledTime = new Date(startTime);
         
         await storage.createQueueItem({

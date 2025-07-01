@@ -47,9 +47,9 @@ const testInviteSchema = z.object({
   prospectCompany: z.string().optional(),
   eventTitle: z.string().min(1, "Event title is required"),
   eventDescription: z.string().min(1, "Event description is required"),
-  eventDuration: z.number().min(15).max(240),
+  eventDuration: z.number().min(15).max(240).optional(),
   selectedAccountId: z.number({ required_error: "Please select an inbox" }),
-  startTime: z.string().min(1, "Start time is required"),
+  startTime: z.string().optional(),
 });
 
 type TestInviteFormData = z.infer<typeof testInviteSchema>;
@@ -126,6 +126,11 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
   };
 
   const selectedAccount = accounts.find(acc => acc.id === form.watch('selectedAccountId'));
+  
+  // Watch form values to determine if timing fields are provided
+  const startTime = form.watch('startTime');
+  const eventDuration = form.watch('eventDuration');
+  const hasCustomTiming = !!(startTime && eventDuration);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -366,8 +371,8 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
                   const data = form.getValues();
                   onSubmit(data, true);
                 }}
-                disabled={sendTestMutation.isPending || isScheduling || accounts.length === 0}
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                disabled={sendTestMutation.isPending || isScheduling || accounts.length === 0 || hasCustomTiming}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
               >
                 {sendTestMutation.isPending || isScheduling ? (
                   <div className="flex items-center gap-2">
@@ -382,6 +387,15 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
                 )}
               </Button>
             </div>
+            
+            {hasCustomTiming && (
+              <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md mt-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3 w-3" />
+                  Custom timing provided - only scheduling is available
+                </div>
+              </div>
+            )}
           </div>
         </Form>
       </DialogContent>
