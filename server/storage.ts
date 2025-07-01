@@ -24,8 +24,7 @@ import {
   type CampaignWithStats,
   type AccountWithStatus,
 } from "@shared/schema";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { neon } from "@neondatabase/serverless";
+import { db } from "./db";
 import { eq, desc, and, sql, count } from "drizzle-orm";
 import * as schema from "@shared/schema";
 
@@ -442,11 +441,7 @@ class PostgresStorage implements IStorage {
   private db: any;
 
   constructor() {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is required");
-    }
-    const client = neon(process.env.DATABASE_URL);
-    this.db = drizzle(client, { schema });
+    this.db = db;
   }
 
   // Google Accounts
@@ -642,7 +637,7 @@ class PostgresStorage implements IStorage {
     if (status) {
       return await this.db.select().from(schema.inviteQueue).where(eq(schema.inviteQueue.status, status));
     }
-    return await this.db.select().from(schema.inviteQueue).orderBy(schema.inviteQueue.scheduledAt);
+    return await this.db.select().from(schema.inviteQueue).orderBy(schema.inviteQueue.scheduledFor);
   }
 
   async createQueueItem(item: InsertInviteQueue): Promise<InviteQueue> {
@@ -658,7 +653,7 @@ class PostgresStorage implements IStorage {
   async getNextQueueItem(): Promise<InviteQueue | undefined> {
     const result = await this.db.select().from(schema.inviteQueue)
       .where(eq(schema.inviteQueue.status, 'pending'))
-      .orderBy(schema.inviteQueue.scheduledAt)
+      .orderBy(schema.inviteQueue.scheduledFor)
       .limit(1);
     return result[0];
   }
