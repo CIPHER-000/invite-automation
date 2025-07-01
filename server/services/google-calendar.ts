@@ -58,17 +58,33 @@ export class GoogleCalendarService {
       guestsCanSeeOtherGuests: false,
     };
 
-    const response = await calendar.events.insert({
-      calendarId: "primary",
-      requestBody: event,
-      sendNotifications: true,
-    });
+    try {
+      const response = await calendar.events.insert({
+        calendarId: "primary",
+        requestBody: event,
+        sendNotifications: true,
+      });
 
-    if (!response.data.id) {
-      throw new Error("Failed to create calendar event");
+      if (!response.data.id) {
+        throw new Error("Failed to create calendar event");
+      }
+
+      return response.data.id;
+    } catch (error: any) {
+      console.error('Failed to create calendar event:', error.message);
+      
+      // Check if this is a Domain-Wide Delegation error
+      if (error.message && error.message.includes('Domain-Wide Delegation')) {
+        throw new Error(`Service accounts cannot invite attendees without Domain-Wide Delegation of Authority. Please configure Domain-Wide Delegation in Google Admin Console. See DOMAIN_DELEGATION_SETUP.md for detailed instructions.`);
+      }
+      
+      // Check for other common authorization errors that indicate missing delegation
+      if (error.message && (error.message.includes('insufficient') || error.message.includes('forbidden') || error.message.includes('cannot invite'))) {
+        throw new Error(`Calendar access denied. If using Service Account, ensure Domain-Wide Delegation is configured with these scopes: https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/spreadsheets. See DOMAIN_DELEGATION_SETUP.md for setup instructions.`);
+      }
+      
+      throw new Error(`Failed to create calendar event: ${error.message}`);
     }
-
-    return response.data.id;
   }
 
   async getEventStatus(account: GoogleAccount, eventId: string): Promise<{
