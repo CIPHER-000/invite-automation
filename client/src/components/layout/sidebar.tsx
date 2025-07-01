@@ -29,6 +29,11 @@ const navigation = [
     icon: Key,
   },
   {
+    name: "OAuth Calendar",
+    href: "/oauth-calendar",
+    icon: Calendar,
+  },
+  {
     name: "Activity Log",
     href: "/activity",
     icon: Clock,

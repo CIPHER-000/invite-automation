@@ -10,6 +10,7 @@ import { queueManager } from "./services/queue-manager";
 import { inboxLoadBalancer } from "./services/inbox-load-balancer";
 import { timeSlotManager } from "./services/time-slot-manager";
 import { multiProviderEmailService } from "./services/multi-provider-email";
+import { oauthCalendarService } from "./services/oauth-calendar";
 import { insertCampaignSchema, insertSystemSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -535,6 +536,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(invites);
     } catch (error) {
       res.status(500).json({ error: "Failed to get invites" });
+    }
+  });
+
+  // OAuth Calendar Management
+  app.post("/api/oauth-calendar/test-invite", async (req, res) => {
+    try {
+      const { prospectEmail, eventTitle, eventDescription, accountId } = req.body;
+      
+      if (!prospectEmail || !eventTitle || !accountId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const account = await storage.getGoogleAccount(parseInt(accountId));
+      if (!account || !account.isActive) {
+        return res.status(404).json({ error: "Account not found or inactive" });
+      }
+
+      // Create event details
+      const startTime = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000); // 30-minute meeting
+
+      const eventDetails = {
+        title: eventTitle,
+        description: eventDescription || "Test meeting invitation via OAuth Calendar",
+        attendeeEmail: prospectEmail,
+        startTime,
+        endTime,
+        timeZone: "America/New_York"
+      };
+
+      // Create calendar event using OAuth
+      const eventId = await oauthCalendarService.createEventWithOAuth(account, eventDetails);
+
+      // Create invite record
+      const invite = await storage.createInvite({
+        prospectEmail,
+        eventId,
+        googleAccountId: account.id,
+        calendarProvider: "google_oauth",
+        eventTitle,
+        eventDescription: eventDetails.description,
+        eventStartTime: startTime,
+        eventEndTime: endTime,
+        status: "sent",
+        mergeData: { prospectEmail, eventTitle }
+      });
+
+      // Log activity
+      await storage.createActivityLog({
+        type: "oauth_test_sent",
+        inviteId: invite.id,
+        googleAccountId: account.id,
+        message: `OAuth test invite sent to ${prospectEmail} via ${account.email}`,
+        metadata: { eventId, eventTitle, method: "oauth_calendar" }
+      });
+
+      res.json({ 
+        success: true, 
+        inviteId: invite.id,
+        eventId,
+        message: `OAuth test invite sent to ${prospectEmail}`,
+        account: account.email
+      });
+
+    } catch (error) {
+      console.error("OAuth test invite error:", error);
+      res.status(500).json({ 
+        error: "Failed to send OAuth test invite",
+        details: (error as Error).message 
+      });
+    }
+  });
+
+  app.post("/api/oauth-calendar/test-access", async (req, res) => {
+    try {
+      const { accountId } = req.body;
+      
+      if (!accountId) {
+        return res.status(400).json({ error: "Account ID required" });
+      }
+
+      const account = await storage.getGoogleAccount(parseInt(accountId));
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      const testResult = await oauthCalendarService.testCalendarAccess(account);
+
+      res.json({
+        success: testResult.success,
+        message: testResult.message,
+        calendarName: testResult.calendarName,
+        account: {
+          id: account.id,
+          email: account.email,
+          name: account.name
+        }
+      });
+
+    } catch (error) {
+      console.error("OAuth calendar test error:", error);
+      res.status(500).json({ 
+        error: "Failed to test calendar access",
+        details: (error as Error).message 
+      });
+    }
+  });
+
+  app.get("/api/oauth-calendar/accounts", async (req, res) => {
+    try {
+      const accounts = await storage.getGoogleAccounts();
+      
+      // Filter out service account and organization user tokens
+      const oauthAccounts = accounts.filter(account => 
+        account.accessToken !== "SERVICE_ACCOUNT_TOKEN" && 
+        account.accessToken !== "ORGANIZATION_USER_TOKEN"
+      );
+
+      res.json(oauthAccounts.map(account => ({
+        id: account.id,
+        email: account.email,
+        name: account.name,
+        isActive: account.isActive,
+        lastUsed: account.lastUsed,
+        createdAt: account.createdAt
+      })));
+
+    } catch (error) {
+      console.error("Error fetching OAuth accounts:", error);
+      res.status(500).json({ error: "Failed to fetch OAuth accounts" });
     }
   });
 
