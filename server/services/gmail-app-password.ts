@@ -11,8 +11,29 @@ interface AppPasswordAccount {
 
 export class GmailAppPasswordService {
   private accounts: Map<string, AppPasswordAccount> = new Map();
+  private initialized = false;
+
+  async initialize() {
+    if (this.initialized) return;
+    
+    // Load existing app password accounts from database
+    const googleAccounts = await storage.getGoogleAccounts();
+    for (const account of googleAccounts) {
+      if (account.accessToken === 'APP_PASSWORD_TOKEN' && account.refreshToken) {
+        this.accounts.set(account.email, {
+          email: account.email,
+          appPassword: account.refreshToken,
+          name: account.name
+        });
+      }
+    }
+    
+    this.initialized = true;
+    console.log(`Loaded ${this.accounts.size} Gmail app password accounts from database`);
+  }
 
   async addAccount(email: string, appPassword: string, name?: string): Promise<GoogleAccount> {
+    await this.initialize();
     try {
       // Test the credentials first
       const transporter = nodemailer.createTransport({
@@ -201,11 +222,13 @@ END:VCALENDAR`;
     }
   }
 
-  getAccount(email: string): AppPasswordAccount | undefined {
+  async getAccount(email: string): Promise<AppPasswordAccount | undefined> {
+    await this.initialize();
     return this.accounts.get(email);
   }
 
-  getAllAccounts(): AppPasswordAccount[] {
+  async getAllAccounts(): Promise<AppPasswordAccount[]> {
+    await this.initialize();
     return Array.from(this.accounts.values());
   }
 
