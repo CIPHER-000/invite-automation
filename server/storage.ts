@@ -698,4 +698,4 @@ class PostgresStorage implements IStorage {
 }
 
 // Use in-memory storage temporarily while fixing database connection issues
-export const storage = new MemStorage();
+export const storage = new PostgresStorage();
