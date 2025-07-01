@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { storage } from "../storage";
 import type { GoogleAccount } from "@shared/schema";
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "381269710030-5sv8n28iiuns98lcqqsuc9lj97g6kunu.apps.googleusercontent.com";
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "571943054804-92fbh828cm03laha4j5o44bk887ubm0s.apps.googleusercontent.com";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
 const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "https://6a2391b4-c08c-4318-89e8-f4587ae39044-00-3u78hq3a9p26b.worf.replit.dev/api/auth/google/callback";
 
