@@ -1,0 +1,4 @@
+{{firstname}},{{title}},{{email}},{{company}},{{website}},{{competitors}},Calendar_Event_ID
+Max,CEO,max.drucker@carpe.io,Carpe Data,http://www.carpe.io,"Gradient AI, NeuralMetrics, FRISS",
+Anita,Co-Founder,anita@01.ai,01 AI,https://01.ai/,"OpenAI, Anthropic, Cohere",
+Prasath,Chairman and CEO,prasath@1billiontech.com,1 Billion Tech,http://www.1billiontech.com,"Amazon Web Services, Microsoft Azure, Google Cloud Platform",

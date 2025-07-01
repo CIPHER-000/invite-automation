@@ -17,7 +17,12 @@ export function useRealtimeStats() {
 }
 
 export function useRealtimeActivity() {
-  return useRealtimeData(["/api/activity?limit=20"], 15000);
+  return useQuery({
+    queryKey: ["/api/activity"],
+    queryFn: () => fetch("/api/activity?limit=20").then(res => res.json()),
+    refetchInterval: 15000,
+    refetchIntervalInBackground: true,
+  });
 }
 
 export function useRealtimeAccounts() {

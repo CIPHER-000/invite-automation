@@ -5,7 +5,8 @@ import {
   CheckCircle, 
   Mail, 
   AlertTriangle,
-  Clock
+  Clock,
+  Calendar
 } from "lucide-react";
 import { useRealtimeActivity } from "@/hooks/use-realtime";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +19,13 @@ const activityIcons = {
   invite_error: AlertTriangle,
   campaign_processed: Clock,
   campaign_error: AlertTriangle,
+  manual_test_sent: Send,
+  manual_test_scheduled: Calendar,
+  manual_test_error: AlertTriangle,
+  queue_processed: Clock,
+  queue_error: AlertTriangle,
+  account_connected: CheckCircle,
+  account_error: AlertTriangle,
 };
 
 const activityColors = {
@@ -27,6 +35,13 @@ const activityColors = {
   invite_error: "text-destructive bg-destructive/10",
   campaign_processed: "text-slate-600 bg-slate-100",
   campaign_error: "text-destructive bg-destructive/10",
+  manual_test_sent: "text-success bg-success/10",
+  manual_test_scheduled: "text-blue-600 bg-blue-100",
+  manual_test_error: "text-destructive bg-destructive/10",
+  queue_processed: "text-slate-600 bg-slate-100",
+  queue_error: "text-destructive bg-destructive/10",
+  account_connected: "text-success bg-success/10",
+  account_error: "text-destructive bg-destructive/10",
 };
 
 export function RecentActivity() {

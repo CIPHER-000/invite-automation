@@ -35,6 +35,13 @@ const activityIcons = {
   invite_error: AlertTriangle,
   campaign_processed: Clock,
   campaign_error: AlertTriangle,
+  manual_test_sent: Send,
+  manual_test_scheduled: Calendar,
+  manual_test_error: AlertTriangle,
+  queue_processed: Clock,
+  queue_error: AlertTriangle,
+  account_connected: CheckCircle,
+  account_error: AlertTriangle,
 };
 
 const activityColors = {
@@ -44,6 +51,13 @@ const activityColors = {
   invite_error: "text-destructive bg-destructive/10 border-destructive/20",
   campaign_processed: "text-slate-600 bg-slate-100 border-slate-200",
   campaign_error: "text-destructive bg-destructive/10 border-destructive/20",
+  manual_test_sent: "text-success bg-success/10 border-success/20",
+  manual_test_scheduled: "text-blue-600 bg-blue-100 border-blue-200",
+  manual_test_error: "text-destructive bg-destructive/10 border-destructive/20",
+  queue_processed: "text-slate-600 bg-slate-100 border-slate-200",
+  queue_error: "text-destructive bg-destructive/10 border-destructive/20",
+  account_connected: "text-success bg-success/10 border-success/20",
+  account_error: "text-destructive bg-destructive/10 border-destructive/20",
 };
 
 const activityLabels = {
@@ -53,6 +67,13 @@ const activityLabels = {
   invite_error: "Invite Error",
   campaign_processed: "Campaign Processed",
   campaign_error: "Campaign Error",
+  manual_test_sent: "Manual Test Sent",
+  manual_test_scheduled: "Manual Test Scheduled",
+  manual_test_error: "Manual Test Error",
+  queue_processed: "Queue Processed",
+  queue_error: "Queue Error",
+  account_connected: "Account Connected",
+  account_error: "Account Error",
 };
 
 export default function Activity() {

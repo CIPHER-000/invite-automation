@@ -159,15 +159,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expiresAt,
           isActive: true,
         });
+        
+        // Log account reconnection
+        await storage.createActivityLog({
+          type: "account_connected",
+          googleAccountId: existingAccount.id,
+          message: `Google account ${userInfo.email} reconnected successfully`,
+          metadata: { email: userInfo.email, name: userInfo.name, action: "reconnected" }
+        });
       } else {
         // Create new account
-        await storage.createGoogleAccount({
+        const newAccount = await storage.createGoogleAccount({
           email: userInfo.email,
           name: userInfo.name,
           accessToken,
           refreshToken,
           expiresAt,
           isActive: true,
+        });
+        
+        // Log new account connection
+        await storage.createActivityLog({
+          type: "account_connected",
+          googleAccountId: newAccount.id,
+          message: `New Google account ${userInfo.email} connected successfully`,
+          metadata: { email: userInfo.email, name: userInfo.name, action: "new_connection" }
         });
       }
 
@@ -287,6 +303,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertCampaignSchema.parse(req.body);
       const campaign = await storage.createCampaign(validatedData);
+      
+      // Log campaign creation
+      await storage.createActivityLog({
+        type: "campaign_processed",
+        campaignId: campaign.id,
+        message: `Campaign "${campaign.name}" created successfully`,
+        metadata: { 
+          campaignName: campaign.name, 
+          eventTitle: campaign.eventTitleTemplate,
+          selectedInboxes: campaign.selectedInboxes?.length || 0,
+          action: "created"
+        }
+      });
       
       // Process the campaign to populate queue
       await campaignProcessor.processCampaign(campaign);
@@ -435,6 +464,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const scheduledTime = new Date(startTime);
+        
+        // Log scheduled manual test
+        await storage.createActivityLog({
+          type: "manual_test_scheduled",
+          inviteId: invite.id,
+          googleAccountId: selectedAccountId,
+          message: `Manual test invite scheduled for ${scheduledTime.toLocaleString()} to ${prospectEmail} from ${account.email}`,
+          metadata: { scheduledTime: scheduledTime.toISOString(), eventTitle, sendNow: false }
+        });
         
         await storage.createQueueItem({
           campaignId: 0,

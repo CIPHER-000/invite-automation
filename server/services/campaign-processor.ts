@@ -36,7 +36,8 @@ export class CampaignProcessor {
       const existingEmails = new Set(existingInvites.map(invite => invite.prospectEmail));
 
       // Add new prospects to the queue with smart scheduling
-      for (const [index, prospect] of prospects.entries()) {
+      for (let index = 0; index < prospects.length; index++) {
+        const prospect = prospects[index];
         if (existingEmails.has(prospect.email)) {
           continue; // Skip already processed prospects
         }
@@ -112,15 +113,32 @@ export class CampaignProcessor {
   }
 
   private parseCSVProspects(csvData: Record<string, string>[]): ProspectData[] {
-    return csvData.map(row => ({
-      email: row.email || row.Email || "",
-      name: row.name || row.Name || row.first_name || row.firstName || "",
-      company: row.company || row.Company || row.organization || "",
-      timezone: row.timezone || row.time_zone || row.Timezone || "",
-      preferred_hours: row.preferred_hours || row.preferredHours || "",
-      preferred_days: row.preferred_days || row.preferredDays || "",
-      ...row // Include all other fields as merge data
-    })).filter(prospect => prospect.email); // Only include rows with valid email
+    return csvData.map(row => {
+      // Support both merge field format ({{field}}) and direct field names
+      const cleanRow: Record<string, string> = {};
+      
+      // Clean merge field brackets and create both formats
+      Object.keys(row).forEach(key => {
+        const cleanKey = key.replace(/^\{\{|\}\}$/g, ''); // Remove {{ and }}
+        cleanRow[cleanKey] = row[key];
+        cleanRow[key] = row[key]; // Keep original key as well
+      });
+
+      const prospectData = {
+        email: cleanRow.email || cleanRow.Email || cleanRow['{{email}}'] || "",
+        name: cleanRow.firstname || cleanRow.name || cleanRow.Name || cleanRow.first_name || cleanRow.firstName || cleanRow['{{firstname}}'] || "",
+        company: cleanRow.company || cleanRow.Company || cleanRow.organization || cleanRow['{{company}}'] || "",
+        timezone: cleanRow.timezone || cleanRow.time_zone || cleanRow.Timezone || "",
+        preferred_hours: cleanRow.preferred_hours || cleanRow.preferredHours || "",
+        preferred_days: cleanRow.preferred_days || cleanRow.preferredDays || "",
+        title: cleanRow.title || cleanRow.Title || cleanRow['{{title}}'] || "",
+        website: cleanRow.website || cleanRow.Website || cleanRow['{{website}}'] || "",
+        competitors: cleanRow.competitors || cleanRow.Competitors || cleanRow['{{competitors}}'] || "",
+        ...cleanRow // Include all fields as merge data for templates
+      };
+      
+      return prospectData;
+    }).filter(prospect => prospect.email); // Only include rows with valid email
   }
 
   async processAllCampaigns(): Promise<void> {
