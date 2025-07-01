@@ -28,18 +28,19 @@ export default function OAuthCalendar() {
   const queryClient = useQueryClient();
 
   // Fetch OAuth accounts
-  const { data: accounts = [], isLoading: accountsLoading } = useQuery({
+  const { data: accounts = [], isLoading: accountsLoading } = useQuery<OAuthAccount[]>({
     queryKey: ["/api/oauth-calendar/accounts"],
   });
 
   // Connect new Google account mutation
   const connectAccountMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("/api/auth/google");
-      if (response.authUrl) {
-        window.location.href = response.authUrl;
+      const response = await fetch("/api/auth/google");
+      const data = await response.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
       }
-      return response;
+      return data;
     },
     onError: (error) => {
       toast({
@@ -53,12 +54,10 @@ export default function OAuthCalendar() {
   // Test calendar access mutation
   const testAccessMutation = useMutation({
     mutationFn: async (accountId: number) => {
-      return await apiRequest("/api/oauth-calendar/test-access", {
-        method: "POST",
-        body: { accountId },
-      });
+      const response = await apiRequest("POST", "/api/oauth-calendar/test-access", { accountId });
+      return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: data.success ? "Calendar Access Verified" : "Access Failed",
         description: data.message,
@@ -74,17 +73,15 @@ export default function OAuthCalendar() {
         throw new Error("Please fill in all required fields and select an account");
       }
 
-      return await apiRequest("/api/oauth-calendar/test-invite", {
-        method: "POST",
-        body: {
-          prospectEmail,
-          eventTitle,
-          eventDescription,
-          accountId: selectedAccountId,
-        },
+      const response = await apiRequest("POST", "/api/oauth-calendar/test-invite", {
+        prospectEmail,
+        eventTitle,
+        eventDescription,
+        accountId: selectedAccountId,
       });
+      return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: "Test Invite Sent!",
         description: `Calendar invite sent to ${prospectEmail} via OAuth`,
@@ -101,7 +98,7 @@ export default function OAuthCalendar() {
     },
   });
 
-  const activeAccounts = accounts.filter((account: OAuthAccount) => account.isActive);
+  const activeAccounts = (accounts as OAuthAccount[]).filter((account: OAuthAccount) => account.isActive);
 
   return (
     <div className="container mx-auto py-6 px-4">
@@ -140,7 +137,7 @@ export default function OAuthCalendar() {
               </div>
             )}
 
-            {accounts.length === 0 && !accountsLoading && (
+            {(accounts as OAuthAccount[]).length === 0 && !accountsLoading && (
               <div className="text-center py-8 text-muted-foreground">
                 <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No OAuth accounts connected yet</p>
@@ -148,7 +145,7 @@ export default function OAuthCalendar() {
               </div>
             )}
 
-            {accounts.map((account: OAuthAccount) => (
+            {(accounts as OAuthAccount[]).map((account: OAuthAccount) => (
               <div
                 key={account.id}
                 className={`p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -242,7 +239,7 @@ export default function OAuthCalendar() {
                   Selected Account
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {accounts.find((a: OAuthAccount) => a.id === selectedAccountId)?.email}
+                  {(accounts as OAuthAccount[]).find((a: OAuthAccount) => a.id === selectedAccountId)?.email}
                 </p>
               </div>
             )}
