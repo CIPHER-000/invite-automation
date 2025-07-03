@@ -1,5 +1,6 @@
 import { storage } from "../storage";
 import { googleCalendarService } from "./google-calendar";
+import { oauthCalendarService } from "./oauth-calendar";
 import { timeSlotManager, ProspectScheduleData } from "./time-slot-manager";
 import { inboxLoadBalancer } from "./inbox-load-balancer";
 import type { Campaign, GoogleAccount } from "@shared/schema";
@@ -158,6 +159,17 @@ export class CampaignProcessor {
     return new Date(now.getTime() + minutesDelay * 60000);
   }
 
+  private processMergeFields(template: string, data: Record<string, any>): string {
+    let processed = template;
+    
+    Object.keys(data).forEach(key => {
+      const value = data[key] || '';
+      processed = processed.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    });
+    
+    return processed;
+  }
+
   async createInviteFromQueue(queueItem: any): Promise<void> {
     const campaign = await storage.getCampaign(queueItem.campaignId);
     if (!campaign) {
@@ -202,17 +214,16 @@ export class CampaignProcessor {
       // Process merge fields
       const mergeData = {
         name: prospect.name || prospect.email,
-        email: prospect.email,
         company: prospect.company || "",
         ...prospect,
       };
 
-      const eventTitle = googleCalendarService.processMergeFields(
+      const eventTitle = this.processMergeFields(
         campaign.eventTitleTemplate,
         mergeData
       );
 
-      const eventDescription = googleCalendarService.processMergeFields(
+      const eventDescription = this.processMergeFields(
         campaign.eventDescriptionTemplate,
         mergeData
       );
@@ -222,8 +233,8 @@ export class CampaignProcessor {
       startTime.setHours(10, 0, 0, 0); // 10 AM
       const endTime = new Date(startTime.getTime() + campaign.eventDuration * 60000);
 
-      // Create calendar event
-      const eventId = await googleCalendarService.createEvent(availableAccount, {
+      // Create calendar event using OAuth calendar service
+      const eventId = await oauthCalendarService.createEventWithOAuth(availableAccount, {
         title: eventTitle,
         description: eventDescription,
         attendeeEmail: prospect.email,
@@ -242,23 +253,8 @@ export class CampaignProcessor {
       // Record successful usage in load balancer
       await inboxLoadBalancer.recordUsage(availableAccount.id, true);
 
-      // Update Google Sheets
-      try {
-        await googleSheetsService.updateSheetRow(
-          availableAccount,
-          campaign,
-          queueItem.prospectData.rowIndex || 0,
-          {
-            status: "INVITE_SENT",
-            timestamp: new Date().toISOString(),
-            senderInbox: availableAccount.email,
-            confirmationSent: "NO",
-          }
-        );
-      } catch (sheetError) {
-        console.error("Failed to update sheet:", sheetError);
-        // Don't fail the invite if sheet update fails
-      }
+      // Log successful invite creation
+      console.log(`Calendar invite sent successfully to ${prospect.email}, Event ID: ${eventId}`);
 
       // Mark queue item as completed
       await storage.updateQueueItem(queueItem.id, {
