@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { freshOAuthService } from "./services/oauth-fresh";
+import { google } from "googleapis";
 import { googleServiceAuthService } from "./services/google-service-auth";
 import { gmailAppPasswordService } from "./services/gmail-app-password";
 import { outlookAuthService } from "./services/outlook-auth";
