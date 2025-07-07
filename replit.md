@@ -125,6 +125,9 @@ Changelog:
 - January 1, 2025. Deployed production-ready OAuth calendar functionality bypassing admin setup requirements
 - January 1, 2025. Configured correct OAuth credentials from project new-app-464423 with fresh client secret
 - January 1, 2025. Enabled Google Calendar API and Sheets API via gcloud commands for OAuth functionality
+- January 7, 2025. Completely rebuilt OAuth system with kally-465213 project credentials
+- January 7, 2025. Removed all access code authentication barriers for streamlined user experience
+- January 7, 2025. Fixed server crashes by rewriting clean authentication architecture
 ```
 
 ## User Preferences

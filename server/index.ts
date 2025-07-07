@@ -8,38 +8,19 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Session configuration for access code protection
+// Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'shady-5-session-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true in production with HTTPS
+    secure: false,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     httpOnly: true
   }
 }));
 
-// Access code disabled for easier OAuth testing
-
-// Login route disabled - redirect to dashboard
-app.get('/login', (req, res) => {
-  res.redirect('/');
-});
-
-app.post('/login', (req, res) => {
-  // Access code disabled - always redirect to home
-  res.redirect('/');
-});
-
-app.get('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    res.redirect('/');
-  });
-});
-
-// Access code protection disabled
-
+// Simple logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -58,11 +39,9 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }
-
       log(logLine);
     }
   });
@@ -71,37 +50,29 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize Gmail app password service to load existing accounts
-  await gmailAppPasswordService.initialize();
-  
-  const server = await registerRoutes(app);
+  try {
+    await gmailAppPasswordService.initialize();
+    const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      console.error(`Error ${status}: ${message}`);
+      res.status(status).json({ message });
+    });
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    if (process.env.NODE_ENV === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    const port = Number(process.env.PORT) || 5000;
+    server.listen(port, "0.0.0.0", () => {
+      log(`Server running on port ${port}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
   }
-
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
 })();
