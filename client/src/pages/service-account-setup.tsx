@@ -37,9 +37,9 @@ export default function ServiceAccountSetup() {
   const queryClient = useQueryClient();
 
   const { data: accounts, isLoading } = useQuery({
-    queryKey: ["/api/accounts"],
+    queryKey: ["/api/oauth-calendar/accounts"],
     queryFn: async () => {
-      const response = await fetch("/api/accounts");
+      const response = await fetch("/api/oauth-calendar/accounts");
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
     },
@@ -50,15 +50,14 @@ export default function ServiceAccountSetup() {
     queryKey: ["/api/auth/service-account/status"],
     queryFn: async () => {
       const response = await fetch("/api/auth/service-account/status");
-      if (!response.ok) return { configured: false };
+      if (!response.ok) return { configured: false, calendar: false, sheets: false };
       return response.json();
     },
     retry: false,
   });
 
-  const serviceAccount = accounts?.find((acc: any) => acc.email?.includes('iam.gserviceaccount.com'));
-  const organizationalUsers = accounts?.filter((acc: any) => !acc.email?.includes('iam.gserviceaccount.com')) || [];
-  const isConfigured = serviceStatus?.configured && serviceAccount;
+  const oauthAccounts = accounts || [];
+  const isConfigured = oauthAccounts.length > 0;
 
   // Add organizational user mutation
   const addUserMutation = useMutation({
@@ -147,11 +146,15 @@ export default function ServiceAccountSetup() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Service Account Setup</h1>
+          <h1 className="text-3xl font-bold">Account Setup</h1>
           <p className="text-muted-foreground mt-2">
-            Configure Google Service Account for automated calendar invitations
+            Connect Google accounts for automated calendar invitations
           </p>
         </div>
+        <Button onClick={() => window.location.href = '/oauth-calendar'} variant="outline">
+          <Plus className="h-4 w-4 mr-2" />
+          Connect Google Account
+        </Button>
       </div>
 
       {/* Status Overview */}
@@ -165,9 +168,9 @@ export default function ServiceAccountSetup() {
                 <XCircle className="h-5 w-5 text-red-500" />
               )}
               <div>
-                <p className="font-medium">Service Account</p>
+                <p className="font-medium">OAuth Accounts</p>
                 <p className="text-sm text-muted-foreground">
-                  {isConfigured ? "Active" : "Not configured"}
+                  {isConfigured ? `${oauthAccounts.length} connected` : "Not connected"}
                 </p>
               </div>
             </div>
@@ -177,7 +180,7 @@ export default function ServiceAccountSetup() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              {serviceStatus?.calendar ? (
+              {isConfigured ? (
                 <CheckCircle className="h-5 w-5 text-green-500" />
               ) : (
                 <XCircle className="h-5 w-5 text-red-500" />
@@ -185,7 +188,7 @@ export default function ServiceAccountSetup() {
               <div>
                 <p className="font-medium">Calendar API</p>
                 <p className="text-sm text-muted-foreground">
-                  {serviceStatus?.calendar ? "Connected" : "Not connected"}
+                  {isConfigured ? "Connected" : "Not connected"}
                 </p>
               </div>
             </div>
@@ -195,7 +198,7 @@ export default function ServiceAccountSetup() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              {serviceStatus?.sheets ? (
+              {isConfigured ? (
                 <CheckCircle className="h-5 w-5 text-green-500" />
               ) : (
                 <XCircle className="h-5 w-5 text-red-500" />
@@ -203,7 +206,7 @@ export default function ServiceAccountSetup() {
               <div>
                 <p className="font-medium">Sheets API</p>
                 <p className="text-sm text-muted-foreground">
-                  {serviceStatus?.sheets ? "Connected" : "Not connected"}
+                  {isConfigured ? "Connected" : "Not connected"}
                 </p>
               </div>
             </div>
@@ -211,59 +214,61 @@ export default function ServiceAccountSetup() {
         </Card>
       </div>
 
-      {/* Service Account Status */}
+      {/* OAuth Account Status */}
       {isConfigured ? (
         <Alert>
           <CheckCircle className="h-4 w-4" />
-          <AlertTitle>Service Account Active</AlertTitle>
+          <AlertTitle>OAuth Connection Active</AlertTitle>
           <AlertDescription>
-            Your Google Service Account is configured and ready for automation.
+            Your Google accounts are connected and ready for automation.
             Calendar and Sheets APIs are both connected and operational.
           </AlertDescription>
         </Alert>
       ) : (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Service Account Required</AlertTitle>
+          <AlertTitle>Google Account Required</AlertTitle>
           <AlertDescription>
-            A Google Service Account is required for automated calendar invitations.
-            Contact your administrator to configure the service account credentials.
+            Connect a Google account to start sending automated calendar invitations.
+            Click "Connect Google Account" to get started.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Current Service Account */}
-      {serviceAccount && (
+      {/* Connected OAuth Accounts */}
+      {isConfigured && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              Current Service Account
+              Connected Google Accounts
             </CardTitle>
             <CardDescription>
-              Active service account configuration
+              OAuth accounts connected for calendar automation
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div>
-                  <p className="font-medium">{serviceAccount.email}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Created: {new Date(serviceAccount.createdAt).toLocaleDateString()}
-                  </p>
+              {oauthAccounts.map((account: any) => (
+                <div key={account.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div>
+                    <p className="font-medium">{account.email}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Connected: {new Date(account.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">OAuth</Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigator.clipboard.writeText(account.email)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">Service Account</Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyEmail}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              ))}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
@@ -272,16 +277,12 @@ export default function ServiceAccountSetup() {
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-blue-500" />
                       <span className="text-sm">Google Calendar API</span>
-                      {serviceStatus?.calendar && (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      )}
+                      <CheckCircle className="h-4 w-4 text-green-500" />
                     </div>
                     <div className="flex items-center gap-2">
                       <FileSpreadsheet className="h-4 w-4 text-green-500" />
                       <span className="text-sm">Google Sheets API</span>
-                      {serviceStatus?.sheets && (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      )}
+                      <CheckCircle className="h-4 w-4 text-green-500" />
                     </div>
                   </div>
                 </div>
@@ -301,147 +302,55 @@ export default function ServiceAccountSetup() {
         </Card>
       )}
 
-      {/* Organizational Users Management */}
-      {isConfigured && (
+      {/* OAuth Setup Instructions */}
+      {!isConfigured && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Organizational Users
+              <ExternalLink className="h-5 w-5" />
+              OAuth Setup Guide
             </CardTitle>
             <CardDescription>
-              Add organizational email accounts to send invites from. Requires domain-wide delegation.
+              Instructions to connect your Google account for calendar automation.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Domain-wide delegation instructions */}
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Domain-Wide Delegation Required</AlertTitle>
+              <AlertTitle>OAuth Setup Required</AlertTitle>
               <AlertDescription>
-                To use organizational users, configure domain-wide delegation in Google Workspace Admin Console:
+                To get started with calendar automation, you need to connect your Google account using OAuth:
                 <ol className="list-decimal list-inside mt-2 space-y-1">
-                  <li>Go to Google Workspace Admin Console → Security → API Controls</li>
-                  <li>Add the service account client ID: <code className="bg-muted px-1 rounded text-xs">inviteautomate@new-app-464423.iam.gserviceaccount.com</code></li>
-                  <li>Grant scopes: <code className="bg-muted px-1 rounded text-xs">https://www.googleapis.com/auth/calendar, https://www.googleapis.com/auth/spreadsheets</code></li>
+                  <li>Click the "Connect Google Account" button above</li>
+                  <li>Grant permission for Calendar and Sheets access</li>
+                  <li>Your account will be automatically configured for sending invites</li>
                 </ol>
               </AlertDescription>
             </Alert>
 
-            {/* Add new organizational user */}
             <div className="border rounded-lg p-4 space-y-4">
-              <h4 className="font-medium">Add Organizational User</h4>
-              <Alert>
-                <Mail className="h-4 w-4" />
-                <AlertTitle>Gmail App Password Required</AlertTitle>
-                <AlertDescription>
-                  Each organizational user needs a Gmail app password for email authentication.
-                  <a 
-                    href="https://myaccount.google.com/apppasswords" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline ml-1"
-                  >
-                    Generate app password here
-                  </a>
-                </AlertDescription>
-              </Alert>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="userEmail">Gmail Address</Label>
-                  <Input
-                    id="userEmail"
-                    type="email"
-                    placeholder="shaw@getmemeetings.com"
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="userName">Display Name (Optional)</Label>
-                  <Input
-                    id="userName"
-                    placeholder="Shaw"
-                    value={newUserName}
-                    onChange={(e) => setNewUserName(e.target.value)}
-                  />
-                </div>
+              <h4 className="font-medium">Google Cloud Console Setup</h4>
+              <div className="text-sm text-muted-foreground space-y-3">
+                <p>If you're setting up OAuth for the first time, ensure the following in Google Cloud Console:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li><strong>APIs Enabled:</strong> Google Calendar API and Google Sheets API</li>
+                  <li><strong>OAuth Consent Screen:</strong> Configured with your app information</li>
+                  <li><strong>Authorized Redirect URIs:</strong> Include your domain + /api/auth/google/callback</li>
+                  <li><strong>Scopes:</strong> Calendar, Sheets, and user profile access</li>
+                </ul>
               </div>
-              
-              <div>
-                <Label htmlFor="appPassword">Gmail App Password</Label>
-                <div className="relative">
-                  <Input
-                    id="appPassword"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="xxxx xxxx xxxx xxxx"
-                    value={newUserAppPassword}
-                    onChange={(e) => setNewUserAppPassword(e.target.value)}
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-              
-              <Button
-                onClick={() => addUserMutation.mutate({ 
-                  email: newUserEmail, 
-                  name: newUserName || newUserEmail.split('@')[0],
-                  appPassword: newUserAppPassword 
-                })}
-                disabled={!newUserEmail || !newUserAppPassword || addUserMutation.isPending}
-                className="w-full md:w-auto"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {addUserMutation.isPending ? "Adding..." : "Add User with App Password"}
-              </Button>
             </div>
 
-            {/* List existing organizational users */}
-            {organizationalUsers.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-3">Current Organizational Users ({organizationalUsers.length})</h4>
-                <div className="space-y-2">
-                  {organizationalUsers.map((user: any) => (
-                    <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Mail className="h-4 w-4 text-blue-500" />
-                        <div>
-                          <div className="font-medium">{user.name}</div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={user.isActive ? "default" : "secondary"}>
-                          {user.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteUserMutation.mutate(user.id)}
-                          disabled={deleteUserMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="text-center py-6">
+              <Button 
+                onClick={() => window.location.href = '/oauth-calendar'} 
+                size="lg"
+                className="px-8"
+              >
+                <Calendar className="h-5 w-5 mr-2" />
+                Go to OAuth Setup
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
