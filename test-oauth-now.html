@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Test</title>
+</head>
+<body>
+    <h1>OAuth Test</h1>
+    <button onclick="testOAuth()">Test OAuth Connection</button>
+    <div id="result"></div>
+    
+    <script>
+    async function testOAuth() {
+        try {
+            const response = await fetch('/api/auth/google');
+            const data = await response.json();
+            console.log('OAuth Response:', data);
+            
+            if (data.authUrl) {
+                document.getElementById('result').innerHTML = 
+                    `<p>✅ OAuth URL Generated Successfully!</p>
+                     <p>Client ID: ${data.authUrl.includes('378868803078') ? '✅ NEW PROJECT' : '❌ OLD PROJECT'}</p>
+                     <a href="${data.authUrl}" target="_blank">Connect Google Account</a>`;
+            } else {
+                document.getElementById('result').innerHTML = '❌ Failed to generate OAuth URL';
+            }
+        } catch (error) {
+            document.getElementById('result').innerHTML = '❌ Error: ' + error.message;
+        }
+    }
+    </script>
+</body>
+</html>
