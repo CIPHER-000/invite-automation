@@ -40,34 +40,45 @@ export class GoogleAuthService {
     expiresAt: Date;
     userInfo: { email: string; name: string };
   }> {
-    const tokenResponse = await this.oauth2Client.getToken(code);
-    const tokens = tokenResponse.tokens;
+    console.log("Attempting token exchange with:", {
+      clientId: CLIENT_ID,
+      redirectUri: REDIRECT_URI,
+      code: code.substring(0, 20) + "...",
+    });
     
-    if (!tokens.access_token || !tokens.refresh_token) {
-      throw new Error("Failed to get tokens from Google");
+    try {
+      const tokenResponse = await this.oauth2Client.getToken(code);
+      const tokens = tokenResponse.tokens;
+      
+      if (!tokens.access_token || !tokens.refresh_token) {
+        throw new Error("Failed to get tokens from Google");
+      }
+
+      this.oauth2Client.setCredentials(tokens);
+
+      // Get user info
+      const oauth2 = google.oauth2({ version: "v2", auth: this.oauth2Client });
+      const { data: userInfo } = await oauth2.userinfo.get();
+
+      if (!userInfo.email || !userInfo.name) {
+        throw new Error("Failed to get user info from Google");
+      }
+
+      const expiresAt = new Date(Date.now() + ((tokens.expiry_date || Date.now() + 3600000) - Date.now()));
+
+      return {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt,
+        userInfo: {
+          email: userInfo.email,
+          name: userInfo.name,
+        },
+      };
+    } catch (error) {
+      console.error("OAuth token exchange failed:", error);
+      throw error;
     }
-
-    this.oauth2Client.setCredentials(tokens);
-
-    // Get user info
-    const oauth2 = google.oauth2({ version: "v2", auth: this.oauth2Client });
-    const { data: userInfo } = await oauth2.userinfo.get();
-
-    if (!userInfo.email || !userInfo.name) {
-      throw new Error("Failed to get user info from Google");
-    }
-
-    const expiresAt = new Date(Date.now() + ((tokens.expiry_date || Date.now() + 3600000) - Date.now()));
-
-    return {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt,
-      userInfo: {
-        email: userInfo.email,
-        name: userInfo.name,
-      },
-    };
   }
 
   async refreshAccessToken(account: GoogleAccount): Promise<{
