@@ -84,18 +84,8 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const { accessCode } = req.body;
-  
-  console.log("Login attempt with access code:", accessCode);
-  console.log("Expected access code:", ACCESS_CODE);
-  
-  if (accessCode === ACCESS_CODE) {
-    const session = req.session as any;
-    session.accessCodeValid = true;
-    res.redirect('/');
-  } else {
-    res.redirect('/login?error=1');
-  }
+  // Access code disabled - always redirect to home
+  res.redirect('/');
 });
 
 app.get('/logout', (req, res) => {
