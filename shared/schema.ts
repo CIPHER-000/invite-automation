@@ -211,6 +211,8 @@ export type CampaignWithStats = Campaign & {
   accepted: number;
   totalProspects: number;
   progress: number;
+  pendingInvites: number;
+  processingInvites: number;
 };
 
 export type AccountWithStatus = GoogleAccount & {

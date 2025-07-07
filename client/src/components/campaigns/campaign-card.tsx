@@ -10,7 +10,9 @@ import {
   Play,
   Pause,
   Edit,
-  Trash2
+  Trash2,
+  Clock,
+  AlertTriangle
 } from "lucide-react";
 import { 
   DropdownMenu,
@@ -79,6 +81,12 @@ export function CampaignCard({
                 <Database size={14} className="mr-1" />
                 {campaign.totalProspects} prospects
               </span>
+              {(campaign.pendingInvites > 0 || campaign.processingInvites > 0) && (
+                <span className="text-orange-600 flex items-center">
+                  <Clock size={14} className="mr-1" />
+                  {campaign.pendingInvites + campaign.processingInvites} pending
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-2 ml-4">
@@ -123,6 +131,9 @@ export function CampaignCard({
                 >
                   <Trash2 size={14} className="mr-2" />
                   Delete
+                  {(campaign.pendingInvites > 0 || campaign.processingInvites > 0) && (
+                    <AlertTriangle size={12} className="ml-2 text-orange-500" />
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

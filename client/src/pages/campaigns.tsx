@@ -37,10 +37,14 @@ export default function Campaigns() {
         description: "Campaign has been deleted successfully.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Delete campaign error:", error);
+      const errorMessage = error?.message || "Failed to delete campaign.";
       toast({
-        title: "Error",
-        description: "Failed to delete campaign.",
+        title: "Cannot delete campaign",
+        description: errorMessage.includes('while invites are being processed') 
+          ? "Campaign cannot be deleted while invites are being sent. Please wait a moment and try again."
+          : errorMessage,
         variant: "destructive",
       });
     },

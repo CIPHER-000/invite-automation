@@ -238,7 +238,24 @@ export class MemStorage implements IStorage {
   }
 
   async deleteCampaign(id: number): Promise<void> {
-    // Delete related records first
+    // Check if there are any processing queue items
+    const processingItems = Array.from(this.inviteQueue.values()).filter(
+      item => item.campaignId === id && item.status === 'processing'
+    );
+
+    if (processingItems.length > 0) {
+      throw new Error('Cannot delete campaign while invites are being processed. Please wait and try again.');
+    }
+
+    // Set campaign as inactive first to prevent new processing
+    const campaign = this.campaigns.get(id);
+    if (campaign) {
+      campaign.isActive = false;
+      campaign.status = 'deleted';
+      this.campaigns.set(id, campaign);
+    }
+
+    // Delete related records
     Array.from(this.inviteQueue.entries()).forEach(([queueId, item]) => {
       if (item.campaignId === id) {
         this.inviteQueue.delete(queueId);
@@ -257,7 +274,7 @@ export class MemStorage implements IStorage {
       }
     });
     
-    // Now delete the campaign
+    // Finally delete the campaign
     this.campaigns.delete(id);
   }
 
@@ -269,8 +286,14 @@ export class MemStorage implements IStorage {
         invite => invite.campaignId === campaign.id
       );
       
+      const campaignQueueItems = Array.from(this.inviteQueue.values()).filter(
+        item => item.campaignId === campaign.id
+      );
+      
       const invitesSent = campaignInvites.filter(i => i.status === "sent" || i.status === "accepted").length;
       const accepted = campaignInvites.filter(i => i.status === "accepted").length;
+      const pendingInvites = campaignQueueItems.filter(i => i.status === "pending").length;
+      const processingInvites = campaignQueueItems.filter(i => i.status === "processing").length;
       const totalProspects = campaignInvites.length;
       const progress = totalProspects > 0 ? (invitesSent / totalProspects) * 100 : 0;
 
@@ -280,6 +303,8 @@ export class MemStorage implements IStorage {
         accepted,
         totalProspects,
         progress: Math.round(progress * 10) / 10,
+        pendingInvites,
+        processingInvites
       };
     });
   }
@@ -548,12 +573,29 @@ class PostgresStorage implements IStorage {
   }
 
   async deleteCampaign(id: number): Promise<void> {
-    // Delete related records first due to foreign key constraints
+    // First check if there are any processing queue items
+    const processingItems = await this.db.select()
+      .from(schema.inviteQueue)
+      .where(and(
+        eq(schema.inviteQueue.campaignId, id),
+        eq(schema.inviteQueue.status, 'processing')
+      ));
+
+    if (processingItems.length > 0) {
+      throw new Error('Cannot delete campaign while invites are being processed. Please wait and try again.');
+    }
+
+    // Set campaign as inactive first to prevent new processing
+    await this.db.update(schema.campaigns)
+      .set({ isActive: false, status: 'deleted' })
+      .where(eq(schema.campaigns.id, id));
+
+    // Delete related records
     await this.db.delete(schema.inviteQueue).where(eq(schema.inviteQueue.campaignId, id));
     await this.db.delete(schema.invites).where(eq(schema.invites.campaignId, id));
     await this.db.delete(schema.activityLogs).where(eq(schema.activityLogs.campaignId, id));
     
-    // Now delete the campaign
+    // Finally delete the campaign
     await this.db.delete(schema.campaigns).where(eq(schema.campaigns.id, id));
   }
 
@@ -565,6 +607,11 @@ class PostgresStorage implements IStorage {
       const invites = await this.db.select().from(schema.invites).where(eq(schema.invites.campaignId, campaign.id));
       const sentInvites = invites.filter(invite => invite.status === 'sent' || invite.status === 'accepted');
       const accepted = invites.filter(invite => invite.status === 'accepted').length;
+      
+      // Get queue statistics
+      const queueItems = await this.db.select().from(schema.inviteQueue).where(eq(schema.inviteQueue.campaignId, campaign.id));
+      const pendingInvites = queueItems.filter(item => item.status === 'pending').length;
+      const processingInvites = queueItems.filter(item => item.status === 'processing').length;
       
       // Calculate total prospects from CSV data
       const csvData = campaign.csvData as Record<string, string>[] || [];
@@ -578,7 +625,9 @@ class PostgresStorage implements IStorage {
         invitesSent: sentInvites.length,
         accepted,
         totalProspects,
-        progress: Math.round(progress * 10) / 10
+        progress: Math.round(progress * 10) / 10,
+        pendingInvites,
+        processingInvites
       });
     }
 

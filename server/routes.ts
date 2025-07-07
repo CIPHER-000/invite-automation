@@ -347,8 +347,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       await storage.deleteCampaign(id);
       res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete campaign" });
+    } catch (error: any) {
+      console.error("Campaign deletion error:", error);
+      if (error.message && error.message.includes('while invites are being processed')) {
+        res.status(409).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to delete campaign" });
+      }
     }
   });
 
