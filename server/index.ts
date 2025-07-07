@@ -34,12 +34,11 @@ app.post('/login', (req, res) => {
 
 app.get('/logout', (req, res) => {
   req.session.destroy((err) => {
-    res.redirect('/login');
+    res.redirect('/');
   });
 });
 
-// Access code protection disabled for easier OAuth testing
-// app.use(requireAccessCode);
+// Access code protection disabled
 
 app.use((req, res, next) => {
   const start = Date.now();
