@@ -541,14 +541,22 @@ class PostgresStorage implements IStorage {
 
     for (const campaign of campaigns) {
       const invites = await this.db.select().from(schema.invites).where(eq(schema.invites.campaignId, campaign.id));
+      const sentInvites = invites.filter(invite => invite.status === 'sent' || invite.status === 'accepted');
       const accepted = invites.filter(invite => invite.status === 'accepted').length;
+      
+      // Calculate total prospects from CSV data
+      const csvData = campaign.csvData as Record<string, string>[] || [];
+      const totalProspects = csvData.length;
+      
+      // Calculate progress as sent invites vs total prospects
+      const progress = totalProspects > 0 ? (sentInvites.length / totalProspects) * 100 : 0;
       
       campaignsWithStats.push({
         ...campaign,
-        invitesSent: invites.length,
+        invitesSent: sentInvites.length,
         accepted,
-        totalProspects: invites.length,
-        progress: invites.length > 0 ? Math.round((invites.length / invites.length) * 100) : 0
+        totalProspects,
+        progress: Math.round(progress * 10) / 10
       });
     }
 
