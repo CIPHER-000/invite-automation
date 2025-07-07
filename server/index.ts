@@ -22,65 +22,9 @@ app.use(session({
 
 // Access code disabled for easier OAuth testing
 
-// Login routes
+// Login route disabled - redirect to dashboard
 app.get('/login', (req, res) => {
-  const loginHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Calendar Automation - Access Required</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style>
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          margin: 0; padding: 0; height: 100vh;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .container { 
-          background: white; padding: 2rem; border-radius: 8px; 
-          box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 400px; width: 90%;
-        }
-        .logo { text-align: center; margin-bottom: 2rem; }
-        .logo h1 { color: #333; margin: 0; font-size: 2rem; font-weight: 600; }
-        .logo p { color: #666; margin: 0.5rem 0 0 0; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; color: #333; font-weight: 500; }
-        input[type="password"] { 
-          width: 100%; padding: 0.75rem; border: 2px solid #e1e5e9; 
-          border-radius: 4px; font-size: 1rem; box-sizing: border-box;
-        }
-        input[type="password"]:focus { 
-          outline: none; border-color: #667eea; 
-        }
-        button { 
-          width: 100%; padding: 0.75rem; background: #667eea; color: white; 
-          border: none; border-radius: 4px; font-size: 1rem; cursor: pointer;
-          font-weight: 500;
-        }
-        button:hover { background: #5a6fd8; }
-        .error { color: #e74c3c; margin-top: 0.5rem; font-size: 0.9rem; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="logo">
-          <h1>Calendar Automation</h1>
-          <p>Secure Access Required</p>
-        </div>
-        <form method="POST" action="/login">
-          <div class="form-group">
-            <label for="accessCode">Enter Access Code:</label>
-            <input type="password" id="accessCode" name="accessCode" required autofocus>
-          </div>
-          <button type="submit">Access Dashboard</button>
-          ${req.query.error ? '<div class="error">Invalid access code</div>' : ''}
-        </form>
-      </div>
-    </body>
-    </html>
-  `;
-  res.send(loginHtml);
+  res.redirect('/');
 });
 
 app.post('/login', (req, res) => {
