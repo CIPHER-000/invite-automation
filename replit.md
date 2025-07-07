@@ -1,136 +1,79 @@
-# Shady 5.0 - Calendar Invite Campaign Automation System
+# Project Deleted - Calendar Automation System
 
 ## Overview
 
-Shady 5.0 is a comprehensive multi-provider calendar automation platform that supports both Google Workspace and Microsoft 365/Outlook integration. The system provides intelligent campaign management, smart time slot scheduling, advanced load balancing, and multi-provider email capabilities. It allows users to create and manage sophisticated email marketing campaigns that automatically send personalized calendar invitations to prospects from Google Sheets data, with support for multiple calendar providers and comprehensive performance tracking.
+This repository contains the remnants of a calendar automation project that has been completely removed per user request. The project was a web-based calendar automation system that experienced persistent authentication issues that could not be resolved despite multiple architectural attempts and rebuilds.
 
 ## System Architecture
 
-### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **UI Library**: Shadcn/ui components with Radix UI primitives
-- **Styling**: Tailwind CSS with CSS variables for theming
-- **State Management**: TanStack React Query for server state management
-- **Routing**: Wouter for client-side routing
-- **Form Handling**: React Hook Form with Zod validation
-- **Build Tool**: Vite with custom configuration for development and production
+Based on the available information, the system attempted multiple architectural approaches:
 
-### Backend Architecture
-- **Runtime**: Node.js with Express.js framework
-- **Language**: TypeScript with ES modules
-- **API Design**: RESTful API with JSON responses
-- **Database ORM**: Drizzle ORM with PostgreSQL dialect
-- **Authentication**: Google OAuth2 with multiple account support
-- **Background Processing**: Custom queue manager for asynchronous task processing
+### Initial Architecture
+- **Frontend**: React-based web application
+- **Backend**: Server-side API system with OAuth authentication
+- **Authentication**: OAuth-based authentication system with Google Calendar integration
 
-### Database Architecture
-- **Database**: PostgreSQL (configured for Neon serverless)
-- **ORM**: Drizzle ORM with schema-first approach
-- **Migrations**: Drizzle Kit for database migrations
-- **Connection**: Neon serverless driver for PostgreSQL connections
+### Attempted Refactors
+- **Static HTML Approach**: Replaced React with static HTML to eliminate client-side routing issues
+- **Server-side Authentication**: Implemented server-side OAuth redirects
+- **Fresh Credentials**: Complete OAuth system rebuild with new credentials
 
 ## Key Components
 
-### Database Schema
-The system uses five main tables:
-- **google_accounts**: Stores OAuth tokens and account information for multiple Google accounts
-- **campaigns**: Campaign configurations with templates and Google Sheets integration
-- **invites**: Individual invite records with status tracking and merge data
-- **activity_logs**: System activity and audit trail
-- **invite_queue**: Background job queue for processing invites
-- **system_settings**: Global system configuration
+### Authentication System
+- **Problem**: Persistent authentication redirects across all devices and browsers
+- **Attempted Solutions**: 
+  - OAuth system rebuild
+  - Access code barrier removal
+  - Frontend framework replacement
+  - Server-side redirect fixes
+- **Outcome**: Fundamental architectural issue remained unresolved
 
-### Google API Integrations
-- **Google OAuth2**: Multi-account authentication with refresh token management
-- **Google Calendar API**: Calendar event creation and invite management
-- **Google Sheets API**: Reading prospect data and updating status information
-
-### Background Processing System
-- **Queue Manager**: Processes invite queue with configurable intervals
-- **Campaign Processor**: Reads Google Sheets and creates invite jobs
-- **Email Service**: Sends confirmation emails using nodemailer
-- **Status Tracking**: Monitors invite acceptance and updates records
-
-### UI Components
-- **Dashboard**: Real-time statistics and system health monitoring
-- **Campaign Management**: Create, edit, and monitor campaigns
-- **Account Management**: Connect and manage multiple Google accounts
-- **Activity Log**: Real-time activity tracking and filtering
-- **Settings**: System configuration and limits management
+### Calendar Integration
+- **Purpose**: Automation of calendar-related tasks
+- **Integration**: Google Calendar API (inferred from OAuth context)
+- **Status**: Non-functional due to authentication issues
 
 ## Data Flow
 
-1. **Campaign Creation**: Users create campaigns with Google Sheets URLs and email templates
-2. **Sheet Processing**: System reads prospect data from Google Sheets using Google Sheets API
-3. **Queue Population**: Prospects are added to the invite queue with scheduled send times
-4. **Invite Processing**: Background queue manager processes pending invites
-5. **Calendar Event Creation**: System creates calendar events and sends invites via Google Calendar API
-6. **Status Updates**: Google Sheets are updated with invite status and timestamps
-7. **Acceptance Monitoring**: System periodically checks for invite acceptances
-8. **Confirmation Emails**: Automated confirmation emails are sent upon acceptance
+The intended data flow was:
+1. User authentication via OAuth
+2. Calendar API integration
+3. Automated calendar operations
+4. User interface updates
+
+**Current State**: Authentication flow broken, preventing subsequent operations.
 
 ## External Dependencies
 
-### Google APIs
-- **Google Calendar API**: For creating calendar events and managing invitations
-- **Google Sheets API**: For reading prospect data and updating status information
-- **Google OAuth2 API**: For user authentication and token management
+### Security Scanning
+- **Semgrep**: Security rule configuration present for code analysis
+- **Focus Areas**: Parameter security, sensitive information logging
+- **Technologies**: Bicep template security scanning
 
-### Third-party Services
-- **Neon Database**: Serverless PostgreSQL hosting
-- **Nodemailer**: Email sending functionality with Gmail integration
-
-### Development Tools
-- **Replit Integration**: Custom Vite plugins for Replit development environment
-- **Error Monitoring**: Runtime error overlay for development
+### Authentication Services
+- **OAuth Provider**: Google OAuth (inferred)
+- **Status**: Non-functional
 
 ## Deployment Strategy
 
-### Development Environment
-- **Local Development**: Vite dev server with hot module replacement
-- **Database**: Local PostgreSQL or Neon development instance
-- **Environment Variables**: Google OAuth credentials and database URL
-
-### Production Build
-- **Frontend**: Vite build process generating optimized static assets
-- **Backend**: ESBuild compilation to ESM format with external packages
-- **Database**: Drizzle migrations applied to production PostgreSQL instance
-- **Deployment**: Node.js server serving built frontend and API endpoints
-
-### Environment Configuration
-Required environment variables:
-- `DATABASE_URL`: PostgreSQL connection string
-- `GOOGLE_CLIENT_ID`: Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
-- `GOOGLE_REDIRECT_URI`: OAuth callback URL
+No deployment configuration visible in current repository state. The project appears to have been stripped of all functional components.
 
 ## Changelog
+
 ```
 Changelog:
-- June 28, 2025. Initial setup with Google Calendar automation
-- June 28, 2025. Added Dynamic Time Slot Logic with timezone-aware scheduling
-- June 28, 2025. Implemented Inbox Load Balancing with health scoring and auto-rotation
-- June 28, 2025. Added Office 365/Outlook integration with Microsoft Graph API
-- June 28, 2025. Created Multi-Provider Email services supporting Gmail and Outlook
-- June 28, 2025. Rebranded to "Shady 5.0" with enhanced multi-provider capabilities
-- June 30, 2025. Successfully configured Google Service Account authentication
-- June 30, 2025. Enabled Google Calendar API and Google Sheets API access
-- June 30, 2025. Deployed working calendar automation system with access code protection
-- June 30, 2025. Implemented hybrid authentication model: Service Account + App Passwords
-- June 30, 2025. Integrated organizational user management with Gmail app password requirements
-- June 30, 2025. Added inbox selection functionality to campaign creation
-- June 30, 2025. Unified account setup page combining service account and user management
-- January 1, 2025. Built comprehensive OAuth 2.0 Calendar Integration system
-- January 1, 2025. Resolved Domain-Wide Delegation barriers with direct OAuth authentication
-- January 1, 2025. Deployed production-ready OAuth calendar functionality bypassing admin setup requirements
-- January 1, 2025. Configured correct OAuth credentials from project new-app-464423 with fresh client secret
-- January 1, 2025. Enabled Google Calendar API and Sheets API via gcloud commands for OAuth functionality
-- January 7, 2025. Completely rebuilt OAuth system with kally-465213 project credentials
-- January 7, 2025. Removed all access code authentication barriers for streamlined user experience
-- January 7, 2025. Fixed server crashes by rewriting clean authentication architecture
+- July 07, 2025. Initial setup
 ```
 
 ## User Preferences
+
 ```
 Preferred communication style: Simple, everyday language.
 ```
+
+## Current Status
+
+**⚠️ IMPORTANT**: This project has been completely removed and is non-functional. The repository serves as documentation of a failed calendar automation system that experienced unresolvable authentication issues. Any attempt to restore or continue this project should address the fundamental authentication architecture problems that led to its removal.
+
+The persistent authentication redirects across all devices and browsers suggest the issue was deeply embedded in the system's authentication flow design rather than implementation details.
