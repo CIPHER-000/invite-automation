@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useAutoRefresh } from "@/hooks/use-realtime";
-import Dashboard from "@/pages/dashboard";
+import Dashboard from "@/pages/dashboard-simple";
 import Campaigns from "@/pages/campaigns";
 import Accounts from "@/pages/accounts";
 import Activity from "@/pages/activity";
@@ -16,14 +16,6 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 
 function Router() {
-  // Auto-refresh key data when window gains focus
-  useAutoRefresh([
-    "/api/dashboard/stats",
-    "/api/campaigns",
-    "/api/accounts",
-    "/api/activity",
-  ]);
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
@@ -32,13 +24,11 @@ function Router() {
           <div className="p-8">
             <Switch>
               <Route path="/" component={Dashboard} />
-              <Route path="/landing" component={Landing} />
               <Route path="/campaigns" component={Campaigns} />
               <Route path="/accounts" component={ServiceAccountSetup} />
               <Route path="/oauth-calendar" component={OAuthCalendar} />
               <Route path="/activity" component={Activity} />
               <Route path="/settings" component={Settings} />
-              <Route path="/service-account" component={ServiceAccountSetup} />
               <Route component={NotFound} />
             </Switch>
           </div>
