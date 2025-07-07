@@ -133,6 +133,8 @@ Changelog:
 - January 7, 2025. Queue manager successfully processing invites with OAuth calendar integration (Event ID: 7l469sgigbac3c97nf0e2rjf4c sent to shaw@getmemeetings.com)
 - January 7, 2025. Calendar invite campaigns now fully operational with OAuth-authenticated Google accounts
 - January 7, 2025. Updated invite scheduling to send invites 1 minute after campaign creation for immediate automation
+- January 7, 2025. Implemented safe campaign deletion with processing checks and visual indicators
+- January 7, 2025. OAuth integration working correctly - Google unverified app warning is expected for development apps
 ```
 
 ## User Preferences
