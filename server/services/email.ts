@@ -11,8 +11,8 @@ export class EmailService {
       service: "gmail",
       auth: {
         type: "OAuth2",
-        clientId: process.env.GOOGLE_CLIENT_ID || "571943054804-92fbh828cm03laha4j5o44bk887ubm0s.apps.googleusercontent.com",
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET || "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",
+        clientId: process.env.GOOGLE_CLIENT_ID || "378868803078-50gj80qdtcji129idk73mb5kjtski9da.apps.googleusercontent.com",
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET || "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",
       },
     });
   }
