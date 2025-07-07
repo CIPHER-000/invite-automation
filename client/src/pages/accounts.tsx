@@ -68,10 +68,10 @@ export default function Accounts() {
   const connectMutation = useMutation({
     mutationFn: api.getGoogleAuthUrl,
     onSuccess: (data: any) => {
-      if (data.serviceAccountRequired) {
+      if (!data.authUrl) {
         toast({
-          title: "Service Account Required",
-          description: "OAuth is disabled. Use Service Account authentication.",
+          title: "Authentication Error",
+          description: "Failed to generate authentication URL. Please try again.",
           variant: "destructive",
         });
         return;
@@ -80,11 +80,20 @@ export default function Accounts() {
       window.open(data.authUrl, "_blank", "width=500,height=600");
       setIsConnecting(true);
       
+      toast({
+        title: "Authentication Started",
+        description: "Complete the OAuth flow in the new window to connect your Google account.",
+      });
+      
       // Check for connection completion
       const checkInterval = setInterval(() => {
         refetch().then(() => {
           clearInterval(checkInterval);
           setIsConnecting(false);
+          toast({
+            title: "Account Connected",
+            description: "Google account connected successfully!",
+          });
         });
       }, 2000);
 
@@ -95,10 +104,10 @@ export default function Accounts() {
       }, 300000);
     },
     onError: (error: any) => {
-      console.log("OAuth error:", error);
+      console.error("OAuth error:", error);
       toast({
-        title: "OAuth Unavailable",
-        description: "Using Service Account authentication instead. Go to Service Account setup.",
+        title: "Connection Failed",
+        description: "Failed to start authentication. Please check your internet connection and try again.",
         variant: "destructive",
       });
     },
@@ -179,14 +188,13 @@ export default function Accounts() {
       />
 
       <div className="p-6 space-y-6">
-        {/* Service Account Status */}
-        {serviceStatus && serviceStatus.configured && (
+        {/* OAuth Status */}
+        {accounts && accounts.length > 0 && (
           <Alert className="border-green-200 bg-green-50">
             <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertTitle className="text-green-800">Service Account Active</AlertTitle>
+            <AlertTitle className="text-green-800">OAuth Authentication Active</AlertTitle>
             <AlertDescription className="text-green-700">
-              Google Calendar and Sheets APIs are connected via Service Account.
-              {serviceStatus.calendar && serviceStatus.sheets ? " All services operational." : " Some services may be limited."}
+              Google accounts connected via OAuth 2.0. Calendar and Sheets access available through connected accounts.
             </AlertDescription>
           </Alert>
         )}
@@ -264,8 +272,8 @@ export default function Accounts() {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>No Google accounts connected</AlertTitle>
             <AlertDescription>
-              You need to connect at least one Google account to start sending calendar invites.
-              Make sure to grant the necessary permissions for Calendar and Sheets access.
+              Connect a Google account using OAuth 2.0 to start sending calendar invites.
+              You'll need to grant permissions for Calendar and Google Sheets access.
             </AlertDescription>
           </Alert>
         )}
