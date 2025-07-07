@@ -29,6 +29,11 @@ function requireAccessCode(req: Request, res: Response, next: NextFunction) {
     return next();
   }
 
+  // Allow OAuth callback routes (these need to work for authentication flow)
+  if (req.path === '/api/auth/google/callback' || req.path === '/api/auth/google' || req.path === '/api/auth/outlook/callback') {
+    return next();
+  }
+
   // Allow service account setup without access code (for initial configuration)
   if (req.path === '/api/auth/google/service-account' || req.path === '/api/auth/service-account/status') {
     return next();
