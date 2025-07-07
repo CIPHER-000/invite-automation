@@ -138,17 +138,10 @@ export class TimeSlotManager {
     let date = new Date(startDate);
     const now = new Date();
     
-    // For campaign automation, we want to start sending invites soon
-    // Only advance to next day if it's very late (after 10 PM) or very early (before 6 AM)
-    if (date.toDateString() === now.toDateString() && 
-        (now.getHours() >= 22 || now.getHours() < 6)) {
-      date.setDate(date.getDate() + 1);
-      date.setHours(preferences.startHour, 0, 0, 0);
-    } else if (date.toDateString() === now.toDateString()) {
-      // If it's the same day and within reasonable hours, start soon
-      // Add 5-30 minutes from now to spread out the sends
-      date = new Date(now.getTime() + Math.random() * 25 * 60000 + 5 * 60000);
-    }
+    // For campaign automation, send invites 1 minute after creation
+    // Add 1-2 minutes from now to spread out the sends slightly
+    const delayMinutes = 1 + Math.random(); // 1-2 minutes
+    date = new Date(now.getTime() + delayMinutes * 60000);
 
     // Find next valid business day only if we're on a weekend
     let attempts = 0;

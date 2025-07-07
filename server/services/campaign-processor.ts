@@ -153,9 +153,9 @@ export class CampaignProcessor {
   }
 
   private calculateScheduleTime(index: number): Date {
-    // Distribute invites throughout the day
+    // Send invites starting 1 minute from now, with 30 seconds between each
     const now = new Date();
-    const minutesDelay = index * 5; // 5 minutes between each invite
+    const minutesDelay = 1 + (index * 0.5); // Start at 1 minute, then 30 seconds between each
     return new Date(now.getTime() + minutesDelay * 60000);
   }
 
