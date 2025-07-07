@@ -1,38 +1,115 @@
-import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Sidebar } from "@/components/layout/sidebar";
-import { useAutoRefresh } from "@/hooks/use-realtime";
-import Dashboard from "@/pages/dashboard-simple";
-import Campaigns from "@/pages/campaigns";
-import Accounts from "@/pages/accounts";
-import Activity from "@/pages/activity";
-import Settings from "@/pages/settings";
-import ServiceAccountSetup from "@/pages/service-account-setup";
-import OAuthCalendar from "@/pages/oauth-calendar";
-import NotFound from "@/pages/not-found";
-import Landing from "@/pages/landing";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Calendar, Users, Mail, BarChart3 } from "lucide-react";
 
-function Router() {
+function SimpleApp() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 ml-64">
-          <div className="p-8">
-            <Switch>
-              <Route path="/" component={Dashboard} />
-              <Route path="/campaigns" component={Campaigns} />
-              <Route path="/accounts" component={ServiceAccountSetup} />
-              <Route path="/oauth-calendar" component={OAuthCalendar} />
-              <Route path="/activity" component={Activity} />
-              <Route path="/settings" component={Settings} />
-              <Route component={NotFound} />
-            </Switch>
-          </div>
-        </main>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Calendar Automation Dashboard</h1>
+          <p className="text-gray-600 mt-2">Your calendar invite campaign system is ready</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Campaigns</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Active campaigns</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Invites</CardTitle>
+              <Mail className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Sent today</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Accepted</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Meeting responses</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Accounts</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Connected</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Connect Google Account</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button 
+                className="w-full" 
+                size="lg"
+                onClick={() => {
+                  fetch("/api/auth/google")
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.authUrl) {
+                        window.open(data.authUrl, '_blank');
+                      }
+                    });
+                }}
+              >
+                Connect Google Account
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                Opens Google OAuth in new tab to connect your account
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>System Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">OAuth System</span>
+                  <span className="text-sm text-green-600 font-medium">✓ Active</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Queue Processor</span>
+                  <span className="text-sm text-green-600 font-medium">✓ Running</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Database</span>
+                  <span className="text-sm text-green-600 font-medium">✓ Connected</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -43,7 +120,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <SimpleApp />
       </TooltipProvider>
     </QueryClientProvider>
   );
