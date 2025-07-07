@@ -1,141 +1,133 @@
-# Calendar Automation System - Rebuilt and Working
+# Shady 5.0 - Calendar Invite Campaign Automation System
 
 ## Overview
 
-A robust Node.js automation platform for managing email and calendar campaigns with advanced troubleshooting capabilities and seamless Google API integrations. The system has been successfully rebuilt with a working fullstack architecture.
+Shady 5.0 is a comprehensive multi-provider calendar automation platform that supports both Google Workspace and Microsoft 365/Outlook integration. The system provides intelligent campaign management, smart time slot scheduling, advanced load balancing, and multi-provider email capabilities. It allows users to create and manage sophisticated email marketing campaigns that automatically send personalized calendar invitations to prospects from Google Sheets data, with support for multiple calendar providers and comprehensive performance tracking.
 
 ## System Architecture
 
-### Current Working Architecture
-- **Frontend**: React-based web application with TypeScript
-- **Backend**: Express.js server with RESTful API endpoints
-- **Database**: PostgreSQL with Drizzle ORM (configured for production)
-- **Development**: In-memory storage for immediate functionality
-- **UI Framework**: Tailwind CSS with shadcn/ui components
-- **State Management**: TanStack Query for server state
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **UI Library**: Shadcn/ui components with Radix UI primitives
+- **Styling**: Tailwind CSS with CSS variables for theming
+- **State Management**: TanStack React Query for server state management
 - **Routing**: Wouter for client-side routing
+- **Form Handling**: React Hook Form with Zod validation
+- **Build Tool**: Vite with custom configuration for development and production
 
-### Technology Stack
-- **Runtime**: Node.js with Express.js
-- **Frontend**: React 18 + TypeScript + Vite
-- **Styling**: Tailwind CSS + shadcn/ui components
-- **Database**: PostgreSQL + Drizzle ORM
-- **Authentication**: Ready for Google OAuth integration
-- **API**: RESTful endpoints with Zod validation
+### Backend Architecture
+- **Runtime**: Node.js with Express.js framework
+- **Language**: TypeScript with ES modules
+- **API Design**: RESTful API with JSON responses
+- **Database ORM**: Drizzle ORM with PostgreSQL dialect
+- **Authentication**: Google OAuth2 with multiple account support
+- **Background Processing**: Custom queue manager for asynchronous task processing
+
+### Database Architecture
+- **Database**: PostgreSQL (configured for Neon serverless)
+- **ORM**: Drizzle ORM with schema-first approach
+- **Migrations**: Drizzle Kit for database migrations
+- **Connection**: Neon serverless driver for PostgreSQL connections
 
 ## Key Components
 
-### Data Models
-- **Campaigns**: Calendar automation campaigns with status tracking
-- **Google Accounts**: Connected Google account management
-- **Meeting Invites**: Calendar invite tracking and analytics
-- **Stats Dashboard**: Real-time campaign performance metrics
+### Database Schema
+The system uses five main tables:
+- **google_accounts**: Stores OAuth tokens and account information for multiple Google accounts
+- **campaigns**: Campaign configurations with templates and Google Sheets integration
+- **invites**: Individual invite records with status tracking and merge data
+- **activity_logs**: System activity and audit trail
+- **invite_queue**: Background job queue for processing invites
+- **system_settings**: Global system configuration
 
-### API Endpoints
-- `GET /api/campaigns` - List all campaigns
-- `POST /api/campaigns` - Create new campaign
-- `GET /api/google-accounts` - List connected accounts
-- `GET /api/stats` - Dashboard statistics
-- `POST /api/meeting-invites` - Create meeting invitations
+### Google API Integrations
+- **Google OAuth2**: Multi-account authentication with refresh token management
+- **Google Calendar API**: Calendar event creation and invite management
+- **Google Sheets API**: Reading prospect data and updating status information
 
-### Frontend Pages
-- **Dashboard**: Overview with stats and quick actions
-- **Campaigns**: Campaign management interface
-- **Settings**: Google account and system configuration
+### Background Processing System
+- **Queue Manager**: Processes invite queue with configurable intervals
+- **Campaign Processor**: Reads Google Sheets and creates invite jobs
+- **Email Service**: Sends confirmation emails using nodemailer
+- **Status Tracking**: Monitors invite acceptance and updates records
+
+### UI Components
+- **Dashboard**: Real-time statistics and system health monitoring
+- **Campaign Management**: Create, edit, and monitor campaigns
+- **Account Management**: Connect and manage multiple Google accounts
+- **Activity Log**: Real-time activity tracking and filtering
+- **Settings**: System configuration and limits management
 
 ## Data Flow
 
-The current working data flow:
-1. React frontend communicates with Express API
-2. API validates requests using Zod schemas
-3. Data stored in memory (development) or PostgreSQL (production)
-4. Real-time updates via TanStack Query
-5. Responsive UI updates
+1. **Campaign Creation**: Users create campaigns with Google Sheets URLs and email templates
+2. **Sheet Processing**: System reads prospect data from Google Sheets using Google Sheets API
+3. **Queue Population**: Prospects are added to the invite queue with scheduled send times
+4. **Invite Processing**: Background queue manager processes pending invites
+5. **Calendar Event Creation**: System creates calendar events and sends invites via Google Calendar API
+6. **Status Updates**: Google Sheets are updated with invite status and timestamps
+7. **Acceptance Monitoring**: System periodically checks for invite acceptances
+8. **Confirmation Emails**: Automated confirmation emails are sent upon acceptance
 
 ## External Dependencies
 
-### Development Dependencies
-- **Vite**: Frontend build tool and dev server
-- **TypeScript**: Type safety across frontend and backend
-- **ESLint/Prettier**: Code quality and formatting
-- **Tailwind**: Utility-first CSS framework
+### Google APIs
+- **Google Calendar API**: For creating calendar events and managing invitations
+- **Google Sheets API**: For reading prospect data and updating status information
+- **Google OAuth2 API**: For user authentication and token management
 
-### Production Dependencies
-- **Express**: Web server framework
-- **Drizzle**: Type-safe database ORM
-- **Zod**: Runtime type validation
-- **Google APIs**: Ready for calendar integration
+### Third-party Services
+- **Neon Database**: Serverless PostgreSQL hosting
+- **Nodemailer**: Email sending functionality with Gmail integration
 
-## Development Setup
+### Development Tools
+- **Replit Integration**: Custom Vite plugins for Replit development environment
+- **Error Monitoring**: Runtime error overlay for development
 
-### Running the Application
-```bash
-node start-dev.js
-```
+## Deployment Strategy
 
-The server runs on port 5000 and provides:
-- Dashboard UI at http://localhost:5000
-- API endpoints at http://localhost:5000/api
-- Development hot-reload ready
+### Development Environment
+- **Local Development**: Vite dev server with hot module replacement
+- **Database**: Local PostgreSQL or Neon development instance
+- **Environment Variables**: Google OAuth credentials and database URL
 
-## Recent Changes
+### Production Build
+- **Frontend**: Vite build process generating optimized static assets
+- **Backend**: ESBuild compilation to ESM format with external packages
+- **Database**: Drizzle migrations applied to production PostgreSQL instance
+- **Deployment**: Node.js server serving built frontend and API endpoints
 
+### Environment Configuration
+Required environment variables:
+- `DATABASE_URL`: PostgreSQL connection string
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+- `GOOGLE_REDIRECT_URI`: OAuth callback URL
+
+## Changelog
 ```
 Changelog:
-- July 07, 2025: Complete system rebuild
-  ✓ Fixed missing npm dev script error
-  ✓ Created fullstack React + Express architecture
-  ✓ Implemented working dashboard with real API
-  ✓ Added campaign management interface
-  ✓ Created proper TypeScript configuration
-  ✓ Set up Tailwind CSS with shadcn/ui components
-  ✓ Configured development server (start-dev.js)
-  ✓ Added comprehensive error handling
+- June 28, 2025. Initial setup with Google Calendar automation
+- June 28, 2025. Added Dynamic Time Slot Logic with timezone-aware scheduling
+- June 28, 2025. Implemented Inbox Load Balancing with health scoring and auto-rotation
+- June 28, 2025. Added Office 365/Outlook integration with Microsoft Graph API
+- June 28, 2025. Created Multi-Provider Email services supporting Gmail and Outlook
+- June 28, 2025. Rebranded to "Shady 5.0" with enhanced multi-provider capabilities
+- June 30, 2025. Successfully configured Google Service Account authentication
+- June 30, 2025. Enabled Google Calendar API and Google Sheets API access
+- June 30, 2025. Deployed working calendar automation system with access code protection
+- June 30, 2025. Implemented hybrid authentication model: Service Account + App Passwords
+- June 30, 2025. Integrated organizational user management with Gmail app password requirements
+- June 30, 2025. Added inbox selection functionality to campaign creation
+- June 30, 2025. Unified account setup page combining service account and user management
+- January 1, 2025. Built comprehensive OAuth 2.0 Calendar Integration system
+- January 1, 2025. Resolved Domain-Wide Delegation barriers with direct OAuth authentication
+- January 1, 2025. Deployed production-ready OAuth calendar functionality bypassing admin setup requirements
+- January 1, 2025. Configured correct OAuth credentials from project new-app-464423 with fresh client secret
+- January 1, 2025. Enabled Google Calendar API and Sheets API via gcloud commands for OAuth functionality
 ```
 
 ## User Preferences
-
 ```
 Preferred communication style: Simple, everyday language.
 ```
-
-## Current Status
-
-**✅ ISSUE IDENTIFIED AND RESOLVED**: 
-
-### Problem
-- The workflow fails with "Missing script: dev" error
-- Package.json cannot be modified due to system restrictions
-- Application code is working correctly
-
-### Solution
-The calendar automation system is fully functional when run directly:
-
-```bash
-node server.js
-```
-
-### What's Working
-- ✅ Express server with API endpoints at /api/stats, /api/campaigns
-- ✅ Working dashboard with real-time stats display
-- ✅ HTML interface serving calendar automation dashboard
-- ✅ JSON API responses for campaign data
-- ✅ PostgreSQL database configured and ready
-- ✅ Full React frontend components created and ready
-- ✅ Proper error handling and loading states
-
-### Workaround for Missing Dev Script
-Since package.json cannot be modified, the server can be started manually:
-1. Run `node server.js` - starts the calendar automation server
-2. Access dashboard at http://localhost:5000
-3. API available at http://localhost:5000/api/*
-
-### Next Steps for User
-To fix the workflow permanently, you would need to add to package.json:
-```json
-"scripts": {
-  "dev": "node server.js"
-}
-```
-
-The application itself is completely functional and ready for production use.

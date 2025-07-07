@@ -1,0 +1,166 @@
+Title:
+Build a Replit app to automate Google Calendar invite campaigns with merge fields, multiple inbox support, and Google Sheets data sync.
+
+Description / Requirements:
+
+✅ 1. Campaign Management
+
+Support multiple campaigns.
+
+Each campaign has:
+
+Unique event title (subject) template.
+
+Unique event description/body template (with merge fields).
+
+A Google Sheet containing prospect data.
+
+A confirmation email template.
+
+✅ 2. Google Sheets Integration
+
+Read data from Google Sheets:
+
+Prospect email.
+
+Name, company, any custom fields.
+
+After each invite is sent, update the sheet:
+
+Status (INVITE_SENT).
+
+Timestamp.
+
+Sender inbox used.
+
+Confirmation sent (YES/NO).
+
+✅ 3. Google Calendar API Integration
+
+Connect multiple Google accounts (inboxes) via OAuth2.
+
+For each invite:
+
+Create a calendar event in the sender’s primary calendar.
+
+Invite the prospect’s email.
+
+Optionally configure:
+
+Event start/end time (e.g., default 30 min slot).
+
+Time zone.
+
+Event reminders.
+
+Use merge fields in title and description.
+
+✅ 4. Sending Logic
+
+Rotate inboxes for each event creation.
+
+Enforce 30-minute gap per inbox (e.g., Inbox A creates an event, waits 30 min before next).
+
+Schedule up to 100 invites/day total across all inboxes.
+
+✅ 5. Confirmation Email
+
+Detect when the invitee accepts the calendar event (via Google Calendar API event status: accepted).
+
+Automatically send a confirmation email from the same inbox.
+
+✅ 6. Dashboard
+
+Show:
+
+Campaigns.
+
+Invite statuses.
+
+Recent activity.
+
+Errors.
+
+No authentication needed.
+
+✅ 7. Hosting & Scheduling
+
+Runs continuously in Replit (paid plan to keep always-on).
+
+Alternatively, can be triggered on a cron schedule.
+
+✅ Tech Stack Suggestion
+
+Node.js
+
+googleapis Node client for Calendar and Sheets
+
+Nodemailer for confirmation emails
+
+Express.js for dashboard
+
+SQLite for tracking send times and statuses
+
+✅ Security
+
+OAuth tokens stored securely (e.g., .env + encrypted JSON).
+
+Never log sensitive tokens or credentials.
+
+Clarifying Questions to Make Sure We Nail This:
+
+1️⃣ Event Timing:
+
+Should all invites have the same date/time (e.g., tomorrow at 10 AM)?
+
+Or should each prospect get a unique date/time slot?
+
+2️⃣ Time Zones:
+
+Is the time zone fixed per campaign?
+
+Or do you need to localize time per recipient?
+
+3️⃣ Confirmation Email Content:
+
+Is this templated per campaign, with merge fields?
+
+4️⃣ Acceptance Detection Frequency:
+
+Should we poll every X minutes for acceptance?
+
+Or check once per hour?
+
+5️⃣ Daily Cap Per Inbox:
+
+Gmail Calendar API has rate limits—do you want to cap at, say, 50/day per inbox?
+
+6️⃣ Replit Hosting:
+
+Are you okay with storing OAuth credentials on Replit?
+
+If not, you may want a separate secure server.
+
+Example Flow:
+
+App loads campaign configuration.
+
+Reads Google Sheet rows where status = PENDING.
+
+Picks next available inbox (based on last sent timestamp).
+
+Creates a calendar event via Gmail Calendar API.
+
+Logs event in SQLite + updates Sheet.
+
+Waits 30 min before that inbox can send again.
+
+Every hour, checks event statuses.
+
+If attendee accepted, sends confirmation email.
+
+Updates Sheet + logs confirmation.
+
+✅ If this is all correct, this prompt is ready for Replit or a freelance developer.
+✅ If you confirm the 6 clarifying points above, I can write the scaffolded Node.js project layout + starter code snippets to kickstart.
+

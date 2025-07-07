@@ -1,3 +1,0 @@
-#!/usr/bin/env node
-console.log('🚀 Starting Calendar Automation System...');
-require('./server.js');
