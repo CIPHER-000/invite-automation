@@ -13,8 +13,8 @@ export class GoogleServiceAuthService {
   private credentials: ServiceAccountCredentials | null = null;
 
   constructor() {
-    // Initialize with service account credentials
-    this.initializeServiceAccount();
+    // Service Account disabled - using OAuth flow only
+    console.log("Service Account authentication disabled - using OAuth flow");
   }
 
   private async initializeServiceAccount() {
