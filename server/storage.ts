@@ -238,11 +238,27 @@ export class MemStorage implements IStorage {
   }
 
   async deleteCampaign(id: number): Promise<void> {
-    const campaign = this.campaigns.get(id);
-    if (campaign) {
-      campaign.isActive = false;
-      this.campaigns.set(id, campaign);
-    }
+    // Delete related records first
+    Array.from(this.inviteQueue.entries()).forEach(([queueId, item]) => {
+      if (item.campaignId === id) {
+        this.inviteQueue.delete(queueId);
+      }
+    });
+    
+    Array.from(this.invites.entries()).forEach(([inviteId, invite]) => {
+      if (invite.campaignId === id) {
+        this.invites.delete(inviteId);
+      }
+    });
+    
+    Array.from(this.activityLogs.entries()).forEach(([logId, log]) => {
+      if (log.campaignId === id) {
+        this.activityLogs.delete(logId);
+      }
+    });
+    
+    // Now delete the campaign
+    this.campaigns.delete(id);
   }
 
   async getCampaignsWithStats(): Promise<CampaignWithStats[]> {
@@ -532,6 +548,12 @@ class PostgresStorage implements IStorage {
   }
 
   async deleteCampaign(id: number): Promise<void> {
+    // Delete related records first due to foreign key constraints
+    await this.db.delete(schema.inviteQueue).where(eq(schema.inviteQueue.campaignId, id));
+    await this.db.delete(schema.invites).where(eq(schema.invites.campaignId, id));
+    await this.db.delete(schema.activityLogs).where(eq(schema.activityLogs.campaignId, id));
+    
+    // Now delete the campaign
     await this.db.delete(schema.campaigns).where(eq(schema.campaigns.id, id));
   }
 
