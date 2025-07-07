@@ -322,7 +322,7 @@ export default function ServiceAccountSetup() {
                 To use organizational users, configure domain-wide delegation in Google Workspace Admin Console:
                 <ol className="list-decimal list-inside mt-2 space-y-1">
                   <li>Go to Google Workspace Admin Console → Security → API Controls</li>
-                  <li>Add the service account client ID: <code className="bg-muted px-1 rounded text-xs">inviteautomate@new-app-464423.iam.gserviceaccount.com</code></li>
+                  <li>Add the service account client ID: <code className="bg-muted px-1 rounded text-xs">inviteautomate@kally-465213.iam.gserviceaccount.com</code></li>
                   <li>Grant scopes: <code className="bg-muted px-1 rounded text-xs">https://www.googleapis.com/auth/calendar, https://www.googleapis.com/auth/spreadsheets</code></li>
                 </ol>
               </AlertDescription>
