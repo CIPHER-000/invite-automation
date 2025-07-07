@@ -2,8 +2,8 @@ import { google } from "googleapis";
 import { storage } from "../storage";
 import type { GoogleAccount } from "@shared/schema";
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "378868803078-50gj80qdtcji129idk73mb5kjtski9da.apps.googleusercontent.com";
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "571943054804-92fbh828cm03laha4j5o44bk887ubm0s.apps.googleusercontent.com";
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
 const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "https://6a2391b4-c08c-4318-89e8-f4587ae39044-00-3u78hq3a9p26b.worf.replit.dev/api/auth/google/callback";
 
 const SCOPES = [
