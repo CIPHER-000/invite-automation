@@ -4,7 +4,22 @@ import type { GoogleAccount } from "@shared/schema";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "378868803078-50gj80qdtcji129idk73mb5kjtski9da.apps.googleusercontent.com";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
-const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "https://6a2391b4-c08c-4318-89e8-f4587ae39044-00-3u78hq3a9p26b.worf.replit.dev/api/auth/google/callback";
+// Dynamic redirect URI based on environment
+const getRedirectUri = () => {
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    return process.env.GOOGLE_REDIRECT_URI;
+  }
+  
+  // Auto-detect based on environment
+  if (process.env.REPLIT_DOMAINS?.includes('invite.deploy2030.com')) {
+    return "https://invite.deploy2030.com/api/auth/google/callback";
+  }
+  
+  // Default to development URL
+  return "https://6a2391b4-c08c-4318-89e8-f4587ae39044-00-3u78hq3a9p26b.worf.replit.dev/api/auth/google/callback";
+};
+
+const REDIRECT_URI = getRedirectUri();
 
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar",
@@ -15,6 +30,14 @@ const SCOPES = [
 
 export class GoogleAuthService {
   private oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
+
+  constructor() {
+    console.log("Google OAuth Configuration:", {
+      clientId: CLIENT_ID ? "SET" : "MISSING",
+      clientSecret: CLIENT_SECRET ? "SET" : "MISSING",
+      redirectUri: REDIRECT_URI
+    });
+  }
 
   getAuthUrl(): string {
     console.log("OAuth Client Configuration:", {
