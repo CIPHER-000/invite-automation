@@ -20,34 +20,7 @@ app.use(session({
   }
 }));
 
-// Access code protection middleware
-const ACCESS_CODE = process.env.ACCESS_CODE || 'tyuiop[0';
-
-function requireAccessCode(req: Request, res: Response, next: NextFunction) {
-  // Allow access to login routes
-  if (req.path === '/login' || req.path === '/logout') {
-    return next();
-  }
-
-  // Allow service account setup without access code (for initial configuration)
-  if (req.path === '/api/auth/google/service-account' || req.path === '/api/auth/service-account/status') {
-    return next();
-  }
-
-  // Check if user has valid access code in session
-  const session = req.session as any;
-  if (session.accessCodeValid) {
-    return next();
-  }
-
-  // For API routes, return JSON error
-  if (req.path.startsWith('/api')) {
-    return res.status(401).json({ error: 'Access code required' });
-  }
-
-  // For all other routes, redirect to login
-  return res.redirect('/login');
-}
+// Access code disabled for easier OAuth testing
 
 // Login routes
 app.get('/login', (req, res) => {
@@ -131,8 +104,8 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// Apply access code protection to all routes except login/logout
-app.use(requireAccessCode);
+// Access code protection disabled for easier OAuth testing
+// app.use(requireAccessCode);
 
 app.use((req, res, next) => {
   const start = Date.now();
