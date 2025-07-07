@@ -32,7 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/google", (req, res) => {
     try {
       const authUrl = googleAuthService.getAuthUrl();
-      console.log("Generated Google Auth URL:", authUrl);
+      console.log("Generated Google Auth URL for production:", authUrl);
       res.json({ authUrl });
     } catch (error) {
       console.error("Error generating Google Auth URL:", error);
