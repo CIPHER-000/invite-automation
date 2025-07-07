@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import { outlookAuthService } from "./outlook-auth";
-import { googleAuthService } from "./google-auth";
+import { freshOAuthService } from "./oauth-fresh";
 import { storage } from "../storage";
 
 export interface EmailProvider {
@@ -79,7 +79,7 @@ export class MultiProviderEmailService {
       throw new Error("Gmail account not found");
     }
 
-    const accessToken = await googleAuthService.getValidAccessToken(account);
+    const accessToken = await freshOAuthService.getValidAccessToken(account);
 
     const mailOptions = {
       from: `"${account.name}" <${account.email}>`,

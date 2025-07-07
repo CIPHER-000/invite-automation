@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { googleAuthService } from "./google-auth";
+import { freshOAuthService } from "./oauth-fresh";
 import { googleServiceAuthService } from "./google-service-auth";
 import { storage } from "../storage";
 import type { GoogleAccount, Invite } from "@shared/schema";
@@ -26,8 +26,8 @@ export class GoogleCalendarService {
       }
     } else {
       // Use OAuth auth
-      const accessToken = await googleAuthService.getValidAccessToken(account);
-      auth = googleAuthService.createAuthClient(accessToken);
+      const accessToken = await freshOAuthService.getValidAccessToken(account);
+      auth = freshOAuthService.createAuthClient(accessToken);
     }
 
     const calendar = google.calendar({ version: "v3", auth });
@@ -91,8 +91,8 @@ export class GoogleCalendarService {
     status: string;
     attendeeResponse?: string;
   }> {
-    const accessToken = await googleAuthService.getValidAccessToken(account);
-    const auth = googleAuthService.createAuthClient(accessToken);
+    const accessToken = await freshOAuthService.getValidAccessToken(account);
+    const auth = freshOAuthService.createAuthClient(accessToken);
     const calendar = google.calendar({ version: "v3", auth });
 
     const response = await calendar.events.get({

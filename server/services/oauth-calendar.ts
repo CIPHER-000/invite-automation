@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { googleAuthService } from "./google-auth";
+import { freshOAuthService } from "./oauth-fresh";
 import { storage } from "../storage";
 import type { GoogleAccount } from "@shared/schema";
 
@@ -18,10 +18,10 @@ export class OAuthCalendarService {
    */
   async createEventWithOAuth(account: GoogleAccount, eventDetails: OAuthEventDetails): Promise<string> {
     // Get valid access token (refreshes if needed)
-    const accessToken = await googleAuthService.getValidAccessToken(account);
+    const accessToken = await freshOAuthService.getValidAccessToken(account);
     
     // Create OAuth client with fresh token
-    const auth = googleAuthService.createAuthClient(accessToken);
+    const auth = freshOAuthService.createAuthClient(accessToken);
     const calendar = google.calendar({ version: "v3", auth });
 
     const event = {
@@ -94,8 +94,8 @@ export class OAuthCalendarService {
     status: string;
     attendeeResponse?: string;
   }> {
-    const accessToken = await googleAuthService.getValidAccessToken(account);
-    const auth = googleAuthService.createAuthClient(accessToken);
+    const accessToken = await freshOAuthService.getValidAccessToken(account);
+    const auth = freshOAuthService.createAuthClient(accessToken);
     const calendar = google.calendar({ version: "v3", auth });
 
     try {
@@ -153,8 +153,8 @@ export class OAuthCalendarService {
     calendarName?: string;
   }> {
     try {
-      const accessToken = await googleAuthService.getValidAccessToken(account);
-      const auth = googleAuthService.createAuthClient(accessToken);
+      const accessToken = await freshOAuthService.getValidAccessToken(account);
+      const auth = freshOAuthService.createAuthClient(accessToken);
       const calendar = google.calendar({ version: "v3", auth });
 
       // Test by getting calendar info

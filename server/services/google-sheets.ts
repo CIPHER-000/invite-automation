@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { googleAuthService } from "./google-auth";
+import { freshOAuthService } from "./oauth-fresh";
 import type { GoogleAccount, Campaign } from "@shared/schema";
 
 export interface ProspectData {
@@ -18,8 +18,8 @@ export interface SheetUpdateData {
 
 export class GoogleSheetsService {
   async readProspectData(account: GoogleAccount, campaign: Campaign): Promise<ProspectData[]> {
-    const accessToken = await googleAuthService.getValidAccessToken(account);
-    const auth = googleAuthService.createAuthClient(accessToken);
+    const accessToken = await freshOAuthService.getValidAccessToken(account);
+    const auth = freshOAuthService.createAuthClient(accessToken);
     const sheets = google.sheets({ version: "v4", auth });
 
     // Extract spreadsheet ID from URL
@@ -85,8 +85,8 @@ export class GoogleSheetsService {
     rowIndex: number, 
     updateData: SheetUpdateData
   ): Promise<void> {
-    const accessToken = await googleAuthService.getValidAccessToken(account);
-    const auth = googleAuthService.createAuthClient(accessToken);
+    const accessToken = await freshOAuthService.getValidAccessToken(account);
+    const auth = freshOAuthService.createAuthClient(accessToken);
     const sheets = google.sheets({ version: "v4", auth });
 
     const spreadsheetId = this.extractSpreadsheetId(campaign.sheetUrl);
