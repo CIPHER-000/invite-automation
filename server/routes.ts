@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { googleAuthService } from "./services/google-auth";
+import { freshOAuthService } from "./services/oauth-fresh";
 import { googleServiceAuthService } from "./services/google-service-auth";
 import { gmailAppPasswordService } from "./services/gmail-app-password";
 import { outlookAuthService } from "./services/outlook-auth";
@@ -31,7 +31,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Google OAuth routes
   app.get("/api/auth/google", (req, res) => {
     try {
-      const authUrl = googleAuthService.getAuthUrl();
+      const authUrl = freshOAuthService.getAuthUrl();
       console.log("Generated Google Auth URL:", authUrl);
       res.json({ authUrl });
     } catch (error) {
@@ -146,11 +146,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing authorization code" });
       }
 
-      const { accessToken, refreshToken, expiresAt, userInfo } = 
-        await googleAuthService.exchangeCodeForTokens(code);
+      const { accessToken, refreshToken, expiresAt } = 
+        await freshOAuthService.exchangeCodeForTokens(code);
+      
+      // Get user info using the access token
+      const authClient = freshOAuthService.createAuthClient(accessToken);
+      const oauth2 = google.oauth2({ version: 'v2', auth: authClient });
+      const userInfo = await oauth2.userinfo.get();
+      const userData = userInfo.data;
 
       // Check if account already exists
-      const existingAccount = await storage.getGoogleAccountByEmail(userInfo.email);
+      const existingAccount = await storage.getGoogleAccountByEmail(userData.email);
       
       if (existingAccount) {
         // Update existing account
@@ -165,14 +171,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createActivityLog({
           type: "account_connected",
           googleAccountId: existingAccount.id,
-          message: `Google account ${userInfo.email} reconnected successfully`,
-          metadata: { email: userInfo.email, name: userInfo.name, action: "reconnected" }
+          message: `Google account ${userData.email} reconnected successfully`,
+          metadata: { email: userData.email, name: userData.name, action: "reconnected" }
         });
       } else {
         // Create new account
         const newAccount = await storage.createGoogleAccount({
-          email: userInfo.email,
-          name: userInfo.name,
+          email: userData.email,
+          name: userData.name,
           accessToken,
           refreshToken,
           expiresAt,
@@ -183,8 +189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createActivityLog({
           type: "account_connected",
           googleAccountId: newAccount.id,
-          message: `New Google account ${userInfo.email} connected successfully`,
-          metadata: { email: userInfo.email, name: userInfo.name, action: "new_connection" }
+          message: `New Google account ${userData.email} connected successfully`,
+          metadata: { email: userData.email, name: userData.name, action: "new_connection" }
         });
       }
 
