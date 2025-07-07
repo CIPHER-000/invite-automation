@@ -132,18 +132,25 @@ export class TimeSlotManager {
   }
 
   /**
-   * Find the next available business day
+   * Find the next available time slot (immediate or near-immediate scheduling)
    */
   private findNextBusinessDay(startDate: Date, preferences: TimeSlotPreferences): Date {
     let date = new Date(startDate);
-    
-    // Skip to next day if we're past business hours
     const now = new Date();
-    if (date.toDateString() === now.toDateString() && now.getHours() >= preferences.endHour) {
+    
+    // For campaign automation, we want to start sending invites soon
+    // Only advance to next day if it's very late (after 10 PM) or very early (before 6 AM)
+    if (date.toDateString() === now.toDateString() && 
+        (now.getHours() >= 22 || now.getHours() < 6)) {
       date.setDate(date.getDate() + 1);
+      date.setHours(preferences.startHour, 0, 0, 0);
+    } else if (date.toDateString() === now.toDateString()) {
+      // If it's the same day and within reasonable hours, start soon
+      // Add 5-30 minutes from now to spread out the sends
+      date = new Date(now.getTime() + Math.random() * 25 * 60000 + 5 * 60000);
     }
 
-    // Find next valid business day
+    // Find next valid business day only if we're on a weekend
     let attempts = 0;
     while (attempts < 14) { // Don't search more than 2 weeks
       const dayOfWeek = date.getDay();
