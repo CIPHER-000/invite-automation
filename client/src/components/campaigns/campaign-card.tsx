@@ -27,13 +27,15 @@ interface CampaignCardProps {
   onEdit?: (campaign: CampaignWithStats) => void;
   onDelete?: (id: number) => void;
   onToggleStatus?: (id: number, currentStatus: string) => void;
+  showActions?: boolean;
 }
 
 export function CampaignCard({ 
   campaign, 
   onEdit, 
   onDelete, 
-  onToggleStatus 
+  onToggleStatus,
+  showActions = true
 }: CampaignCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -99,23 +101,24 @@ export function CampaignCard({
                 {campaign.progress}%
               </div>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit?.(campaign)}>
-                  <Edit size={14} className="mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => onToggleStatus?.(campaign.id, campaign.status)}
-                >
-                  {campaign.status === "active" ? (
-                    <>
-                      <Pause size={14} className="mr-2" />
+            {showActions && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal size={16} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onEdit?.(campaign)}>
+                    <Edit size={14} className="mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => onToggleStatus?.(campaign.id, campaign.status)}
+                  >
+                    {campaign.status === "active" ? (
+                      <>
+                        <Pause size={14} className="mr-2" />
                       Pause
                     </>
                   ) : (
@@ -135,8 +138,9 @@ export function CampaignCard({
                     <AlertTriangle size={12} className="ml-2 text-orange-500" />
                   )}
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
         <div className="mt-3">

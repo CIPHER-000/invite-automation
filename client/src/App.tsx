@@ -11,7 +11,7 @@ import Accounts from "@/pages/accounts";
 import Activity from "@/pages/activity";
 import Settings from "@/pages/settings";
 import ServiceAccountSetup from "@/pages/service-account-setup";
-import OAuthCalendar from "@/pages/oauth-calendar";
+import InboxSetup from "@/pages/oauth-calendar";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 
@@ -35,7 +35,7 @@ function Router() {
               <Route path="/landing" component={Landing} />
               <Route path="/campaigns" component={Campaigns} />
               <Route path="/accounts" component={ServiceAccountSetup} />
-              <Route path="/oauth-calendar" component={OAuthCalendar} />
+              <Route path="/inbox-setup" component={InboxSetup} />
               <Route path="/activity" component={Activity} />
               <Route path="/settings" component={Settings} />
               <Route path="/service-account" component={ServiceAccountSetup} />

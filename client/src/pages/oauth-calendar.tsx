@@ -103,9 +103,9 @@ export default function OAuthCalendar() {
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">OAuth Calendar Integration</h1>
+        <h1 className="text-3xl font-bold mb-2">Inbox Setup</h1>
         <p className="text-muted-foreground">
-          Connect your Google accounts directly with OAuth 2.0 for immediate calendar access - no Domain-Wide Delegation required.
+          Connect your Google accounts to send calendar invites from multiple inboxes with automatic rotation.
         </p>
       </div>
 
@@ -115,10 +115,10 @@ export default function OAuthCalendar() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserIcon className="h-5 w-5" />
-              OAuth Accounts
+              Connected Inboxes
             </CardTitle>
             <CardDescription>
-              Manage your connected Google accounts for calendar automation
+              Manage your Google accounts for sending calendar invites
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

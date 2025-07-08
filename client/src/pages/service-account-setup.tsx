@@ -343,7 +343,7 @@ export default function ServiceAccountSetup() {
 
             <div className="text-center py-6">
               <Button 
-                onClick={() => window.location.href = '/oauth-calendar'} 
+                onClick={() => window.location.href = '/inbox-setup'} 
                 size="lg"
                 className="px-8"
               >

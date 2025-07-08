@@ -24,13 +24,8 @@ const navigation = [
     icon: Megaphone,
   },
   {
-    name: "Account Setup",
-    href: "/accounts",
-    icon: Key,
-  },
-  {
-    name: "OAuth Calendar",
-    href: "/oauth-calendar",
+    name: "Inbox Setup",
+    href: "/inbox-setup",
     icon: Calendar,
   },
   {
