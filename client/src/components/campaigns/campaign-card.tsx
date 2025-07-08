@@ -28,6 +28,7 @@ interface CampaignCardProps {
   onDelete?: (id: number) => void;
   onToggleStatus?: (id: number, currentStatus: string) => void;
   showActions?: boolean;
+  isFullWidth?: boolean;
 }
 
 export function CampaignCard({ 
@@ -35,7 +36,8 @@ export function CampaignCard({
   onEdit, 
   onDelete, 
   onToggleStatus,
-  showActions = true
+  showActions = true,
+  isFullWidth = false
 }: CampaignCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -62,6 +64,79 @@ export function CampaignCard({
         return "bg-slate-300";
     }
   };
+
+  if (isFullWidth) {
+    return (
+      <Card className="hover:border-slate-300 transition-colors">
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h4 className="font-semibold text-lg text-slate-800 mb-2">{campaign.name}</h4>
+              <p className="text-slate-600 mb-4">{campaign.description}</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Badge className={`${getStatusColor(campaign.status)}`}>
+                {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+              </Badge>
+              <div className="text-right">
+                <div className="text-xs text-slate-500">Progress</div>
+                <div className="text-lg font-medium text-slate-800">
+                  {campaign.progress}%
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-8">
+              <div className="flex items-center text-slate-700">
+                <Send size={16} className="mr-2 text-blue-500" />
+                <span className="font-medium">{campaign.invitesSent}</span>
+                <span className="text-slate-500 ml-1">sent</span>
+              </div>
+              <div className="flex items-center text-slate-700">
+                <CheckCircle size={16} className="mr-2 text-green-500" />
+                <span className="font-medium">{campaign.accepted}</span>
+                <span className="text-slate-500 ml-1">accepted</span>
+              </div>
+              <div className="flex items-center text-slate-700">
+                <Database size={16} className="mr-2 text-purple-500" />
+                <span className="font-medium">{campaign.totalProspects}</span>
+                <span className="text-slate-500 ml-1">prospects</span>
+              </div>
+              {(campaign.pendingInvites > 0 || campaign.processingInvites > 0) && (
+                <div className="flex items-center text-orange-600">
+                  <Clock size={16} className="mr-2" />
+                  <span className="font-medium">{campaign.pendingInvites + campaign.processingInvites}</span>
+                  <span className="ml-1">pending</span>
+                </div>
+              )}
+            </div>
+            
+            {campaign.accepted > 0 && campaign.invitesSent > 0 && (
+              <div className="text-right">
+                <div className="text-xs text-slate-500">Acceptance Rate</div>
+                <div className="text-sm font-medium text-green-600">
+                  {Math.round((campaign.accepted / campaign.invitesSent) * 100)}%
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Campaign Progress</span>
+              <span className="font-medium text-slate-800">{campaign.progress}%</span>
+            </div>
+            <Progress 
+              value={campaign.progress} 
+              className="h-3"
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="hover:border-slate-300 transition-colors">
@@ -128,16 +203,16 @@ export function CampaignCard({
                     </>
                   )}
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => onDelete?.(campaign.id)}
-                  className="text-destructive"
-                >
-                  <Trash2 size={14} className="mr-2" />
-                  Delete
-                  {(campaign.pendingInvites > 0 || campaign.processingInvites > 0) && (
-                    <AlertTriangle size={12} className="ml-2 text-orange-500" />
-                  )}
-                </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => onDelete?.(campaign.id)}
+                    className="text-destructive"
+                  >
+                    <Trash2 size={14} className="mr-2" />
+                    Delete
+                    {(campaign.pendingInvites > 0 || campaign.processingInvites > 0) && (
+                      <AlertTriangle size={12} className="ml-2 text-orange-500" />
+                    )}
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

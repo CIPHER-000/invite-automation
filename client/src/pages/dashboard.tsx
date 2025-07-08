@@ -43,23 +43,40 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           {campaignsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="border border-slate-200 rounded-lg p-4">
-                  <Skeleton className="h-6 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-full mb-3" />
-                  <div className="flex space-x-4">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-4 w-20" />
+            <div className="space-y-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="border border-slate-200 rounded-lg p-6">
+                  <Skeleton className="h-6 w-1/3 mb-3" />
+                  <Skeleton className="h-4 w-2/3 mb-4" />
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex space-x-6">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                    <Skeleton className="h-6 w-16" />
                   </div>
+                  <Skeleton className="h-2 w-full" />
                 </div>
               ))}
             </div>
           ) : campaigns && campaigns.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {campaigns.slice(0, 6).map((campaign: any) => (
-                <CampaignCard key={campaign.id} campaign={campaign} showActions={false} />
+            <div className="space-y-4">
+              {campaigns.slice(0, 2).map((campaign: any) => (
+                <CampaignCard key={campaign.id} campaign={campaign} showActions={false} isFullWidth={true} />
               ))}
+              {campaigns.length > 2 && (
+                <div className="text-center pt-4 border-t border-slate-100">
+                  <p className="text-sm text-slate-500 mb-3">
+                    Showing 2 of {campaigns.length} campaigns
+                  </p>
+                  <Link href="/campaigns">
+                    <Button variant="outline">
+                      View All {campaigns.length} Campaigns
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center text-slate-500 py-12">
