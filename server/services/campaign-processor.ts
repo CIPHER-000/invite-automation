@@ -211,10 +211,12 @@ export class CampaignProcessor {
     });
 
     try {
-      // Process merge fields
+      // Process merge fields including sender information
       const mergeData = {
         name: prospect.name || prospect.email,
         company: prospect.company || "",
+        sender_name: campaign.senderName || availableAccount.name || "Sales Team",
+        sender_email: availableAccount.email,
         ...prospect,
       };
 

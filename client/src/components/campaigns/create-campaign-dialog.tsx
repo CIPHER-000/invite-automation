@@ -50,6 +50,7 @@ const campaignSchema = z.object({
   eventTitleTemplate: z.string().min(1, "Event title template is required"),
   eventDescriptionTemplate: z.string().min(1, "Event description template is required"),
   confirmationEmailTemplate: z.string().min(1, "Confirmation email template is required"),
+  senderName: z.string().optional(),
   eventDuration: z.number().min(15).max(240),
   timeZone: z.string(),
   selectedInboxes: z.array(z.number()).min(1, "At least one inbox must be selected"),
@@ -73,8 +74,9 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       description: "",
       csvData: [],
       eventTitleTemplate: "Meeting with {{name}}",
-      eventDescriptionTemplate: "Hi {{name}}, looking forward to our meeting!",
+      eventDescriptionTemplate: "Hi {{name}}, I'm {{sender_name}} and I'm looking forward to our meeting!",
       confirmationEmailTemplate: "Thanks for accepting our meeting invitation!",
+      senderName: "",
       eventDuration: 30,
       timeZone: "UTC",
       selectedInboxes: [],
@@ -250,6 +252,26 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="senderName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sender Name (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="John Smith" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Personalize your outreach with {"{{sender_name}}"} variable in templates. Defaults to account name if empty.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* CSV Upload */}
@@ -317,7 +339,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                       <Input placeholder="Meeting with {{name}}" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Use merge fields like {"{{name}}"}, {"{{company}}"}, {"{{email}}"}
+                      Use merge fields like {"{{name}}"}, {"{{company}}"}, {"{{sender_name}}"}, {"{{email}}"}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

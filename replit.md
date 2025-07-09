@@ -135,6 +135,9 @@ Changelog:
 - January 7, 2025. Updated invite scheduling to send invites 1 minute after campaign creation for immediate automation
 - January 7, 2025. Implemented safe campaign deletion with processing checks and visual indicators
 - January 7, 2025. OAuth integration working correctly - Google unverified app warning is expected for development apps
+- January 8, 2025. Renamed "OAuth Calendar" to "Inbox Setup" throughout the application
+- January 8, 2025. Restructured dashboard to show campaigns as full-width vertical cards with better metrics display
+- January 8, 2025. Added sender name variable feature for personalized campaign messaging using {{sender_name}} merge field
 ```
 
 ## User Preferences
