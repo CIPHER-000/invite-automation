@@ -13,6 +13,7 @@ import { multiProviderEmailService } from "./services/multi-provider-email";
 import { oauthCalendarService } from "./services/oauth-calendar";
 import { insertCampaignSchema, insertSystemSettingsSchema } from "@shared/schema";
 import { z } from "zod";
+import { advancedScheduler } from "./services/advanced-scheduler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Start the queue manager
@@ -302,7 +303,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/campaigns", async (req, res) => {
     try {
-      const validatedData = insertCampaignSchema.parse(req.body);
+      const campaignData = req.body;
+      
+      // If advanced scheduling is enabled, generate randomized slots
+      if (campaignData.schedulingMode === "advanced" && campaignData.dateRangeStart) {
+        const config = {
+          dateRangeStart: new Date(campaignData.dateRangeStart),
+          dateRangeEnd: new Date(campaignData.dateRangeEnd),
+          selectedDaysOfWeek: campaignData.selectedDaysOfWeek,
+          timeWindowStart: campaignData.timeWindowStart,
+          timeWindowEnd: campaignData.timeWindowEnd,
+          timezone: campaignData.schedulingTimezone,
+          totalSlots: campaignData.csvData.length
+        };
+
+        const slots = advancedScheduler.generateRandomizedSlots(config);
+        campaignData.randomizedSlots = slots;
+      }
+      
+      const validatedData = insertCampaignSchema.parse(campaignData);
       const campaign = await storage.createCampaign(validatedData);
       
       // Log campaign creation
@@ -314,6 +333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           campaignName: campaign.name, 
           eventTitle: campaign.eventTitleTemplate,
           selectedInboxes: campaign.selectedInboxes?.length || 0,
+          schedulingMode: campaign.schedulingMode,
           action: "created"
         }
       });
@@ -326,7 +346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid campaign data", details: error.errors });
       }
-      res.status(500).json({ error: "Failed to create campaign" });
+      console.error("Campaign creation error:", error);
+      res.status(500).json({ error: "Failed to create campaign", details: (error as Error).message });
     }
   });
 
@@ -903,6 +924,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Advanced scheduling validation endpoint
+  app.post("/api/campaigns/validate-scheduling", async (req, res) => {
+    try {
+      const { dateRangeStart, dateRangeEnd, selectedDaysOfWeek, timeWindowStart, timeWindowEnd, schedulingTimezone, totalSlots } = req.body;
+      
+      if (!dateRangeStart || !dateRangeEnd || !selectedDaysOfWeek || !timeWindowStart || !timeWindowEnd || !schedulingTimezone || !totalSlots) {
+        return res.status(400).json({ error: "Missing required scheduling parameters" });
+      }
+
+      const config = {
+        dateRangeStart: new Date(dateRangeStart),
+        dateRangeEnd: new Date(dateRangeEnd),
+        selectedDaysOfWeek,
+        timeWindowStart,
+        timeWindowEnd,
+        timezone: schedulingTimezone,
+        totalSlots
+      };
+
+      const validation = advancedScheduler.validateConfiguration(config);
+      const availableSlots = advancedScheduler.getAvailableSlotCount(config);
+
+      res.json({
+        valid: validation.valid,
+        errors: validation.errors,
+        availableSlots
+      });
+    } catch (error) {
+      console.error("Scheduling validation error:", error);
+      res.status(500).json({ error: "Failed to validate scheduling configuration" });
+    }
+  });
+
+  // Generate randomized slots endpoint
+  app.post("/api/campaigns/generate-slots", async (req, res) => {
+    try {
+      const { dateRangeStart, dateRangeEnd, selectedDaysOfWeek, timeWindowStart, timeWindowEnd, schedulingTimezone, totalSlots } = req.body;
+      
+      const config = {
+        dateRangeStart: new Date(dateRangeStart),
+        dateRangeEnd: new Date(dateRangeEnd),
+        selectedDaysOfWeek,
+        timeWindowStart,
+        timeWindowEnd,
+        timezone: schedulingTimezone,
+        totalSlots
+      };
+
+      const slots = advancedScheduler.generateRandomizedSlots(config);
+      res.json({ slots });
+    } catch (error) {
+      console.error("Slot generation error:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to generate slots" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

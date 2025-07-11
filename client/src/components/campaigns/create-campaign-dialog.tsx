@@ -35,14 +35,15 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { insertCampaignSchema, type GoogleAccount } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Upload, FileText, Users, Mail } from "lucide-react";
+import { Plus, Upload, FileText, Users, Mail, Calendar, Clock } from "lucide-react";
+import { AdvancedSchedulingForm, type AdvancedSchedulingFormData } from "./advanced-scheduling-form";
 
 interface CreateCampaignDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-// Updated schema for CSV data instead of sheet URL
+// Updated schema for CSV data and advanced scheduling
 const campaignSchema = z.object({
   name: z.string().min(1, "Campaign name is required"),
   description: z.string().optional(),
@@ -54,6 +55,16 @@ const campaignSchema = z.object({
   eventDuration: z.number().min(15).max(240),
   timeZone: z.string(),
   selectedInboxes: z.array(z.number()).min(1, "At least one inbox must be selected"),
+  
+  // Advanced scheduling fields
+  schedulingMode: z.enum(["immediate", "advanced"]),
+  dateRangeStart: z.string().optional(),
+  dateRangeEnd: z.string().optional(),
+  selectedDaysOfWeek: z.array(z.number()).optional(),
+  timeWindowStart: z.string().optional(),
+  timeWindowEnd: z.string().optional(),
+  schedulingTimezone: z.string().optional(),
+  
   status: z.string(),
   isActive: z.boolean(),
 });
@@ -64,6 +75,9 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [schedulingMode, setSchedulingMode] = useState<"immediate" | "advanced">("immediate");
+  const [advancedSchedulingData, setAdvancedSchedulingData] = useState<AdvancedSchedulingFormData | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -73,6 +87,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       name: "",
       description: "",
       csvData: [],
+      schedulingMode: "immediate",
       eventTitleTemplate: "Meeting with {{name}}",
       eventDescriptionTemplate: "Hi {{name}}, I'm {{sender_name}} and I'm looking forward to our meeting!",
       confirmationEmailTemplate: "Thanks for accepting our meeting invitation!",
@@ -80,6 +95,12 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       eventDuration: 30,
       timeZone: "UTC",
       selectedInboxes: [],
+      dateRangeStart: undefined,
+      dateRangeEnd: undefined,
+      selectedDaysOfWeek: undefined,
+      timeWindowStart: undefined,
+      timeWindowEnd: undefined,
+      schedulingTimezone: undefined,
       status: "active",
       isActive: true,
     },
@@ -119,6 +140,9 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       setCsvFile(null);
       setCsvData([]);
       setCsvPreview([]);
+      setCurrentStep(1);
+      setSchedulingMode("immediate");
+      setAdvancedSchedulingData(null);
     },
     onError: (error: any) => {
       toast({
@@ -204,6 +228,34 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     form.setValue('selectedInboxes', updated);
   };
 
+  // Advanced scheduling validation handler
+  const handleAdvancedSchedulingValidation = async (data: AdvancedSchedulingFormData) => {
+    try {
+      const response = await apiRequest("/api/campaigns/validate-scheduling", "POST", {
+        ...data,
+        totalSlots: csvData.length
+      });
+      return response;
+    } catch (error) {
+      return {
+        valid: false,
+        errors: ["Failed to validate scheduling configuration"]
+      };
+    }
+  };
+
+  // Handle advanced scheduling data changes
+  const handleAdvancedSchedulingChange = (data: AdvancedSchedulingFormData) => {
+    setAdvancedSchedulingData(data);
+    // Update form values for submission
+    form.setValue('dateRangeStart', data.dateRangeStart);
+    form.setValue('dateRangeEnd', data.dateRangeEnd);
+    form.setValue('selectedDaysOfWeek', data.selectedDaysOfWeek);
+    form.setValue('timeWindowStart', data.timeWindowStart);
+    form.setValue('timeWindowEnd', data.timeWindowEnd);
+    form.setValue('schedulingTimezone', data.schedulingTimezone);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -248,6 +300,42 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                         {...field} 
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Scheduling Mode Selector */}
+              <FormField
+                control={form.control}
+                name="schedulingMode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Scheduling Mode
+                    </FormLabel>
+                    <FormDescription>
+                      Choose how invites should be scheduled
+                    </FormDescription>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      setSchedulingMode(value as "immediate" | "advanced");
+                    }} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select scheduling mode" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="immediate">
+                          Immediate - Send invites shortly after campaign creation
+                        </SelectItem>
+                        <SelectItem value="advanced">
+                          Advanced - Configure specific date ranges and time windows
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -382,6 +470,18 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                 )}
               />
             </div>
+
+            {/* Advanced Scheduling Configuration */}
+            {schedulingMode === "advanced" && (
+              <div className="space-y-4">
+                <AdvancedSchedulingForm
+                  totalProspects={csvData.length}
+                  onValidate={handleAdvancedSchedulingValidation}
+                  onChange={handleAdvancedSchedulingChange}
+                  initialData={advancedSchedulingData || undefined}
+                />
+              </div>
+            )}
 
             {/* Campaign Settings */}
             <div className="grid grid-cols-2 gap-4">

@@ -3,6 +3,7 @@ import { googleCalendarService } from "./google-calendar";
 import { oauthCalendarService } from "./oauth-calendar";
 import { timeSlotManager, ProspectScheduleData } from "./time-slot-manager";
 import { inboxLoadBalancer } from "./inbox-load-balancer";
+import { advancedScheduler } from "./advanced-scheduler";
 import type { Campaign, GoogleAccount } from "@shared/schema";
 
 interface ProspectData {
@@ -57,15 +58,27 @@ export class CampaignProcessor {
       const existingInvites = await storage.getInvites(campaign.id);
       const existingEmails = new Set(existingInvites.map(invite => invite.prospectEmail));
 
-      // Add new prospects to the queue with proper 30-minute spacing
+      // Handle scheduling based on campaign mode
+      let scheduleSlots: Date[] = [];
+      
+      if (campaign.schedulingMode === "advanced" && campaign.randomizedSlots) {
+        // Use pre-calculated randomized slots for advanced scheduling
+        const slots = campaign.randomizedSlots as any[];
+        scheduleSlots = slots.map(slot => new Date(slot.utcDateTime));
+      } else {
+        // Use immediate scheduling with proper 30-minute gaps - CRITICAL FIX
+        scheduleSlots = prospects.map((_, index) => this.calculateScheduleTimeWithProperGaps(index));
+      }
+
+      // Add new prospects to the queue
       for (let index = 0; index < prospects.length; index++) {
         const prospect = prospects[index];
         if (existingEmails.has(prospect.email)) {
           continue; // Skip already processed prospects
         }
 
-        // Calculate proper schedule time with 30-minute gaps - CRITICAL FIX
-        const scheduledFor = this.calculateScheduleTimeWithProperGaps(index);
+        // Get the scheduled time for this prospect
+        const scheduledFor = scheduleSlots[index] || this.calculateScheduleTimeWithProperGaps(index);
 
         // Select inbox from campaign's selected inboxes only - CRITICAL FIX
         const selectedAccount = selectedAccounts[index % selectedAccounts.length];

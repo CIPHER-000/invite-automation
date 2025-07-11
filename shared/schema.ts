@@ -59,6 +59,17 @@ export const campaigns = pgTable("campaigns", {
   eventDuration: integer("event_duration").notNull().default(30), // minutes
   timeZone: text("time_zone").notNull().default("UTC"),
   selectedInboxes: integer("selected_inboxes").array().notNull().default([]), // Array of account IDs
+  
+  // Advanced Scheduling Configuration
+  schedulingMode: text("scheduling_mode").notNull().default("immediate"), // 'immediate' | 'advanced'
+  dateRangeStart: timestamp("date_range_start"), // Start date for advanced scheduling
+  dateRangeEnd: timestamp("date_range_end"), // End date for advanced scheduling
+  selectedDaysOfWeek: integer("selected_days_of_week").array().default([]), // 0=Sunday, 1=Monday, ..., 6=Saturday
+  timeWindowStart: text("time_window_start"), // e.g., "09:00"
+  timeWindowEnd: text("time_window_end"), // e.g., "17:00"
+  schedulingTimezone: text("scheduling_timezone").notNull().default("UTC"), // Timezone for scheduling logic
+  randomizedSlots: jsonb("randomized_slots"), // Pre-calculated random time slots for this campaign
+  
   status: text("status").notNull().default("active"), // active, paused, completed
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),

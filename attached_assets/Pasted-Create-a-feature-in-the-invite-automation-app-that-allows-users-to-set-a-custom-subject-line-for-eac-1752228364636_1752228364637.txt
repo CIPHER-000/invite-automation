@@ -1,0 +1,97 @@
+Create a feature in the invite automation app that allows users to set a custom subject line for each campaign.
+
+Requirements:
+Campaign-Level Subject Line Configuration
+
+When creating or editing a campaign, provide an input field where the user can define a custom subject line.
+
+This subject line should be used in the calendar invite email that is sent out for all recipients in that campaign.
+
+Personalization Support (Optional, Nice-to-Have)
+
+Allow dynamic variables such as {{FirstName}}, {{CompanyName}}, etc., to be inserted into the subject line.
+
+These variables should be replaced with actual contact data when the invite is sent.
+
+Validation
+
+Limit subject line length (e.g., max 100 characters).
+
+Warn users if personalization variables are incorrectly formatted or missing from contact data.
+
+Storage and Retrieval
+
+Store the subject line in the campaign model/schema (e.g., campaign.subjectLine).
+
+Ensure it is accessible during the calendar invite creation/sending process.
+
+Fallback Handling
+
+If no subject line is provided by the user, use a default subject line like:
+"Meeting Invitation from {{SenderName}}"
+
+Let me know if you'd like to extend this with A/B testing, multi-language support, or subject line recommendation AI.
+
+
+
+
+
+
+
+
+You said:
+Fallback is "Hi from {{SenderName}}" and personalization variables are  {{name}}, {{company}}, {{sender_name}}, {{email}}
+
+
+ChatGPT said:
+Great—let’s tighten up that Replit prompt with your updated details:
+
+Replit Prompt:
+
+Create a feature in the invite automation app that allows users to set a custom subject line for each campaign.
+
+Requirements:
+Campaign-Level Subject Line Configuration
+
+In the campaign creation/edit screen, provide an input field for a custom subject line.
+
+This subject line will be applied to all invites sent in that campaign.
+
+Personalization Variables
+
+Support the following dynamic placeholders in the subject line:
+
+{{name}} – recipient’s full name
+
+{{company}} – recipient’s company name
+
+{{sender_name}} – sender’s name
+
+{{email}} – recipient’s email address
+
+These variables must be replaced with the correct contact data when sending invites.
+
+Fallback Handling
+
+If the user does not set a custom subject line, default to:
+
+Hi from {{sender_name}}
+
+Validation
+
+Maximum subject line length: 100 characters.
+
+Validate that any variables used in the subject line are among the supported list.
+
+If a variable is invalid or the corresponding contact field is missing, show an error message or skip personalization gracefully.
+
+Storage & Retrieval
+
+Store the subject line in the campaign model/schema (campaign.subjectLine).
+
+Ensure it is retrieved and rendered properly at the time the invite email is generated.
+
+Preview (Optional, Nice-to-Have)
+
+Show a live preview of the subject line with sample data to help users understand how personalization will appear.
+
