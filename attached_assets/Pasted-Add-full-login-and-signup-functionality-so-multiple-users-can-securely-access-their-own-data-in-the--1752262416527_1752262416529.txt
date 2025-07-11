@@ -1,0 +1,124 @@
+Add full login and signup functionality so multiple users can securely access their own data in the invite automation app.
+
+🎯 Objective
+Create a multi-user authentication system that allows users to:
+
+Create an account with email + password.
+
+Log in securely.
+
+Maintain a session across requests.
+
+Log out.
+
+Have access only to their own campaigns.
+
+✅ Requirements
+1️⃣ Database
+
+Use Neon (Postgres) as the database.
+
+Create a users table:
+
+sql
+Copy
+Edit
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+2️⃣ Dependencies
+
+Use Node.js in Replit with:
+
+express (web server)
+
+express-session (session management)
+
+pg (Postgres client)
+
+bcryptjs (password hashing)
+
+3️⃣ Routes
+Implement the following HTTP routes:
+
+✅ POST /signup
+
+Accept JSON { email, password }
+
+Hash the password with bcrypt
+
+Insert into the users table
+
+Return success or error
+
+✅ POST /login
+
+Accept JSON { email, password }
+
+Look up user by email
+
+Compare password hash
+
+If valid, create session with req.session.userId
+
+Return success or error
+
+✅ POST /logout
+
+Destroy the session
+
+✅ GET /me
+
+Return the current user’s email (for testing session)
+
+✅ Protected Routes Middleware
+
+Create middleware to block access if req.session.userId is not set
+
+✅ Example protected route
+
+/campaigns should only show campaigns belonging to the logged-in user
+
+4️⃣ Security
+
+Never store plain-text passwords. Use bcrypt with at least 10 salt rounds.
+
+Store your Neon connection string as a Replit Secret named DATABASE_URL.
+
+Use ssl: { rejectUnauthorized: false } in pg config.
+
+5️⃣ Example .env / Replit Secrets
+
+ini
+Copy
+Edit
+DATABASE_URL=postgresql://<your_user>:<your_password>@<your_project>.neon.tech/<your_db>
+SESSION_SECRET=your_super_secret_key
+6️⃣ Session Config
+
+Use express-session with the secret from SESSION_SECRET.
+
+Configure cookies to be HTTP-only.
+
+7️⃣ Testing
+
+Test sign-up, login, logout, and accessing a protected route.
+
+✨ Example User Flow
+User visits /signup and registers.
+
+User logs in at /login.
+
+Session is established.
+
+User calls /campaigns and sees only their own campaigns.
+
+User logs out with /logout.
+
+Session is destroyed.
+

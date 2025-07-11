@@ -8,8 +8,12 @@ import {
   Settings,
   Users,
   Mail,
-  Key
+  Key,
+  LogOut
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import logoPath from "@assets/shady5_no_bg_cropped_strict_1751311214067.png";
 
 const navigation = [
@@ -42,15 +46,34 @@ const navigation = [
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: "Logged Out",
+        description: "You have been logged out successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Logout Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
-    <aside className="fixed left-0 top-0 w-64 bg-white shadow-lg border-r border-gray-200 h-screen flex-shrink-0 z-10">
+    <aside className="fixed left-0 top-0 w-64 bg-white shadow-lg border-r border-gray-200 h-screen flex-shrink-0 z-10 flex flex-col">
       {/* Logo Section */}
       <div className="p-4 border-b border-gray-200 flex justify-center">
         <img src={logoPath} alt="Logo" className="w-40 h-auto object-contain max-w-full" />
       </div>
       
-      <nav className="p-4 space-y-2">
+      {/* Navigation */}
+      <nav className="p-4 space-y-2 flex-1">
         {navigation.map((item) => {
           const isActive = location === item.href;
           const Icon = item.icon;
@@ -72,6 +95,23 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* User Info and Logout */}
+      <div className="p-4 border-t border-gray-200">
+        <div className="mb-3">
+          <p className="text-xs text-gray-500">Logged in as:</p>
+          <p className="text-sm font-medium text-gray-700 truncate">{user?.email}</p>
+        </div>
+        <Button
+          onClick={handleLogout}
+          variant="outline"
+          size="sm"
+          className="w-full flex items-center gap-2"
+        >
+          <LogOut size={16} />
+          Logout
+        </Button>
+      </div>
     </aside>
   );
 }

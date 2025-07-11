@@ -11,17 +11,129 @@ import { inboxLoadBalancer } from "./services/inbox-load-balancer";
 import { timeSlotManager } from "./services/time-slot-manager";
 import { multiProviderEmailService } from "./services/multi-provider-email";
 import { oauthCalendarService } from "./services/oauth-calendar";
-import { insertCampaignSchema, insertSystemSettingsSchema } from "@shared/schema";
+import { insertCampaignSchema, insertSystemSettingsSchema, insertUserSchema, users } from "@shared/schema";
 import { z } from "zod";
 import { advancedScheduler } from "./services/advanced-scheduler";
 import { rsvpTracker } from "./services/rsvp-tracker";
+import { requireAuth, optionalAuth, hashPassword, verifyPassword, validateEmail, validatePassword } from "./auth";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Start the queue manager
   queueManager.start();
 
-  // Dashboard stats
-  app.get("/api/dashboard/stats", async (req, res) => {
+  // ============================================================================
+  // AUTHENTICATION ROUTES
+  // ============================================================================
+
+  // User signup
+  app.post("/api/signup", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      // Validate input
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      if (!validateEmail(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ message: passwordValidation.message });
+      }
+
+      // Check if user already exists
+      const [existingUser] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+      if (existingUser) {
+        return res.status(409).json({ message: "User already exists with this email" });
+      }
+
+      // Create new user
+      const passwordHash = await hashPassword(password);
+      const [newUser] = await db.insert(users).values({
+        email: email.toLowerCase(),
+        passwordHash,
+      }).returning();
+
+      // Create session
+      req.session.userId = newUser.id;
+
+      res.status(201).json({
+        message: "Account created successfully",
+        user: { id: newUser.id, email: newUser.email, createdAt: newUser.createdAt }
+      });
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+
+  // User login
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Find user
+      const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Verify password
+      const isValidPassword = await verifyPassword(password, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Create session
+      req.session.userId = user.id;
+
+      res.json({
+        message: "Login successful",
+        user: { id: user.id, email: user.email, createdAt: user.createdAt }
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // User logout
+  app.post("/api/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logout successful" });
+    });
+  });
+
+  // Get current user (for testing session)
+  app.get("/api/me", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      res.json({ id: user.id, email: user.email, createdAt: user.createdAt });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({ message: "Failed to get user info" });
+    }
+  });
+
+  // ============================================================================
+  // PROTECTED APPLICATION ROUTES
+  // ============================================================================
+
+  // Dashboard stats - protected route
+  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
       const stats = await storage.getDashboardStats();
       res.json(stats);
@@ -30,8 +142,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Google OAuth routes
-  app.get("/api/auth/google", (req, res) => {
+  // Google OAuth routes - protected
+  app.get("/api/auth/google", requireAuth, (req, res) => {
     try {
       const authUrl = googleAuthService.getAuthUrl();
       console.log("Generated Google Auth URL for production:", authUrl);
@@ -332,8 +444,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Campaigns
-  app.get("/api/campaigns", async (req, res) => {
+  // Campaigns - protected
+  app.get("/api/campaigns", requireAuth, async (req, res) => {
     try {
       const campaigns = await storage.getCampaignsWithStats();
       res.json(campaigns);
@@ -342,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/campaigns/:id", async (req, res) => {
+  app.get("/api/campaigns/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const campaign = await storage.getCampaign(id);
@@ -357,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/campaigns", async (req, res) => {
+  app.post("/api/campaigns", requireAuth, async (req, res) => {
     try {
       const campaignData = req.body;
       

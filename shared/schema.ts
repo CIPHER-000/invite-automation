@@ -1,10 +1,30 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uuid, varchar, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Users table for authentication
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Session storage table for express-session
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
 
 // Google Accounts for OAuth2 connections
 export const googleAccounts = pgTable("google_accounts", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   accessToken: text("access_token").notNull(),
@@ -20,6 +40,7 @@ export const googleAccounts = pgTable("google_accounts", {
 // Outlook/Office 365 Accounts for OAuth2 connections
 export const outlookAccounts = pgTable("outlook_accounts", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   accessToken: text("access_token").notNull(),
@@ -51,6 +72,7 @@ export const emailProviders = pgTable("email_providers", {
 // Campaigns for organizing invite sequences
 export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   csvData: jsonb("csv_data").notNull(), // Store parsed CSV data as JSON
@@ -86,6 +108,7 @@ export const campaigns = pgTable("campaigns", {
 // Individual invites sent through campaigns
 export const invites = pgTable("invites", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   campaignId: integer("campaign_id").references(() => campaigns.id),
   googleAccountId: integer("google_account_id").references(() => googleAccounts.id),
   outlookAccountId: integer("outlook_account_id").references(() => outlookAccounts.id),
@@ -117,6 +140,7 @@ export const invites = pgTable("invites", {
 // Activity log for tracking all system events
 export const activityLogs = pgTable("activity_logs", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   type: text("type").notNull(), // invite_sent, invite_accepted, invite_declined, invite_tentative, rsvp_changed, confirmation_sent, error, etc.
   campaignId: integer("campaign_id").references(() => campaigns.id),
   inviteId: integer("invite_id").references(() => invites.id),
@@ -263,6 +287,15 @@ export type InsertRsvpEvent = z.infer<typeof insertRsvpEventSchema>;
 
 export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;
+
+// User authentication types
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+});
 
 // API response types
 export type DashboardStats = {
