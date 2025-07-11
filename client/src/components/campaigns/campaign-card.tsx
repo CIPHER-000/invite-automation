@@ -100,6 +100,16 @@ export function CampaignCard({
                 <span className="text-slate-500 ml-1">accepted</span>
               </div>
               <div className="flex items-center text-slate-700">
+                <AlertTriangle size={16} className="mr-2 text-red-500" />
+                <span className="font-medium">{campaign.declined || 0}</span>
+                <span className="text-slate-500 ml-1">declined</span>
+              </div>
+              <div className="flex items-center text-slate-700">
+                <Clock size={16} className="mr-2 text-yellow-500" />
+                <span className="font-medium">{campaign.tentative || 0}</span>
+                <span className="text-slate-500 ml-1">tentative</span>
+              </div>
+              <div className="flex items-center text-slate-700">
                 <Database size={16} className="mr-2 text-purple-500" />
                 <span className="font-medium">{campaign.totalProspects}</span>
                 <span className="text-slate-500 ml-1">prospects</span>

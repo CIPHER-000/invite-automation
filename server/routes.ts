@@ -14,6 +14,7 @@ import { oauthCalendarService } from "./services/oauth-calendar";
 import { insertCampaignSchema, insertSystemSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { advancedScheduler } from "./services/advanced-scheduler";
+import { rsvpTracker } from "./services/rsvp-tracker";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Start the queue manager
@@ -700,13 +701,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Activity Logs
+  // RSVP Tracking API
+  app.get("/api/rsvp/events", async (req, res) => {
+    try {
+      const { inviteId } = req.query;
+      const events = await storage.getRsvpEvents(
+        inviteId ? parseInt(inviteId as string) : undefined
+      );
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get RSVP events" });
+    }
+  });
+
+  app.get("/api/rsvp/history/:inviteId", async (req, res) => {
+    try {
+      const inviteId = parseInt(req.params.inviteId);
+      const history = await storage.getRsvpHistory(inviteId);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get RSVP history" });
+    }
+  });
+
+  app.post("/api/rsvp/sync/:inviteId", async (req, res) => {
+    try {
+      const inviteId = parseInt(req.params.inviteId);
+      await rsvpTracker.forceSyncInvite(inviteId);
+      res.json({ success: true, message: "RSVP status synced successfully" });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Failed to sync RSVP status", 
+        details: (error as Error).message 
+      });
+    }
+  });
+
+  app.get("/api/rsvp/stats/:campaignId", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.campaignId);
+      const stats = await rsvpTracker.getCampaignRsvpStats(campaignId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get RSVP stats" });
+    }
+  });
+
+  app.get("/api/invites/by-status/:rsvpStatus", async (req, res) => {
+    try {
+      const { rsvpStatus } = req.params;
+      const invites = await storage.getInvitesByRsvpStatus(rsvpStatus);
+      res.json(invites);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get invites by RSVP status" });
+    }
+  });
+
+  // Webhook endpoints for real-time RSVP updates
+  app.post("/api/webhooks/google-calendar", async (req, res) => {
+    try {
+      const payload = req.body;
+      await rsvpTracker.processWebhookEvent('google_calendar_event_updated', payload);
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Google Calendar webhook error:', error);
+      res.status(500).json({ error: "Failed to process webhook" });
+    }
+  });
+
+  app.post("/api/webhooks/outlook-calendar", async (req, res) => {
+    try {
+      const payload = req.body;
+      await rsvpTracker.processWebhookEvent('outlook_event_updated', payload);
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Outlook Calendar webhook error:', error);
+      res.status(500).json({ error: "Failed to process webhook" });
+    }
+  });
+
+  app.get("/api/webhooks/events", async (req, res) => {
+    try {
+      const { processed } = req.query;
+      const processedFilter = processed === 'true' ? true : processed === 'false' ? false : undefined;
+      const events = await storage.getWebhookEvents(processedFilter);
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get webhook events" });
+    }
+  });
+
+  // Activity Logs (enhanced with RSVP filtering)
   app.get("/api/activity", async (req, res) => {
     try {
-      const { limit } = req.query;
-      const logs = await storage.getActivityLogs(
+      const { limit, type } = req.query;
+      let logs = await storage.getActivityLogs(
         limit ? parseInt(limit as string) : undefined
       );
+      
+      // Filter by type if specified
+      if (type) {
+        logs = logs.filter(log => log.type === type);
+      }
+      
       res.json(logs);
     } catch (error) {
       res.status(500).json({ error: "Failed to get activity logs" });

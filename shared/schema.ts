@@ -93,10 +93,17 @@ export const invites = pgTable("invites", {
   eventId: text("event_id"), // Google Calendar event ID
   csvRowIndex: integer("csv_row_index"), // Changed from sheetRowIndex
   isManualTest: boolean("is_manual_test").notNull().default(false), // New field for manual tests
-  status: text("status").notNull().default("pending"), // pending, sent, accepted, declined, error
+  status: text("status").notNull().default("pending"), // pending, sent, accepted, declined, tentative, error
+  rsvpStatus: text("rsvp_status"), // accepted, declined, tentative, needsAction
+  rsvpResponseAt: timestamp("rsvp_response_at"), // When the RSVP was received
+  rsvpHistory: jsonb("rsvp_history"), // Array of status changes with timestamps
   errorMessage: text("error_message"),
   sentAt: timestamp("sent_at"),
-  acceptedAt: timestamp("accepted_at"),
+  acceptedAt: timestamp("accepted_at"), // Legacy field, kept for compatibility
+  declinedAt: timestamp("declined_at"), // When declined
+  tentativeAt: timestamp("tentative_at"), // When marked tentative
+  lastStatusCheck: timestamp("last_status_check"), // Last time we checked the status
+  webhookReceived: boolean("webhook_received").notNull().default(false), // True if status came from webhook
   confirmationSent: boolean("confirmation_sent").notNull().default(false),
   confirmationSentAt: timestamp("confirmation_sent_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -106,7 +113,7 @@ export const invites = pgTable("invites", {
 // Activity log for tracking all system events
 export const activityLogs = pgTable("activity_logs", {
   id: serial("id").primaryKey(),
-  type: text("type").notNull(), // invite_sent, invite_accepted, confirmation_sent, error, etc.
+  type: text("type").notNull(), // invite_sent, invite_accepted, invite_declined, invite_tentative, rsvp_changed, confirmation_sent, error, etc.
   campaignId: integer("campaign_id").references(() => campaigns.id),
   inviteId: integer("invite_id").references(() => invites.id),
   googleAccountId: integer("google_account_id").references(() => googleAccounts.id),
@@ -124,6 +131,33 @@ export const systemSettings = pgTable("system_settings", {
   isSystemActive: boolean("is_system_active").notNull().default(true),
   serviceAccountCredentials: jsonb("service_account_credentials"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// RSVP Events for comprehensive tracking
+export const rsvpEvents = pgTable("rsvp_events", {
+  id: serial("id").primaryKey(),
+  inviteId: integer("invite_id").references(() => invites.id).notNull(),
+  eventId: text("event_id").notNull(), // Calendar event ID
+  prospectEmail: text("prospect_email").notNull(),
+  rsvpStatus: text("rsvp_status").notNull(), // accepted, declined, tentative, needsAction
+  previousStatus: text("previous_status"), // Previous status for tracking changes
+  source: text("source").notNull().default("polling"), // webhook, polling, manual
+  webhookPayload: jsonb("webhook_payload"), // Raw webhook data for debugging
+  responseAt: timestamp("response_at").notNull(), // When the response was given
+  detectedAt: timestamp("detected_at").notNull().defaultNow(), // When we detected the response
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Webhook Events for audit and debugging
+export const webhookEvents = pgTable("webhook_events", {
+  id: serial("id").primaryKey(),
+  eventType: text("event_type").notNull(), // google_calendar_event_updated, outlook_event_updated
+  eventId: text("event_id"), // Calendar event ID if available
+  rawPayload: jsonb("raw_payload").notNull(), // Complete webhook payload
+  processed: boolean("processed").notNull().default(false),
+  processingError: text("processing_error"),
+  inviteId: integer("invite_id").references(() => invites.id), // Linked invite if found
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Queue for processing invites
@@ -184,6 +218,17 @@ export const insertInviteQueueSchema = createInsertSchema(inviteQueue).omit({
   updatedAt: true,
 });
 
+export const insertRsvpEventSchema = createInsertSchema(rsvpEvents).omit({
+  id: true,
+  detectedAt: true,
+  createdAt: true,
+});
+
+export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type GoogleAccount = typeof googleAccounts.$inferSelect;
 export type InsertGoogleAccount = z.infer<typeof insertGoogleAccountSchema>;
@@ -209,6 +254,12 @@ export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
 export type InviteQueue = typeof inviteQueue.$inferSelect;
 export type InsertInviteQueue = z.infer<typeof insertInviteQueueSchema>;
 
+export type RsvpEvent = typeof rsvpEvents.$inferSelect;
+export type InsertRsvpEvent = z.infer<typeof insertRsvpEventSchema>;
+
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;
+
 // API response types
 export type DashboardStats = {
   activeCampaigns: number;
@@ -224,10 +275,15 @@ export type DashboardStats = {
 export type CampaignWithStats = Campaign & {
   invitesSent: number;
   accepted: number;
+  declined: number;
+  tentative: number;
+  noResponse: number;
   totalProspects: number;
   progress: number;
   pendingInvites: number;
   processingInvites: number;
+  acceptanceRate: number;
+  responseRate: number;
 };
 
 export type AccountWithStatus = GoogleAccount & {

@@ -6,6 +6,8 @@ import {
   systemSettings,
   inviteQueue,
   outlookAccounts,
+  rsvpEvents,
+  webhookEvents,
   type GoogleAccount,
   type InsertGoogleAccount,
   type OutlookAccount,
@@ -20,6 +22,10 @@ import {
   type InsertSystemSettings,
   type InviteQueue,
   type InsertInviteQueue,
+  type RsvpEvent,
+  type InsertRsvpEvent,
+  type WebhookEvent,
+  type InsertWebhookEvent,
   type DashboardStats,
   type CampaignWithStats,
   type AccountWithStatus,
@@ -62,8 +68,21 @@ export interface IStorage {
   createInvite(invite: InsertInvite): Promise<Invite>;
   updateInvite(id: number, updates: Partial<Invite>): Promise<Invite>;
   getInvitesByStatus(status: string): Promise<Invite[]>;
+  getInvitesByRsvpStatus(rsvpStatus: string): Promise<Invite[]>;
   getInvitesToday(): Promise<number>;
   getAcceptedInvites(): Promise<number>;
+  updateInviteRsvpStatus(inviteId: number, rsvpStatus: string, source: string, webhookPayload?: any): Promise<void>;
+  getInviteByEventId(eventId: string): Promise<Invite | undefined>;
+
+  // RSVP Events
+  getRsvpEvents(inviteId?: number): Promise<RsvpEvent[]>;
+  createRsvpEvent(event: InsertRsvpEvent): Promise<RsvpEvent>;
+  getRsvpHistory(inviteId: number): Promise<RsvpEvent[]>;
+
+  // Webhook Events
+  getWebhookEvents(processed?: boolean): Promise<WebhookEvent[]>;
+  createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent>;
+  markWebhookProcessed(id: number, success: boolean, error?: string): Promise<void>;
 
   // Activity Logs
   getActivityLogs(limit?: number): Promise<ActivityLog[]>;
@@ -675,14 +694,27 @@ class PostgresStorage implements IStorage {
       // Calculate progress as sent invites vs total prospects
       const progress = totalProspects > 0 ? (sentInvites.length / totalProspects) * 100 : 0;
       
+      // Calculate RSVP statistics
+      const declined = invites.filter(invite => invite.rsvpStatus === 'declined').length;
+      const tentative = invites.filter(invite => invite.rsvpStatus === 'tentative').length;
+      const noResponse = invites.filter(invite => invite.status === 'sent' && !invite.rsvpStatus).length;
+      
+      const acceptanceRate = sentInvites.length > 0 ? Math.round((accepted / sentInvites.length) * 100 * 10) / 10 : 0;
+      const responseRate = sentInvites.length > 0 ? Math.round(((accepted + declined + tentative) / sentInvites.length) * 100 * 10) / 10 : 0;
+
       campaignsWithStats.push({
         ...campaign,
         invitesSent: sentInvites.length,
         accepted,
+        declined,
+        tentative,
+        noResponse,
         totalProspects,
         progress: Math.round(progress * 10) / 10,
         pendingInvites,
-        processingInvites
+        processingInvites,
+        acceptanceRate,
+        responseRate
       });
     }
 
@@ -728,6 +760,123 @@ class PostgresStorage implements IStorage {
     const result = await this.db.select({ count: count() }).from(schema.invites)
       .where(eq(schema.invites.status, 'accepted'));
     return result[0]?.count || 0;
+  }
+
+  async getInvitesByRsvpStatus(rsvpStatus: string): Promise<Invite[]> {
+    return await this.db.select().from(schema.invites).where(eq(schema.invites.rsvpStatus, rsvpStatus));
+  }
+
+  async updateInviteRsvpStatus(inviteId: number, rsvpStatus: string, source: string, webhookPayload?: any): Promise<void> {
+    const invite = await this.getInvite(inviteId);
+    if (!invite) throw new Error(`Invite ${inviteId} not found`);
+
+    const now = new Date();
+    const previousStatus = invite.rsvpStatus;
+
+    // Update invite record
+    const updates: Partial<Invite> = {
+      rsvpStatus,
+      rsvpResponseAt: now,
+      lastStatusCheck: now,
+      webhookReceived: source === 'webhook',
+      updatedAt: now,
+    };
+
+    // Set specific timestamp fields based on status
+    if (rsvpStatus === 'accepted') {
+      updates.acceptedAt = now;
+      updates.status = 'accepted';
+    } else if (rsvpStatus === 'declined') {
+      updates.declinedAt = now;
+      updates.status = 'declined';
+    } else if (rsvpStatus === 'tentative') {
+      updates.tentativeAt = now;
+      updates.status = 'tentative';
+    }
+
+    await this.updateInvite(inviteId, updates);
+
+    // Create RSVP event record
+    if (invite.eventId) {
+      await this.createRsvpEvent({
+        inviteId,
+        eventId: invite.eventId,
+        prospectEmail: invite.prospectEmail,
+        rsvpStatus,
+        previousStatus,
+        source,
+        webhookPayload,
+        responseAt: now,
+      });
+    }
+
+    // Create activity log
+    await this.createActivityLog({
+      type: `invite_${rsvpStatus}`,
+      campaignId: invite.campaignId,
+      inviteId,
+      googleAccountId: invite.googleAccountId,
+      message: `${invite.prospectEmail} ${rsvpStatus} calendar invite`,
+      metadata: { 
+        prospectEmail: invite.prospectEmail, 
+        rsvpStatus, 
+        previousStatus,
+        source 
+      },
+    });
+  }
+
+  async getInviteByEventId(eventId: string): Promise<Invite | undefined> {
+    const result = await this.db.select().from(schema.invites).where(eq(schema.invites.eventId, eventId));
+    return result[0];
+  }
+
+  // RSVP Events
+  async getRsvpEvents(inviteId?: number): Promise<RsvpEvent[]> {
+    if (inviteId) {
+      return await this.db.select().from(schema.rsvpEvents)
+        .where(eq(schema.rsvpEvents.inviteId, inviteId))
+        .orderBy(desc(schema.rsvpEvents.createdAt));
+    }
+    return await this.db.select().from(schema.rsvpEvents)
+      .orderBy(desc(schema.rsvpEvents.createdAt));
+  }
+
+  async createRsvpEvent(event: InsertRsvpEvent): Promise<RsvpEvent> {
+    const result = await this.db.insert(schema.rsvpEvents).values(event).returning();
+    return result[0];
+  }
+
+  async getRsvpHistory(inviteId: number): Promise<RsvpEvent[]> {
+    return await this.db.select().from(schema.rsvpEvents)
+      .where(eq(schema.rsvpEvents.inviteId, inviteId))
+      .orderBy(schema.rsvpEvents.responseAt);
+  }
+
+  // Webhook Events
+  async getWebhookEvents(processed?: boolean): Promise<WebhookEvent[]> {
+    if (processed !== undefined) {
+      return await this.db.select().from(schema.webhookEvents)
+        .where(eq(schema.webhookEvents.processed, processed))
+        .orderBy(desc(schema.webhookEvents.createdAt));
+    }
+    return await this.db.select().from(schema.webhookEvents)
+      .orderBy(desc(schema.webhookEvents.createdAt));
+  }
+
+  async createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent> {
+    const result = await this.db.insert(schema.webhookEvents).values(event).returning();
+    return result[0];
+  }
+
+  async markWebhookProcessed(id: number, success: boolean, error?: string): Promise<void> {
+    const updates: Partial<WebhookEvent> = {
+      processed: true,
+    };
+    if (error) {
+      updates.processingError = error;
+    }
+    await this.db.update(schema.webhookEvents).set(updates).where(eq(schema.webhookEvents.id, id));
   }
 
   // Activity Logs

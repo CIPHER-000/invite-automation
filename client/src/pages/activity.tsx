@@ -31,6 +31,8 @@ import {
 const activityIcons = {
   invite_sent: Send,
   invite_accepted: CheckCircle,
+  invite_declined: AlertTriangle,
+  invite_tentative: Clock,
   confirmation_sent: Mail,
   invite_error: AlertTriangle,
   campaign_processed: Clock,
@@ -46,7 +48,9 @@ const activityIcons = {
 
 const activityColors = {
   invite_sent: "text-success bg-success/10 border-success/20",
-  invite_accepted: "text-warning bg-warning/10 border-warning/20",
+  invite_accepted: "text-green-600 bg-green-100 border-green-200",
+  invite_declined: "text-red-600 bg-red-100 border-red-200",
+  invite_tentative: "text-yellow-600 bg-yellow-100 border-yellow-200",
   confirmation_sent: "text-primary bg-primary/10 border-primary/20",
   invite_error: "text-destructive bg-destructive/10 border-destructive/20",
   campaign_processed: "text-slate-600 bg-slate-100 border-slate-200",
@@ -63,6 +67,8 @@ const activityColors = {
 const activityLabels = {
   invite_sent: "Invite Sent",
   invite_accepted: "Invite Accepted",
+  invite_declined: "Invite Declined",
+  invite_tentative: "Invite Tentative",
   confirmation_sent: "Confirmation Sent",
   invite_error: "Invite Error",
   campaign_processed: "Campaign Processed",
@@ -120,7 +126,7 @@ export default function Activity() {
 
       <div className="space-y-6">
         {/* Activity Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
@@ -140,13 +146,45 @@ export default function Activity() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="text-warning" size={20} />
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="text-green-600" size={20} />
                 </div>
                 <div>
                   <p className="text-sm text-slate-600">Accepted</p>
                   <p className="text-xl font-bold text-slate-800">
                     {stats.invite_accepted || 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="text-red-600" size={20} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Declined</p>
+                  <p className="text-xl font-bold text-slate-800">
+                    {stats.invite_declined || 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="text-yellow-600" size={20} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Tentative</p>
+                  <p className="text-xl font-bold text-slate-800">
+                    {stats.invite_tentative || 0}
                   </p>
                 </div>
               </div>
@@ -241,7 +279,9 @@ export default function Activity() {
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
                     <SelectItem value="invite_sent">Invites Sent</SelectItem>
-                    <SelectItem value="invite_accepted">Invites Accepted</SelectItem>
+                    <SelectItem value="invite_accepted">✅ Accepted</SelectItem>
+                    <SelectItem value="invite_declined">❌ Declined</SelectItem>
+                    <SelectItem value="invite_tentative">⏳ Tentative</SelectItem>
                     <SelectItem value="confirmation_sent">Confirmations</SelectItem>
                     <SelectItem value="invite_error">Invite Errors</SelectItem>
                     <SelectItem value="campaign_processed">Campaigns</SelectItem>

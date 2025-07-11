@@ -2,6 +2,7 @@ import { storage } from "../storage";
 import { campaignProcessor } from "./campaign-processor";
 import { googleCalendarService } from "./google-calendar";
 import { emailService } from "./email";
+import { rsvpTracker } from "./rsvp-tracker";
 
 export class QueueManager {
   private isProcessing = false;
@@ -28,6 +29,11 @@ export class QueueManager {
     setInterval(() => {
       this.processConfirmations();
     }, 2 * 60000);
+
+    // Poll RSVP status updates every 3 minutes
+    setInterval(() => {
+      this.pollRsvpUpdates();
+    }, 3 * 60000);
 
     // Initial processing
     this.processQueue();
@@ -92,6 +98,14 @@ export class QueueManager {
       await googleCalendarService.checkPendingInvites();
     } catch (error) {
       console.error("Error checking accepted invites:", error);
+    }
+  }
+
+  private async pollRsvpUpdates(): Promise<void> {
+    try {
+      await rsvpTracker.pollPendingInvites();
+    } catch (error) {
+      console.error("Error polling RSVP updates:", error);
     }
   }
 
