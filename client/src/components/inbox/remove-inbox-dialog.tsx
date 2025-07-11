@@ -47,8 +47,8 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
   const checkCampaignsMutation = useMutation({
     mutationFn: async () => {
       if (!inbox) return [];
-      const response = await apiRequest(`/api/campaigns/using-inbox/${inbox.id}`, "GET");
-      return response;
+      const response = await apiRequest("GET", `/api/campaigns/using-inbox/${inbox.id}`);
+      return response.json();
     },
     onSuccess: (campaigns) => {
       setActiveCampaigns(campaigns);
@@ -67,7 +67,7 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
   const removeMutation = useMutation({
     mutationFn: async () => {
       if (!inbox) throw new Error("No inbox selected");
-      await apiRequest(`/api/accounts/${inbox.id}/disconnect`, "POST");
+      await apiRequest("POST", `/api/accounts/${inbox.id}/disconnect`);
     },
     onSuccess: () => {
       toast({
