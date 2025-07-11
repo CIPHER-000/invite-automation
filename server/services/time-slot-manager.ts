@@ -1,4 +1,5 @@
 import { Campaign } from "@shared/schema";
+import { storage } from "../storage";
 
 export interface TimeSlotPreferences {
   startHour: number; // 9 for 9AM
@@ -17,18 +18,22 @@ export interface ProspectScheduleData {
 
 export class TimeSlotManager {
   private bookedSlots: Map<string, Set<string>> = new Map(); // account -> set of datetime strings
+  private globalBookedSlots: Set<string> = new Set(); // All slots across all accounts/campaigns
 
   /**
    * Generate an optimal time slot for a prospect based on their preferences
    */
-  generateTimeSlot(
+  async generateTimeSlot(
     prospect: ProspectScheduleData,
     campaign: Campaign,
     accountEmail: string,
     baseDate?: Date
-  ): Date {
+  ): Promise<Date> {
     const preferences = this.parseProspectPreferences(prospect, campaign);
     const targetDate = baseDate || new Date();
+    
+    // Refresh global booked slots from database
+    await this.refreshGlobalBookedSlots();
     
     // Find next available business day
     let scheduleDate = new Date(targetDate);
@@ -37,11 +42,11 @@ export class TimeSlotManager {
     // Generate random time within preferred hours
     const timeSlot = this.generateRandomTimeSlot(scheduleDate, preferences);
     
-    // Ensure no double booking
-    const finalSlot = this.ensureNoDoubleBooking(timeSlot, accountEmail, preferences);
+    // Ensure no double booking (check both account-specific and global)
+    const finalSlot = this.ensureNoDoubleBookingGlobally(timeSlot, accountEmail, preferences);
     
-    // Mark slot as booked
-    this.markSlotAsBooked(accountEmail, finalSlot);
+    // Mark slot as booked both locally and globally
+    await this.markSlotAsBooked(accountEmail, finalSlot);
     
     return finalSlot;
   }
@@ -185,9 +190,9 @@ export class TimeSlotManager {
   }
 
   /**
-   * Ensure no double booking by checking against already booked slots
+   * Ensure no double booking by checking against already booked slots (globally and per account)
    */
-  private ensureNoDoubleBooking(
+  private ensureNoDoubleBookingGlobally(
     proposedSlot: Date,
     accountEmail: string,
     preferences: TimeSlotPreferences
@@ -195,7 +200,8 @@ export class TimeSlotManager {
     const slotKey = this.getSlotKey(proposedSlot);
     const bookedSlotsForAccount = this.bookedSlots.get(accountEmail) || new Set();
     
-    if (!bookedSlotsForAccount.has(slotKey)) {
+    // Check if slot is available both globally and for this specific account
+    if (!bookedSlotsForAccount.has(slotKey) && !this.globalBookedSlots.has(slotKey)) {
       return proposedSlot;
     }
 
@@ -203,7 +209,7 @@ export class TimeSlotManager {
     let attempts = 0;
     let alternativeSlot = new Date(proposedSlot);
     
-    while (attempts < 20) { // Try up to 20 different times
+    while (attempts < 50) { // Increased attempts since we're checking more conflicts
       alternativeSlot.setMinutes(alternativeSlot.getMinutes() + 15);
       
       // If we've gone past business hours, move to next day
@@ -216,28 +222,67 @@ export class TimeSlotManager {
       }
       
       const altSlotKey = this.getSlotKey(alternativeSlot);
-      if (!bookedSlotsForAccount.has(altSlotKey)) {
+      const altBookedForAccount = this.bookedSlots.get(accountEmail) || new Set();
+      
+      // Check both account-specific and global availability
+      if (!altBookedForAccount.has(altSlotKey) && !this.globalBookedSlots.has(altSlotKey)) {
         return alternativeSlot;
       }
       
       attempts++;
     }
 
-    // Fallback: return original slot (better than infinite loop)
+    // If all slots in the expanded range are taken, we need to allow overlap
+    // This should only happen when the time window is completely saturated
+    console.warn(`Warning: All time slots are saturated. Allowing overlap for slot ${proposedSlot.toISOString()}`);
     return proposedSlot;
   }
 
   /**
-   * Mark a time slot as booked for an account
+   * Mark a time slot as booked for an account (both locally and globally)
    */
-  private markSlotAsBooked(accountEmail: string, slot: Date): void {
+  private async markSlotAsBooked(accountEmail: string, slot: Date): Promise<void> {
     const slotKey = this.getSlotKey(slot);
     
+    // Mark in local memory for this account
     if (!this.bookedSlots.has(accountEmail)) {
       this.bookedSlots.set(accountEmail, new Set());
     }
-    
     this.bookedSlots.get(accountEmail)!.add(slotKey);
+    
+    // Mark globally to prevent any other account from using this slot
+    this.globalBookedSlots.add(slotKey);
+    
+    console.log(`Booked time slot: ${slot.toISOString()} for account ${accountEmail}`);
+  }
+
+  /**
+   * Refresh global booked slots from database to get latest state
+   */
+  private async refreshGlobalBookedSlots(): Promise<void> {
+    try {
+      // Get all recent invites with their proposed meeting times
+      const allInvites = await storage.getInvites(""); // Get all invites across all users
+      const now = new Date();
+      const cutoffTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // Last 7 days
+      
+      this.globalBookedSlots.clear();
+      
+      for (const invite of allInvites) {
+        // Only consider recent invites that have actual calendar events
+        if (invite.eventId && invite.createdAt && invite.createdAt > cutoffTime) {
+          // Extract the meeting time from event data if available
+          // For now, we'll use a simple heuristic based on creation time + offset
+          // In a real implementation, you'd query the calendar API for the actual event time
+          const estimatedMeetingTime = new Date(invite.createdAt.getTime() + 24 * 60 * 60 * 1000);
+          this.globalBookedSlots.add(this.getSlotKey(estimatedMeetingTime));
+        }
+      }
+      
+      console.log(`Refreshed global booked slots: ${this.globalBookedSlots.size} slots currently booked`);
+    } catch (error) {
+      console.error("Failed to refresh global booked slots:", error);
+    }
   }
 
   /**

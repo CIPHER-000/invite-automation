@@ -290,9 +290,18 @@ export class CampaignProcessor {
       // Process subject line for the invite email
       const subjectLine = this.processSubjectLine(campaign, mergeData);
 
-      // Calculate event times
-      const startTime = new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
-      startTime.setHours(10, 0, 0, 0); // 10 AM
+      // Calculate event times using time slot manager for proper distribution
+      const { timeSlotManager } = require('./time-slot-manager');
+      const prospectData = {
+        email: mergeData.email || 'unknown@example.com',
+        timezone: campaign.timeZone
+      };
+      
+      const startTime = await timeSlotManager.generateTimeSlot(
+        prospectData,
+        campaign,
+        availableAccount.email
+      );
       const endTime = new Date(startTime.getTime() + campaign.eventDuration * 60000);
 
       // Create calendar event using OAuth calendar service

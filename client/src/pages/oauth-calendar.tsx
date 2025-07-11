@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, SendIcon, TestTube2Icon, UserIcon, CheckCircleIcon, AlertCircleIcon, PlusIcon, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { InboxSearch, filterInboxes } from "@/components/inbox/inbox-search";
 
 interface OAuthAccount {
   id: number;
@@ -71,6 +72,7 @@ export default function OAuthCalendar() {
   const [eventTitle, setEventTitle] = useState("Quick Meeting Request");
   const [eventDescription, setEventDescription] = useState("I'd love to schedule a quick meeting to discuss potential collaboration opportunities.");
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -168,7 +170,8 @@ export default function OAuthCalendar() {
     },
   });
 
-  const activeAccounts = (accounts as OAuthAccount[]).filter((account: OAuthAccount) => account.isActive);
+  const filteredAccounts = filterInboxes(accounts as OAuthAccount[], searchTerm);
+  const activeAccounts = filteredAccounts.filter((account: OAuthAccount) => account.isActive);
 
   return (
     <div className="container mx-auto py-6 px-4">
@@ -215,7 +218,16 @@ export default function OAuthCalendar() {
               </div>
             )}
 
-            {(accounts as OAuthAccount[]).map((account: OAuthAccount) => (
+            {(accounts as OAuthAccount[]).length > 0 && (
+              <InboxSearch
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Search inboxes by email or name..."
+                className="mb-4"
+              />
+            )}
+
+            {filteredAccounts.map((account: OAuthAccount) => (
               <div
                 key={account.id}
                 className={`p-4 border rounded-lg cursor-pointer transition-colors ${

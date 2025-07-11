@@ -21,12 +21,14 @@ import {
   Trash2
 } from "lucide-react";
 import { RemoveInboxDialog } from "@/components/inbox/remove-inbox-dialog";
+import { InboxSearch, filterInboxes } from "@/components/inbox/inbox-search";
 import type { AccountWithStatus } from "@shared/schema";
 
 export default function Accounts() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedInbox, setSelectedInbox] = useState<AccountWithStatus | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -136,8 +138,9 @@ export default function Accounts() {
     },
   });
 
-  const activeAccounts = accounts?.filter((acc: AccountWithStatus) => acc.isActive) || [];
-  const inactiveAccounts = accounts?.filter((acc: AccountWithStatus) => !acc.isActive) || [];
+  const filteredAccounts = filterInboxes(accounts || [], searchTerm);
+  const activeAccounts = filteredAccounts.filter((acc: AccountWithStatus) => acc.isActive);
+  const inactiveAccounts = filteredAccounts.filter((acc: AccountWithStatus) => !acc.isActive);
   const cooldownAccounts = activeAccounts.filter((acc: AccountWithStatus) => acc.isInCooldown);
 
   // Show loading state
@@ -203,6 +206,16 @@ export default function Accounts() {
           </Alert>
         )}
 
+        {/* Search */}
+        {accounts && accounts.length > 0 && (
+          <InboxSearch
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search accounts by email or name..."
+            className="mb-6"
+          />
+        )}
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -214,8 +227,11 @@ export default function Accounts() {
                 <div>
                   <p className="text-sm text-slate-600">Total Accounts</p>
                   <p className="text-2xl font-bold text-slate-800">
-                    {accounts?.length || 0}
+                    {filteredAccounts.length}
                   </p>
+                  {searchTerm && (
+                    <p className="text-xs text-gray-500">of {accounts?.length || 0} total</p>
+                  )}
                 </div>
               </div>
             </CardContent>

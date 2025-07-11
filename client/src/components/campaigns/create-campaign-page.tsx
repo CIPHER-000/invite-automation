@@ -63,6 +63,7 @@ import {
 import { Header } from "@/components/layout/header";
 import { AdvancedSchedulingForm, type AdvancedSchedulingFormData } from "./advanced-scheduling-form";
 import { SubjectLinePreview } from "./subject-line-preview";
+import { InboxSearch, filterInboxes } from "@/components/inbox/inbox-search";
 
 const campaignFormSchema = insertCampaignSchema.extend({
   selectedInboxes: z.array(z.number()).min(1, "Select at least one inbox"),
@@ -78,6 +79,7 @@ export default function CreateCampaignPage() {
   const [schedulingMode, setSchedulingMode] = useState<"immediate" | "advanced">("immediate");
   const [advancedSchedulingData, setAdvancedSchedulingData] = useState<AdvancedSchedulingFormData | null>(null);
   const [activeTab, setActiveTab] = useState("basic");
+  const [inboxSearchTerm, setInboxSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -830,8 +832,14 @@ export default function CreateCampaignPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
+                        <InboxSearch
+                          value={inboxSearchTerm}
+                          onChange={setInboxSearchTerm}
+                          placeholder="Search inboxes by email or name..."
+                          className="mb-4"
+                        />
                         <div className="grid grid-cols-1 gap-3">
-                          {accounts.map((account: GoogleAccount) => (
+                          {filterInboxes(accounts, inboxSearchTerm).map((account: GoogleAccount) => (
                             <div key={account.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
                               <Checkbox
                                 id={`account-${account.id}`}
