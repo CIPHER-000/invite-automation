@@ -52,6 +52,18 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { CampaignWithStats, GoogleAccount } from "@shared/schema";
+import { Progress } from "@/components/ui/progress";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  BarChart,
+  Bar
+} from "recharts";
 
 interface CampaignDetailViewProps {
   open: boolean;
@@ -118,6 +130,29 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
       return response.json();
     },
     enabled: !!campaign?.id,
+  });
+
+  // Fetch detailed campaign analytics
+  const { data: inboxStats = [], refetch: refetchInboxStats } = useQuery({
+    queryKey: ["/api/campaigns", campaign?.id, "inbox-stats"],
+    queryFn: async () => {
+      if (!campaign?.id) return [];
+      const response = await fetch(`/api/campaigns/${campaign.id}/inbox-stats`);
+      return response.json();
+    },
+    enabled: !!campaign?.id,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const { data: detailedStats, refetch: refetchDetailedStats } = useQuery({
+    queryKey: ["/api/campaigns", campaign?.id, "detailed-stats"],
+    queryFn: async () => {
+      if (!campaign?.id) return null;
+      const response = await fetch(`/api/campaigns/${campaign.id}/detailed-stats`);
+      return response.json();
+    },
+    enabled: !!campaign?.id,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
   // Update campaign mutation
@@ -225,6 +260,13 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
 
   if (!campaign) return null;
 
+  // Format daily progress data for charts
+  const dailyProgressData = detailedStats?.dailyProgress?.map(day => ({
+    date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    sent: day.sent,
+    accepted: day.accepted,
+  })) || [];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -235,12 +277,12 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="analytics" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="messaging">Messaging</TabsTrigger>
-            <TabsTrigger value="scheduling">Scheduling</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics & Stats</TabsTrigger>
+            <TabsTrigger value="inboxes">Inbox Management</TabsTrigger>
+            <TabsTrigger value="overview">Campaign Settings</TabsTrigger>
+            <TabsTrigger value="messaging">Templates & Messaging</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -855,16 +897,29 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Main Statistics Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Prospects</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{detailedStats?.totalProspects || 0}</div>
+                  <p className="text-xs text-muted-foreground">in campaign</p>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Invites Sent</CardTitle>
                   <Target className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{campaign.invitesSent || 0}</div>
+                  <div className="text-2xl font-bold">{detailedStats?.invitesSent || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    of {campaign.totalProspects || 0} total
+                    {detailedStats?.totalProspects ? 
+                      Math.round((detailedStats.invitesSent / detailedStats.totalProspects) * 100) : 0}% of total
                   </p>
                 </CardContent>
               </Card>
@@ -872,12 +927,13 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Accepted</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Users className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{campaign.accepted || 0}</div>
+                  <div className="text-2xl font-bold text-green-600">{detailedStats?.accepted || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    {campaign.acceptanceRate || 0}% acceptance rate
+                    {detailedStats?.invitesSent ? 
+                      Math.round((detailedStats.accepted / detailedStats.invitesSent) * 100) : 0}% acceptance rate
                   </p>
                 </CardContent>
               </Card>
@@ -885,116 +941,248 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pending</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Clock className="h-4 w-4 text-yellow-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{campaign.pendingInvites || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    awaiting response
-                  </p>
+                  <div className="text-2xl font-bold text-yellow-600">{detailedStats?.pending || 0}</div>
+                  <p className="text-xs text-muted-foreground">awaiting response</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Response Rate</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Errors</CardTitle>
+                  <AlertCircle className="h-4 w-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{campaign.responseRate || 0}%</div>
-                  <p className="text-xs text-muted-foreground">
-                    total responses
-                  </p>
+                  <div className="text-2xl font-bold text-red-600">{detailedStats?.errors || 0}</div>
+                  <p className="text-xs text-muted-foreground">failed invites</p>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Daily Progress Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Daily Progress (Last 7 Days)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    {dailyProgressData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={dailyProgressData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis />
+                          <Tooltip />
+                          <Line 
+                            type="monotone" 
+                            dataKey="sent" 
+                            stroke="#3b82f6" 
+                            strokeWidth={2}
+                            name="Sent"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="accepted" 
+                            stroke="#10b981" 
+                            strokeWidth={2}
+                            name="Accepted"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        No data available yet
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Inbox Usage Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Inbox Usage Today
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    {detailedStats?.inboxUsage?.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={detailedStats.inboxUsage}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="email" 
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                          />
+                          <YAxis />
+                          <Tooltip formatter={(value, name) => [value, name === "usage" ? "Used" : "Limit"]} />
+                          <Bar dataKey="usage" fill="#3b82f6" name="Used" />
+                          <Bar dataKey="limit" fill="#e5e7eb" name="Limit" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        No inbox data available
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* RSVP Breakdown */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
-                  RSVP Breakdown
+                  RSVP Response Breakdown
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Accepted</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full" 
-                          style={{ width: `${(campaign.accepted || 0) / Math.max(campaign.invitesSent || 1, 1) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium">{campaign.accepted || 0}</span>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-green-600">Accepted</span>
+                      <span className="text-sm font-bold">{detailedStats?.accepted || 0}</span>
                     </div>
+                    <Progress 
+                      value={detailedStats?.invitesSent ? (detailedStats.accepted / detailedStats.invitesSent) * 100 : 0} 
+                      className="h-2"
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Declined</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-red-600 h-2 rounded-full" 
-                          style={{ width: `${(campaign.declined || 0) / Math.max(campaign.invitesSent || 1, 1) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium">{campaign.declined || 0}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-red-600">Declined</span>
+                      <span className="text-sm font-bold">{detailedStats?.declined || 0}</span>
                     </div>
+                    <Progress 
+                      value={detailedStats?.invitesSent ? (detailedStats.declined / detailedStats.invitesSent) * 100 : 0} 
+                      className="h-2"
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Tentative</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-yellow-600 h-2 rounded-full" 
-                          style={{ width: `${(campaign.tentative || 0) / Math.max(campaign.invitesSent || 1, 1) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium">{campaign.tentative || 0}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-yellow-600">Tentative</span>
+                      <span className="text-sm font-bold">{detailedStats?.tentative || 0}</span>
                     </div>
+                    <Progress 
+                      value={detailedStats?.invitesSent ? (detailedStats.tentative / detailedStats.invitesSent) * 100 : 0} 
+                      className="h-2"
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">No Response</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gray-600 h-2 rounded-full" 
-                          style={{ width: `${(campaign.noResponse || 0) / Math.max(campaign.invitesSent || 1, 1) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium">{campaign.noResponse || 0}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-blue-600">Pending</span>
+                      <span className="text-sm font-bold">{detailedStats?.pending || 0}</span>
                     </div>
+                    <Progress 
+                      value={detailedStats?.invitesSent ? (detailedStats.pending / detailedStats.invitesSent) * 100 : 0} 
+                      className="h-2"
+                    />
                   </div>
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
 
-            {/* Recent Activity */}
+          {/* New Inbox Management Tab */}
+          <TabsContent value="inboxes" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  Recent Activity
+                  <Mail className="h-4 w-4" />
+                  Per-Inbox Analytics & Management
                 </CardTitle>
+                <CardDescription>
+                  Track performance and manage limits for each inbox in this campaign
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Campaign created</span>
-                    <span className="text-muted-foreground">{new Date(campaign.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Last updated</span>
-                    <span className="text-muted-foreground">{new Date(campaign.updatedAt).toLocaleDateString()}</span>
-                  </div>
-                  {campaign.invitesSent > 0 && (
-                    <div className="flex justify-between">
-                      <span>Invites sent</span>
-                      <span className="text-muted-foreground">{campaign.invitesSent} total</span>
+                <div className="space-y-4">
+                  {inboxStats.length > 0 ? (
+                    inboxStats.map((inbox: any) => (
+                      <Card key={inbox.inboxId} className="p-4">
+                        <div className="space-y-4">
+                          {/* Header with email and daily usage */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">{inbox.name}</h4>
+                              <p className="text-sm text-muted-foreground">{inbox.email}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium">
+                                {inbox.dailyUsed} / {inbox.dailyLimit} invites today
+                              </div>
+                              <Progress 
+                                value={(inbox.dailyUsed / inbox.dailyLimit) * 100} 
+                                className="w-32 h-2 mt-1"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Performance metrics */}
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-blue-600">{inbox.invitesSent}</div>
+                              <div className="text-xs text-muted-foreground">Sent</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-green-600">{inbox.accepted}</div>
+                              <div className="text-xs text-muted-foreground">Accepted</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-red-600">{inbox.declined}</div>
+                              <div className="text-xs text-muted-foreground">Declined</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-yellow-600">{inbox.tentative}</div>
+                              <div className="text-xs text-muted-foreground">Tentative</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-orange-600">{inbox.pending}</div>
+                              <div className="text-xs text-muted-foreground">Pending</div>
+                            </div>
+                          </div>
+
+                          {/* Success rate and last used */}
+                          <div className="flex items-center justify-between text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Success Rate: </span>
+                              <span className="font-medium">
+                                {inbox.invitesSent > 0 ? 
+                                  Math.round((inbox.accepted / inbox.invitesSent) * 100) : 0}%
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Last Used: </span>
+                              <span className="font-medium">
+                                {inbox.lastUsed ? 
+                                  new Date(inbox.lastUsed).toLocaleDateString() : 
+                                  "Never"
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No inbox data available for this campaign
                     </div>
                   )}
                 </div>

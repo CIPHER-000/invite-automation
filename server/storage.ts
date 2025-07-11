@@ -103,6 +103,32 @@ export interface IStorage {
 
   // Dashboard
   getDashboardStats(): Promise<DashboardStats>;
+  
+  // Campaign Analytics
+  getCampaignInboxStats(campaignId: number): Promise<Array<{
+    inboxId: number;
+    email: string;
+    name: string;
+    invitesSent: number;
+    accepted: number;
+    declined: number;
+    tentative: number;
+    pending: number;
+    lastUsed: string | null;
+    dailyLimit: number;
+    dailyUsed: number;
+  }>>;
+  getCampaignDetailedStats(campaignId: number): Promise<{
+    totalProspects: number;
+    invitesSent: number;
+    pending: number;
+    accepted: number;
+    declined: number;
+    tentative: number;
+    errors: number;
+    dailyProgress: Array<{ date: string; sent: number; accepted: number }>;
+    inboxUsage: Array<{ inboxId: number; email: string; usage: number; limit: number }>;
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -542,6 +568,119 @@ export class MemStorage implements IStorage {
       apiUsage: Math.round((invitesToday / this.systemSettings.dailyInviteLimit) * 100),
       queueStatus: pendingQueue > 0 ? `Processing ${pendingQueue} items` : "Idle",
     };
+  }
+
+  async getCampaignInboxStats(campaignId: number): Promise<Array<{
+    inboxId: number;
+    email: string;
+    name: string;
+    invitesSent: number;
+    accepted: number;
+    declined: number;
+    tentative: number;
+    pending: number;
+    lastUsed: string | null;
+    dailyLimit: number;
+    dailyUsed: number;
+  }>> {
+    const campaign = this.campaigns.get(campaignId);
+    if (!campaign) return [];
+
+    const stats: Array<any> = [];
+    
+    for (const inboxId of campaign.selectedInboxes) {
+      const inbox = this.googleAccounts.get(inboxId);
+      if (!inbox) continue;
+
+      const campaignInvites = Array.from(this.invites.values()).filter(
+        invite => invite.campaignId === campaignId && invite.googleAccountId === inboxId
+      );
+
+      const dailyUsed = await this.getInvitesTodayByAccount(inboxId);
+
+      stats.push({
+        inboxId: inbox.id,
+        email: inbox.email,
+        name: inbox.name,
+        invitesSent: campaignInvites.filter(i => i.status === 'sent' || i.sentAt).length,
+        accepted: campaignInvites.filter(i => i.rsvpStatus === 'accepted').length,
+        declined: campaignInvites.filter(i => i.rsvpStatus === 'declined').length,
+        tentative: campaignInvites.filter(i => i.rsvpStatus === 'tentative').length,
+        pending: campaignInvites.filter(i => i.status === 'pending').length,
+        lastUsed: inbox.lastUsed ? inbox.lastUsed.toISOString() : null,
+        dailyLimit: campaign.maxInvitesPerInbox || 20,
+        dailyUsed
+      });
+    }
+
+    return stats;
+  }
+
+  async getCampaignDetailedStats(campaignId: number): Promise<{
+    totalProspects: number;
+    invitesSent: number;
+    pending: number;
+    accepted: number;
+    declined: number;
+    tentative: number;
+    errors: number;
+    dailyProgress: Array<{ date: string; sent: number; accepted: number }>;
+    inboxUsage: Array<{ inboxId: number; email: string; usage: number; limit: number }>;
+  }> {
+    const campaignInvites = Array.from(this.invites.values()).filter(
+      invite => invite.campaignId === campaignId
+    );
+
+    const campaign = this.campaigns.get(campaignId);
+    const csvData = campaign?.csvData as any[];
+    
+    const stats = {
+      totalProspects: csvData?.length || 0,
+      invitesSent: campaignInvites.filter(i => i.status === 'sent' || i.sentAt).length,
+      pending: campaignInvites.filter(i => i.status === 'pending').length,
+      accepted: campaignInvites.filter(i => i.rsvpStatus === 'accepted').length,
+      declined: campaignInvites.filter(i => i.rsvpStatus === 'declined').length,
+      tentative: campaignInvites.filter(i => i.rsvpStatus === 'tentative').length,
+      errors: campaignInvites.filter(i => i.status === 'error').length,
+      dailyProgress: [] as Array<{ date: string; sent: number; accepted: number }>,
+      inboxUsage: [] as Array<{ inboxId: number; email: string; usage: number; limit: number }>
+    };
+
+    // Generate daily progress for last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const daySent = campaignInvites.filter(invite => 
+        invite.sentAt && invite.sentAt.toISOString().split('T')[0] === dateStr
+      ).length;
+      
+      const dayAccepted = campaignInvites.filter(invite => 
+        invite.rsvpResponseAt && invite.rsvpResponseAt.toISOString().split('T')[0] === dateStr &&
+        invite.rsvpStatus === 'accepted'
+      ).length;
+
+      stats.dailyProgress.push({ date: dateStr, sent: daySent, accepted: dayAccepted });
+    }
+
+    // Generate inbox usage stats
+    if (campaign) {
+      for (const inboxId of campaign.selectedInboxes) {
+        const inbox = this.googleAccounts.get(inboxId);
+        if (inbox) {
+          const dailyUsed = await this.getInvitesTodayByAccount(inboxId);
+          stats.inboxUsage.push({
+            inboxId: inbox.id,
+            email: inbox.email,
+            usage: dailyUsed,
+            limit: campaign.maxInvitesPerInbox || 20
+          });
+        }
+      }
+    }
+
+    return stats;
   }
 }
 
@@ -1024,6 +1163,121 @@ class PostgresStorage implements IStorage {
       apiUsage: Math.round((invitesToday / settings.dailyInviteLimit) * 100),
       queueStatus: queueCount > 0 ? `Processing ${queueCount} items` : "Idle",
     };
+  }
+
+  async getCampaignInboxStats(campaignId: number): Promise<Array<{
+    inboxId: number;
+    email: string;
+    name: string;
+    invitesSent: number;
+    accepted: number;
+    declined: number;
+    tentative: number;
+    pending: number;
+    lastUsed: string | null;
+    dailyLimit: number;
+    dailyUsed: number;
+  }>> {
+    const campaign = await this.getCampaign(campaignId);
+    if (!campaign) return [];
+
+    const stats: Array<any> = [];
+    
+    for (const inboxId of campaign.selectedInboxes) {
+      const inbox = await this.getGoogleAccount(inboxId);
+      if (!inbox) continue;
+
+      // Get campaign-specific invite statistics
+      const campaignInvites = await this.db.select().from(schema.invites)
+        .where(and(
+          eq(schema.invites.campaignId, campaignId),
+          eq(schema.invites.googleAccountId, inboxId)
+        ));
+
+      const dailyUsed = await this.getInvitesTodayByAccount(inboxId);
+
+      stats.push({
+        inboxId: inbox.id,
+        email: inbox.email,
+        name: inbox.name,
+        invitesSent: campaignInvites.filter(i => i.status === 'sent' || i.sentAt).length,
+        accepted: campaignInvites.filter(i => i.rsvpStatus === 'accepted').length,
+        declined: campaignInvites.filter(i => i.rsvpStatus === 'declined').length,
+        tentative: campaignInvites.filter(i => i.rsvpStatus === 'tentative').length,
+        pending: campaignInvites.filter(i => i.status === 'pending').length,
+        lastUsed: inbox.lastUsed ? inbox.lastUsed.toISOString() : null,
+        dailyLimit: campaign.maxInvitesPerInbox || 20,
+        dailyUsed
+      });
+    }
+
+    return stats;
+  }
+
+  async getCampaignDetailedStats(campaignId: number): Promise<{
+    totalProspects: number;
+    invitesSent: number;
+    pending: number;
+    accepted: number;
+    declined: number;
+    tentative: number;
+    errors: number;
+    dailyProgress: Array<{ date: string; sent: number; accepted: number }>;
+    inboxUsage: Array<{ inboxId: number; email: string; usage: number; limit: number }>;
+  }> {
+    const campaignInvites = await this.db.select().from(schema.invites)
+      .where(eq(schema.invites.campaignId, campaignId));
+
+    const campaign = await this.getCampaign(campaignId);
+    const csvData = campaign?.csvData as any[];
+    
+    const stats = {
+      totalProspects: csvData?.length || 0,
+      invitesSent: campaignInvites.filter(i => i.status === 'sent' || i.sentAt).length,
+      pending: campaignInvites.filter(i => i.status === 'pending').length,
+      accepted: campaignInvites.filter(i => i.rsvpStatus === 'accepted').length,
+      declined: campaignInvites.filter(i => i.rsvpStatus === 'declined').length,
+      tentative: campaignInvites.filter(i => i.rsvpStatus === 'tentative').length,
+      errors: campaignInvites.filter(i => i.status === 'error').length,
+      dailyProgress: [] as Array<{ date: string; sent: number; accepted: number }>,
+      inboxUsage: [] as Array<{ inboxId: number; email: string; usage: number; limit: number }>
+    };
+
+    // Generate daily progress for last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const daySent = campaignInvites.filter(invite => 
+        invite.sentAt && invite.sentAt.toISOString().split('T')[0] === dateStr
+      ).length;
+      
+      const dayAccepted = campaignInvites.filter(invite => 
+        invite.rsvpResponseAt && invite.rsvpResponseAt.toISOString().split('T')[0] === dateStr &&
+        invite.rsvpStatus === 'accepted'
+      ).length;
+
+      stats.dailyProgress.push({ date: dateStr, sent: daySent, accepted: dayAccepted });
+    }
+
+    // Generate inbox usage stats
+    if (campaign) {
+      for (const inboxId of campaign.selectedInboxes) {
+        const inbox = await this.getGoogleAccount(inboxId);
+        if (inbox) {
+          const dailyUsed = await this.getInvitesTodayByAccount(inboxId);
+          stats.inboxUsage.push({
+            inboxId: inbox.id,
+            email: inbox.email,
+            usage: dailyUsed,
+            limit: campaign.maxInvitesPerInbox || 20
+          });
+        }
+      }
+    }
+
+    return stats;
   }
 }
 

@@ -772,6 +772,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Campaign Analytics API endpoints
+  app.get("/api/campaigns/:id/inbox-stats", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const stats = await storage.getCampaignInboxStats(campaignId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching campaign inbox stats:", error);
+      res.status(500).json({ error: "Failed to fetch campaign inbox stats" });
+    }
+  });
+
+  app.get("/api/campaigns/:id/detailed-stats", async (req, res) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const stats = await storage.getCampaignDetailedStats(campaignId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching campaign detailed stats:", error);
+      res.status(500).json({ error: "Failed to fetch campaign detailed stats" });
+    }
+  });
+
   app.delete("/api/oauth-calendar/accounts/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
