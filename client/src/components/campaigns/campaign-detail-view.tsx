@@ -1101,90 +1101,229 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
 
           {/* New Inbox Management Tab */}
           <TabsContent value="inboxes" className="space-y-6">
+            {/* Campaign Inbox Overview */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  Per-Inbox Analytics & Management
-                </CardTitle>
-                <CardDescription>
-                  Track performance and manage limits for each inbox in this campaign
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Campaign Inbox Management
+                  </CardTitle>
+                  <CardDescription>
+                    Manage inbox assignments and limits for this campaign
+                  </CardDescription>
+                </div>
+                {!editing.inboxes ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setEditing(prev => ({ ...prev, inboxes: true }))}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Inboxes
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleCancel("inboxes")}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm"
+                      onClick={() => handleSave("inboxes")}
+                      disabled={updateMutation.isPending}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {inboxStats.length > 0 ? (
-                    inboxStats.map((inbox: any) => (
-                      <Card key={inbox.inboxId} className="p-4">
-                        <div className="space-y-4">
-                          {/* Header with email and daily usage */}
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">{inbox.name}</h4>
-                              <p className="text-sm text-muted-foreground">{inbox.email}</p>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium">
-                                {inbox.dailyUsed} / {inbox.dailyLimit} invites today
-                              </div>
-                              <Progress 
-                                value={(inbox.dailyUsed / inbox.dailyLimit) * 100} 
-                                className="w-32 h-2 mt-1"
-                              />
-                            </div>
-                          </div>
+                <div className="space-y-6">
+                  {/* Campaign Limits Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Total Inboxes</div>
+                      <div className="text-2xl font-bold">{campaign.selectedInboxes?.length || 0}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Max Per Inbox</div>
+                      <div className="text-2xl font-bold">{campaign.maxInvitesPerInbox || 20}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Daily Campaign Limit</div>
+                      <div className="text-2xl font-bold">{campaign.maxDailyCampaignInvites || 100}</div>
+                    </div>
+                  </div>
 
-                          {/* Performance metrics */}
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-blue-600">{inbox.invitesSent}</div>
-                              <div className="text-xs text-muted-foreground">Sent</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-green-600">{inbox.accepted}</div>
-                              <div className="text-xs text-muted-foreground">Accepted</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-red-600">{inbox.declined}</div>
-                              <div className="text-xs text-muted-foreground">Declined</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-yellow-600">{inbox.tentative}</div>
-                              <div className="text-xs text-muted-foreground">Tentative</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-orange-600">{inbox.pending}</div>
-                              <div className="text-xs text-muted-foreground">Pending</div>
-                            </div>
-                          </div>
-
-                          {/* Success rate and last used */}
-                          <div className="flex items-center justify-between text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Success Rate: </span>
-                              <span className="font-medium">
-                                {inbox.invitesSent > 0 ? 
-                                  Math.round((inbox.accepted / inbox.invitesSent) * 100) : 0}%
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Last Used: </span>
-                              <span className="font-medium">
-                                {inbox.lastUsed ? 
-                                  new Date(inbox.lastUsed).toLocaleDateString() : 
-                                  "Never"
-                                }
-                              </span>
-                            </div>
-                          </div>
+                  {/* Rate Limiting Controls */}
+                  {editing.inboxes && (
+                    <div className="space-y-4 p-4 border rounded-lg">
+                      <h4 className="font-medium">Rate Limiting Controls</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="max-per-inbox">Max Invites Per Inbox (1-20)</Label>
+                          <Input
+                            id="max-per-inbox"
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={formData.maxInvitesPerInbox}
+                            onChange={(e) => setFormData(prev => ({ 
+                              ...prev, 
+                              maxInvitesPerInbox: Math.min(20, Math.max(1, parseInt(e.target.value) || 1))
+                            }))}
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Maximum invites each inbox can send per day
+                          </p>
                         </div>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No inbox data available for this campaign
+                        <div>
+                          <Label htmlFor="max-daily-campaign">Max Daily Campaign Invites</Label>
+                          <Input
+                            id="max-daily-campaign"
+                            type="number"
+                            min="1"
+                            max={20 * (campaign.selectedInboxes?.length || 1)}
+                            value={formData.maxDailyCampaignInvites}
+                            onChange={(e) => setFormData(prev => ({ 
+                              ...prev, 
+                              maxDailyCampaignInvites: Math.min(
+                                20 * (campaign.selectedInboxes?.length || 1), 
+                                Math.max(1, parseInt(e.target.value) || 1)
+                              )
+                            }))}
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Maximum total invites for this campaign per day (max: {20 * (campaign.selectedInboxes?.length || 1)})
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
+
+                  {/* Inbox Selection */}
+                  {editing.inboxes && (
+                    <div className="space-y-4 p-4 border rounded-lg">
+                      <h4 className="font-medium">Inbox Selection</h4>
+                      <div className="grid grid-cols-1 gap-3">
+                        {accounts.map((account: GoogleAccount) => (
+                          <div key={account.id} className="flex items-center space-x-3 p-3 rounded-lg border">
+                            <Checkbox
+                              id={`inbox-${account.id}`}
+                              checked={formData.selectedInboxes.includes(account.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    selectedInboxes: [...prev.selectedInboxes, account.id]
+                                  }));
+                                } else {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    selectedInboxes: prev.selectedInboxes.filter(id => id !== account.id)
+                                  }));
+                                }
+                              }}
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor={`inbox-${account.id}`} className="font-medium">
+                                {account.name}
+                              </Label>
+                              <p className="text-sm text-muted-foreground">{account.email}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Per-Inbox Analytics */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Per-Inbox Performance</h4>
+                    {inboxStats.length > 0 ? (
+                      inboxStats.map((inbox: any) => (
+                        <Card key={inbox.inboxId} className="p-4">
+                          <div className="space-y-4">
+                            {/* Header with email and daily usage */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium">{inbox.name}</h4>
+                                <p className="text-sm text-muted-foreground">{inbox.email}</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium">
+                                  {inbox.dailyUsed} / {inbox.dailyLimit} invites today
+                                </div>
+                                <Progress 
+                                  value={(inbox.dailyUsed / inbox.dailyLimit) * 100} 
+                                  className="w-32 h-2 mt-1"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Performance metrics */}
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-blue-600">{inbox.invitesSent}</div>
+                                <div className="text-xs text-muted-foreground">Sent</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-green-600">{inbox.accepted}</div>
+                                <div className="text-xs text-muted-foreground">Accepted</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-red-600">{inbox.declined}</div>
+                                <div className="text-xs text-muted-foreground">Declined</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-yellow-600">{inbox.tentative}</div>
+                                <div className="text-xs text-muted-foreground">Tentative</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-orange-600">{inbox.pending}</div>
+                                <div className="text-xs text-muted-foreground">Pending</div>
+                              </div>
+                            </div>
+
+                            {/* Success rate and last used */}
+                            <div className="flex items-center justify-between text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Success Rate: </span>
+                                <span className="font-medium">
+                                  {inbox.invitesSent > 0 ? 
+                                    Math.round((inbox.accepted / inbox.invitesSent) * 100) : 0}%
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Last Used: </span>
+                                <span className="font-medium">
+                                  {inbox.lastUsed ? 
+                                    new Date(inbox.lastUsed).toLocaleDateString() : 
+                                    "Never"
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        {campaign.selectedInboxes?.length === 0 ? 
+                          "No inboxes selected for this campaign" : 
+                          "No performance data available yet"
+                        }
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
