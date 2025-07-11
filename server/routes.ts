@@ -553,14 +553,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const userId = (req as any).user.id;
+      
+      console.log(`Attempting to delete campaign ${id} for user ${userId}`);
+      
+      // First verify the campaign exists and belongs to the user
+      const campaign = await storage.getCampaign(id, userId);
+      if (!campaign) {
+        console.log(`Campaign ${id} not found for user ${userId}`);
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      
+      console.log(`Found campaign: ${campaign.name}, deleting...`);
       await storage.deleteCampaign(id, userId);
+      console.log(`Campaign ${id} deleted successfully`);
+      
       res.json({ success: true });
     } catch (error: any) {
       console.error("Campaign deletion error:", error);
       if (error.message && error.message.includes('while invites are being processed')) {
         res.status(409).json({ error: error.message });
       } else {
-        res.status(500).json({ error: "Failed to delete campaign" });
+        res.status(500).json({ error: error.message || "Failed to delete campaign" });
       }
     }
   });

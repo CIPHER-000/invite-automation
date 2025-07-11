@@ -899,35 +899,77 @@ class PostgresStorage implements IStorage {
   }
 
   async deleteCampaign(id: number, userId: string): Promise<void> {
-    // First check if there are any processing queue items
-    const processingItems = await this.db.select()
-      .from(schema.inviteQueue)
-      .where(and(
-        eq(schema.inviteQueue.campaignId, id),
-        eq(schema.inviteQueue.status, 'processing')
-      ));
+    try {
+      console.log(`Starting deletion of campaign ${id} for user ${userId}`);
+      
+      // First check if there are any processing queue items
+      const processingItems = await this.db.select()
+        .from(schema.inviteQueue)
+        .where(and(
+          eq(schema.inviteQueue.campaignId, id),
+          eq(schema.inviteQueue.status, 'processing')
+        ));
 
-    if (processingItems.length > 0) {
-      throw new Error('Cannot delete campaign while invites are being processed. Please wait and try again.');
+      console.log(`Found ${processingItems.length} processing items for campaign ${id}`);
+
+      if (processingItems.length > 0) {
+        throw new Error('Cannot delete campaign while invites are being processed. Please wait and try again.');
+      }
+
+      // Set campaign as inactive first to prevent new processing
+      console.log(`Setting campaign ${id} as inactive...`);
+      await this.db.update(schema.campaigns)
+        .set({ isActive: false, status: 'deleted' })
+        .where(and(
+          eq(schema.campaigns.id, id),
+          eq(schema.campaigns.userId, userId)
+        ));
+
+      // Delete related records
+      console.log(`Deleting related records for campaign ${id}...`);
+      
+      // Delete queue items first
+      const deletedQueue = await this.db.delete(schema.inviteQueue)
+        .where(eq(schema.inviteQueue.campaignId, id))
+        .returning();
+      console.log(`Deleted ${deletedQueue.length} queue items`);
+      
+      // Delete invites
+      const deletedInvites = await this.db.delete(schema.invites)
+        .where(and(
+          eq(schema.invites.campaignId, id),
+          eq(schema.invites.userId, userId)
+        ))
+        .returning();
+      console.log(`Deleted ${deletedInvites.length} invites`);
+      
+      // Delete activity logs
+      const deletedLogs = await this.db.delete(schema.activityLogs)
+        .where(and(
+          eq(schema.activityLogs.campaignId, id),
+          eq(schema.activityLogs.userId, userId)
+        ))
+        .returning();
+      console.log(`Deleted ${deletedLogs.length} activity logs`);
+      
+      // Finally delete the campaign (with user filtering)
+      console.log(`Deleting campaign ${id}...`);
+      const deletedCampaigns = await this.db.delete(schema.campaigns)
+        .where(and(
+          eq(schema.campaigns.id, id),
+          eq(schema.campaigns.userId, userId)
+        ))
+        .returning();
+      
+      if (deletedCampaigns.length === 0) {
+        throw new Error('Campaign not found or does not belong to user');
+      }
+      
+      console.log(`Successfully deleted campaign ${id}`);
+    } catch (error) {
+      console.error(`Error deleting campaign ${id}:`, error);
+      throw error;
     }
-
-    // Set campaign as inactive first to prevent new processing
-    await this.db.update(schema.campaigns)
-      .set({ isActive: false, status: 'deleted' })
-      .where(eq(schema.campaigns.id, id));
-
-    // Delete related records
-    await this.db.delete(schema.inviteQueue).where(eq(schema.inviteQueue.campaignId, id));
-    await this.db.delete(schema.invites).where(eq(schema.invites.campaignId, id));
-    await this.db.delete(schema.activityLogs).where(eq(schema.activityLogs.campaignId, id));
-    
-    // Finally delete the campaign (with user filtering)
-    await this.db.delete(schema.campaigns).where(
-      and(
-        eq(schema.campaigns.id, id),
-        eq(schema.campaigns.userId, userId)
-      )
-    );
   }
 
   async getCampaignsWithStats(userId: string): Promise<CampaignWithStats[]> {
