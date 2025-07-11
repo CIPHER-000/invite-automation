@@ -575,17 +575,28 @@ class PostgresStorage implements IStorage {
   }
 
   async getCampaignsUsingInbox(inboxId: number): Promise<{ id: number; name: string; status: string }[]> {
-    // Use SQL to find campaigns that include this inbox in their selectedInboxes array
-    const result = await this.db
-      .select({
-        id: schema.campaigns.id,
-        name: schema.campaigns.name,
-        status: schema.campaigns.status,
-      })
-      .from(schema.campaigns)
-      .where(sql`${schema.campaigns.selectedInboxes} @> ${JSON.stringify([inboxId])}`);
-    
-    return result;
+    try {
+      // Get all campaigns and filter those that include this inbox
+      const campaigns = await this.db.select().from(schema.campaigns);
+      
+      return campaigns
+        .filter(campaign => {
+          if (!campaign.selectedInboxes) return false;
+          // Handle both array and JSON string formats
+          const inboxes = Array.isArray(campaign.selectedInboxes) 
+            ? campaign.selectedInboxes 
+            : JSON.parse(campaign.selectedInboxes);
+          return inboxes.includes(inboxId);
+        })
+        .map(campaign => ({
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status
+        }));
+    } catch (error) {
+      console.error("Error in getCampaignsUsingInbox:", error);
+      return [];
+    }
   }
 
   async getAccountsWithStatus(): Promise<AccountWithStatus[]> {
