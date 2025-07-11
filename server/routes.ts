@@ -1124,24 +1124,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue with disconnection even if token revocation fails
       }
 
-      // Update account status to disconnected
-      await storage.disconnectGoogleAccount(accountId);
-
-      // Log the disconnection
+      // Log the deletion before removing the account
       await storage.createActivityLog({
-        type: "account_disconnected",
+        type: "account_deleted",
         googleAccountId: accountId,
-        message: `Account ${account.email} has been disconnected and removed`,
+        message: `Account ${account.email} has been permanently deleted from the platform`,
         metadata: {
           email: account.email,
           cancelledQueueItems: itemsToCancel.length,
-          action: "disconnect"
+          action: "complete_deletion"
         }
       });
 
+      // COMPLETE DELETION: Remove account entirely from platform
+      await storage.disconnectGoogleAccount(accountId);
+
       res.json({ 
         success: true, 
-        message: "Account disconnected successfully",
+        message: "Account permanently deleted from platform",
         cancelledItems: itemsToCancel.length
       });
     } catch (error) {

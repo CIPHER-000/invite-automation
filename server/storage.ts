@@ -163,18 +163,8 @@ export class MemStorage implements IStorage {
   }
 
   async disconnectGoogleAccount(id: number): Promise<void> {
-    const account = this.googleAccounts.get(id);
-    if (account) {
-      const updatedAccount = {
-        ...account,
-        isActive: false,
-        status: "disconnected" as const,
-        disconnectedAt: new Date(),
-        accessToken: "", // Clear tokens
-        refreshToken: "",
-      };
-      this.googleAccounts.set(id, updatedAccount);
-    }
+    // COMPLETE DELETION: Remove account entirely from platform
+    this.googleAccounts.delete(id);
   }
 
   async getCampaignsUsingInbox(inboxId: number): Promise<{ id: number; name: string; status: string }[]> {
@@ -562,15 +552,9 @@ class PostgresStorage implements IStorage {
   }
 
   async disconnectGoogleAccount(id: number): Promise<void> {
+    // COMPLETE DELETION: Remove account entirely from database
     await this.db
-      .update(schema.googleAccounts)
-      .set({
-        isActive: false,
-        status: "disconnected",
-        disconnectedAt: new Date(),
-        accessToken: "", // Clear sensitive tokens
-        refreshToken: "",
-      })
+      .delete(schema.googleAccounts)
       .where(eq(schema.googleAccounts.id, id));
   }
 

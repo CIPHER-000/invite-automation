@@ -71,8 +71,8 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
     },
     onSuccess: () => {
       toast({
-        title: "Inbox Removed",
-        description: "The inbox has been successfully disconnected and removed.",
+        title: "Inbox Permanently Deleted",
+        description: "The inbox has been completely removed from the platform.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/accounts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
@@ -113,10 +113,10 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Trash2 className="h-5 w-5 text-red-500" />
-              Remove Inbox
+              Permanently Delete Inbox
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove this inbox from your account?
+              Are you sure you want to permanently delete this inbox from the platform? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
@@ -159,7 +159,7 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
               onClick={handleRemoveClick}
               disabled={checkCampaignsMutation.isPending}
             >
-              {checkCampaignsMutation.isPending ? "Checking..." : "Remove Inbox"}
+              {checkCampaignsMutation.isPending ? "Checking..." : "Delete Inbox"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -171,11 +171,11 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
-              Confirm Inbox Removal
+              Confirm Permanent Deletion
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <div>
-                You are about to remove <strong>{inbox.email}</strong> from your account.
+                You are about to permanently delete <strong>{inbox.email}</strong> from the platform. This inbox will completely disappear and cannot be recovered.
               </div>
               
               {activeCampaigns.length > 0 && (
@@ -191,7 +191,7 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
                     ))}
                   </div>
                   <div className="text-sm text-red-700 dark:text-red-300 mt-2">
-                    All scheduled sends from these campaigns using this inbox will be immediately cancelled.
+                    All scheduled sends from these campaigns using this inbox will be immediately cancelled and the inbox will be permanently deleted.
                   </div>
                 </div>
               )}
@@ -202,7 +202,8 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
                   <li>Revoke all OAuth tokens and API access</li>
                   <li>Cancel all pending/scheduled sends from this inbox</li>
                   <li>Remove the inbox from all campaigns</li>
-                  <li>Prevent any future use of this account for sending</li>
+                  <li>Completely delete the inbox from the platform</li>
+                  <li>Make the inbox disappear from all lists and interfaces</li>
                 </ul>
               </div>
             </AlertDialogDescription>
@@ -216,7 +217,7 @@ export function RemoveInboxDialog({ open, onOpenChange, inbox }: RemoveInboxDial
               disabled={removeMutation.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
-              {removeMutation.isPending ? "Removing..." : "Yes, Remove Inbox"}
+              {removeMutation.isPending ? "Deleting..." : "Yes, Delete Permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
