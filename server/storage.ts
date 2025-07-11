@@ -71,6 +71,7 @@ export interface IStorage {
   getInvitesByRsvpStatus(rsvpStatus: string): Promise<Invite[]>;
   getInvitesToday(): Promise<number>;
   getAcceptedInvites(): Promise<number>;
+  getInvitesTodayByAccount(accountId: number): Promise<number>;
   updateInviteRsvpStatus(inviteId: number, rsvpStatus: string, source: string, webhookPayload?: any): Promise<void>;
   getInviteByEventId(eventId: string): Promise<Invite | undefined>;
 
@@ -409,6 +410,17 @@ export class MemStorage implements IStorage {
   async getAcceptedInvites(): Promise<number> {
     return Array.from(this.invites.values()).filter(
       invite => invite.status === "accepted"
+    ).length;
+  }
+
+  async getInvitesTodayByAccount(accountId: number): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return Array.from(this.invites.values()).filter(
+      invite => invite.googleAccountId === accountId && 
+                invite.sentAt && 
+                invite.sentAt >= today
     ).length;
   }
 
@@ -774,6 +786,17 @@ class PostgresStorage implements IStorage {
   async getAcceptedInvites(): Promise<number> {
     const result = await this.db.select({ count: count() }).from(schema.invites)
       .where(eq(schema.invites.status, 'accepted'));
+    return result[0]?.count || 0;
+  }
+
+  async getInvitesTodayByAccount(accountId: number): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const result = await this.db.select({ count: count() }).from(schema.invites)
+      .where(and(
+        eq(schema.invites.googleAccountId, accountId),
+        sql`${schema.invites.sentAt} >= ${today}`
+      ));
     return result[0]?.count || 0;
   }
 

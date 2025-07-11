@@ -19,6 +19,53 @@ interface OAuthAccount {
   createdAt: string;
 }
 
+interface DailyStats {
+  invitesToday: number;
+  maxDailyLimit: number;
+  remaining: number;
+}
+
+function DailyStatsDisplay({ accountId }: { accountId: number }) {
+  const { data: stats, isLoading } = useQuery<DailyStats>({
+    queryKey: [`/api/oauth-calendar/accounts/${accountId}/daily-stats`],
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  if (isLoading || !stats) {
+    return (
+      <div className="text-xs text-muted-foreground">
+        Loading stats...
+      </div>
+    );
+  }
+
+  const progressPercentage = (stats.invitesToday / stats.maxDailyLimit) * 100;
+  const isNearLimit = progressPercentage >= 80;
+  const isAtLimit = progressPercentage >= 100;
+
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Today's invites</span>
+        <span className={`font-medium ${isAtLimit ? 'text-red-600' : isNearLimit ? 'text-orange-600' : 'text-green-600'}`}>
+          {stats.invitesToday}/{stats.maxDailyLimit}
+        </span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-1.5">
+        <div 
+          className={`h-1.5 rounded-full transition-all ${
+            isAtLimit ? 'bg-red-500' : isNearLimit ? 'bg-orange-500' : 'bg-green-500'
+          }`}
+          style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+        />
+      </div>
+      <div className="text-xs text-muted-foreground">
+        {stats.remaining > 0 ? `${stats.remaining} remaining` : 'Daily limit reached'}
+      </div>
+    </div>
+  );
+}
+
 export default function OAuthCalendar() {
   const [prospectEmail, setProspectEmail] = useState("");
   const [eventTitle, setEventTitle] = useState("Quick Meeting Request");
@@ -187,6 +234,7 @@ export default function OAuthCalendar() {
                         Last used: {new Date(account.lastUsed).toLocaleDateString()}
                       </p>
                     )}
+                    <DailyStatsDisplay accountId={account.id} />
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <Badge variant={account.isActive ? "default" : "secondary"}>

@@ -756,6 +756,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/oauth-calendar/accounts/:id/daily-stats", async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.id);
+      const invitesToday = await storage.getInvitesTodayByAccount(accountId);
+      const maxDailyLimit = 20; // Per-inbox daily limit
+      
+      res.json({
+        invitesToday,
+        maxDailyLimit,
+        remaining: Math.max(0, maxDailyLimit - invitesToday)
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get daily stats" });
+    }
+  });
+
   app.delete("/api/oauth-calendar/accounts/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
