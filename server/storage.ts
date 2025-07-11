@@ -934,6 +934,30 @@ class PostgresStorage implements IStorage {
         .returning();
       console.log(`Deleted ${deletedQueue.length} queue items`);
       
+      // Get all invites for this campaign to delete their RSVP events
+      const campaignInvites = await this.db.select({ id: schema.invites.id })
+        .from(schema.invites)
+        .where(and(
+          eq(schema.invites.campaignId, id),
+          eq(schema.invites.userId, userId)
+        ));
+      
+      // Delete RSVP events for these invites
+      if (campaignInvites.length > 0) {
+        const inviteIds = campaignInvites.map(invite => invite.id);
+        let deletedRsvpEventsCount = 0;
+        
+        // Delete RSVP events one by one if there are multiple invites, or use inArray for batch delete
+        for (const inviteId of inviteIds) {
+          const deletedRsvpEvents = await this.db.delete(schema.rsvpEvents)
+            .where(eq(schema.rsvpEvents.inviteId, inviteId))
+            .returning();
+          deletedRsvpEventsCount += deletedRsvpEvents.length;
+        }
+        
+        console.log(`Deleted ${deletedRsvpEventsCount} RSVP events`);
+      }
+      
       // Delete invites
       const deletedInvites = await this.db.delete(schema.invites)
         .where(and(
