@@ -12,7 +12,8 @@ import {
   Edit,
   Trash2,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Eye
 } from "lucide-react";
 import { 
   DropdownMenu,
@@ -27,6 +28,7 @@ interface CampaignCardProps {
   onEdit?: (campaign: CampaignWithStats) => void;
   onDelete?: (id: number) => void;
   onToggleStatus?: (id: number, currentStatus: string) => void;
+  onView?: (campaign: CampaignWithStats) => void;
   showActions?: boolean;
   isFullWidth?: boolean;
 }
@@ -36,6 +38,7 @@ export function CampaignCard({
   onEdit, 
   onDelete, 
   onToggleStatus,
+  onView,
   showActions = true,
   isFullWidth = false
 }: CampaignCardProps) {
@@ -187,44 +190,55 @@ export function CampaignCard({
               </div>
             </div>
             {showActions && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal size={16} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onEdit?.(campaign)}>
-                    <Edit size={14} className="mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => onToggleStatus?.(campaign.id, campaign.status)}
-                  >
-                    {campaign.status === "active" ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onView?.(campaign)}
+                  className="h-8"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onEdit?.(campaign)}>
+                      <Edit size={14} className="mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => onToggleStatus?.(campaign.id, campaign.status)}
+                    >
+                      {campaign.status === "active" ? (
+                        <>
+                          <Pause size={14} className="mr-2" />
+                        Pause
+                      </>
+                    ) : (
                       <>
-                        <Pause size={14} className="mr-2" />
-                      Pause
-                    </>
-                  ) : (
-                    <>
-                      <Play size={14} className="mr-2" />
-                      Resume
-                    </>
-                  )}
-                </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => onDelete?.(campaign.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 size={14} className="mr-2" />
-                    Delete
-                    {(campaign.pendingInvites > 0 || campaign.processingInvites > 0) && (
-                      <AlertTriangle size={12} className="ml-2 text-orange-500" />
+                        <Play size={14} className="mr-2" />
+                        Resume
+                      </>
                     )}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => onDelete?.(campaign.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 size={14} className="mr-2" />
+                        Delete
+                        {(campaign.pendingInvites > 0 || campaign.processingInvites > 0) && (
+                          <AlertTriangle size={12} className="ml-2 text-orange-500" />
+                        )}
+                      </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             )}
           </div>
         </div>

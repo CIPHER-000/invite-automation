@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { CampaignCard } from "@/components/campaigns/campaign-card";
+import { CampaignDetailView } from "@/components/campaigns/campaign-detail-view";
 import { CreateCampaignDialog } from "@/components/campaigns/create-campaign-dialog";
 import { ManualTestDialog } from "@/components/test-invite/manual-test-dialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,8 @@ export default function Campaigns() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignWithStats | null>(null);
+  const [viewingCampaign, setViewingCampaign] = useState<CampaignWithStats | null>(null);
+  const [showDetailView, setShowDetailView] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -103,6 +106,11 @@ export default function Campaigns() {
     setShowCreateDialog(true);
   };
 
+  const handleView = (campaign: CampaignWithStats) => {
+    setViewingCampaign(campaign);
+    setShowDetailView(true);
+  };
+
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this campaign?")) {
       deleteMutation.mutate(id);
@@ -181,6 +189,7 @@ export default function Campaigns() {
               campaigns={filteredCampaigns}
               isLoading={isLoading}
               onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDelete}
               onToggleStatus={handleToggleStatus}
             />
@@ -191,6 +200,7 @@ export default function Campaigns() {
               campaigns={activeCampaigns}
               isLoading={isLoading}
               onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDelete}
               onToggleStatus={handleToggleStatus}
             />
@@ -201,6 +211,7 @@ export default function Campaigns() {
               campaigns={pausedCampaigns}
               isLoading={isLoading}
               onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDelete}
               onToggleStatus={handleToggleStatus}
             />
@@ -211,6 +222,7 @@ export default function Campaigns() {
               campaigns={completedCampaigns}
               isLoading={isLoading}
               onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDelete}
               onToggleStatus={handleToggleStatus}
             />
@@ -227,6 +239,12 @@ export default function Campaigns() {
         open={showTestDialog} 
         onOpenChange={setShowTestDialog} 
       />
+
+      <CampaignDetailView 
+        open={showDetailView} 
+        onOpenChange={setShowDetailView} 
+        campaign={viewingCampaign}
+      />
     </div>
   );
 }
@@ -235,12 +253,14 @@ function CampaignsList({
   campaigns, 
   isLoading, 
   onEdit, 
+  onView,
   onDelete, 
   onToggleStatus 
 }: {
   campaigns: CampaignWithStats[];
   isLoading: boolean;
   onEdit: (campaign: CampaignWithStats) => void;
+  onView: (campaign: CampaignWithStats) => void;
   onDelete: (id: number) => void;
   onToggleStatus: (id: number, status: string) => void;
 }) {
@@ -289,6 +309,7 @@ function CampaignsList({
           key={campaign.id}
           campaign={campaign}
           onEdit={onEdit}
+          onView={onView}
           onDelete={onDelete}
           onToggleStatus={onToggleStatus}
         />

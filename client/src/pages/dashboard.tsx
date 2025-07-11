@@ -1,19 +1,29 @@
+import { useState } from "react";
 import { StatsGrid } from "@/components/dashboard/stats-grid";
-
 import { SystemHealth } from "@/components/dashboard/system-health";
 import { CampaignCard } from "@/components/campaigns/campaign-card";
+import { CampaignDetailView } from "@/components/campaigns/campaign-detail-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
+import type { CampaignWithStats } from "@shared/schema";
 
 export default function Dashboard() {
+  const [viewingCampaign, setViewingCampaign] = useState<CampaignWithStats | null>(null);
+  const [showDetailView, setShowDetailView] = useState(false);
+
   const { data: campaigns, isLoading: campaignsLoading } = useQuery({
     queryKey: ["/api/campaigns"],
     queryFn: api.getCampaigns,
   });
+
+  const handleView = (campaign: CampaignWithStats) => {
+    setViewingCampaign(campaign);
+    setShowDetailView(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -63,7 +73,13 @@ export default function Dashboard() {
           ) : campaigns && campaigns.length > 0 ? (
             <div className="space-y-4">
               {campaigns.slice(0, 2).map((campaign: any) => (
-                <CampaignCard key={campaign.id} campaign={campaign} showActions={false} isFullWidth={true} />
+                <CampaignCard 
+                  key={campaign.id} 
+                  campaign={campaign} 
+                  onView={handleView}
+                  showActions={true} 
+                  isFullWidth={true} 
+                />
               ))}
               {campaigns.length > 2 && (
                 <div className="text-center pt-4 border-t border-slate-100">
@@ -97,6 +113,12 @@ export default function Dashboard() {
       </Card>
 
       <SystemHealth />
+
+      <CampaignDetailView 
+        open={showDetailView} 
+        onOpenChange={setShowDetailView} 
+        campaign={viewingCampaign}
+      />
     </div>
   );
 }
