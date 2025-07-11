@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Header } from "@/components/layout/header";
 import { CampaignCard } from "@/components/campaigns/campaign-card";
 import { CampaignDetailView } from "@/components/campaigns/campaign-detail-view";
-import { CreateCampaignDialog } from "@/components/campaigns/create-campaign-dialog";
 import { ManualTestDialog } from "@/components/test-invite/manual-test-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,8 @@ import { Search, Plus, Megaphone, Send } from "lucide-react";
 import type { CampaignWithStats } from "@shared/schema";
 
 export default function Campaigns() {
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignWithStats | null>(null);
   const [viewingCampaign, setViewingCampaign] = useState<CampaignWithStats | null>(null);
@@ -103,7 +103,8 @@ export default function Campaigns() {
 
   const handleEdit = (campaign: CampaignWithStats) => {
     setEditingCampaign(campaign);
-    setShowCreateDialog(true);
+    setShowDetailView(true);
+    setViewingCampaign(campaign);
   };
 
   const handleView = (campaign: CampaignWithStats) => {
@@ -133,7 +134,7 @@ export default function Campaigns() {
             <Send className="w-4 h-4 mr-2" />
             Test Invite
           </Button>
-          <Button onClick={() => setShowCreateDialog(true)}>
+          <Button onClick={() => navigate("/campaigns/new")}>
             <Plus className="w-4 h-4 mr-2" />
             Create Campaign
           </Button>
@@ -165,7 +166,7 @@ export default function Campaigns() {
                 </div>
               </div>
               <Button 
-                onClick={() => setShowCreateDialog(true)}
+                onClick={() => navigate("/campaigns/new")}
                 className="bg-primary text-white hover:bg-primary/90"
               >
                 <Plus size={16} className="mr-2" />
@@ -230,10 +231,7 @@ export default function Campaigns() {
         </Tabs>
       </div>
 
-      <CreateCampaignDialog 
-        open={showCreateDialog} 
-        onOpenChange={setShowCreateDialog} 
-      />
+
       
       <ManualTestDialog 
         open={showTestDialog} 
@@ -264,6 +262,7 @@ function CampaignsList({
   onDelete: (id: number) => void;
   onToggleStatus: (id: number, status: string) => void;
 }) {
+  const [, navigate] = useLocation();
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -293,7 +292,10 @@ function CampaignsList({
           <p className="text-slate-600 mb-4">
             Create your first campaign to start sending calendar invites.
           </p>
-          <Button className="bg-primary text-white hover:bg-primary/90">
+          <Button 
+            onClick={() => navigate("/campaigns/new")}
+            className="bg-primary text-white hover:bg-primary/90"
+          >
             <Plus size={16} className="mr-2" />
             Create Campaign
           </Button>

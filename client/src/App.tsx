@@ -8,6 +8,7 @@ import { useAutoRefresh } from "@/hooks/use-realtime";
 import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
+import CreateCampaignPage from "@/components/campaigns/create-campaign-page";
 import Accounts from "@/pages/accounts";
 import Activity from "@/pages/activity";
 import Settings from "@/pages/settings";
@@ -57,6 +58,7 @@ function Router() {
               <Route path="/" component={Dashboard} />
               <Route path="/landing" component={Landing} />
               <Route path="/campaigns" component={Campaigns} />
+              <Route path="/campaigns/new" component={CreateCampaignPage} />
               <Route path="/accounts" component={ServiceAccountSetup} />
               <Route path="/inbox-setup" component={InboxSetup} />
               <Route path="/activity" component={Activity} />
