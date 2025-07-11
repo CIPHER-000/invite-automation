@@ -1042,9 +1042,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/rsvp/sync/:inviteId", async (req, res) => {
+  app.post("/api/rsvp/sync/:inviteId", requireAuth, async (req, res) => {
     try {
       const inviteId = parseInt(req.params.inviteId);
+      const userId = (req as any).user.id;
+      
+      // Verify the invite belongs to this user
+      const invite = await storage.getInvite(inviteId, userId);
+      if (!invite) {
+        return res.status(404).json({ error: "Invite not found" });
+      }
+      
       await rsvpTracker.forceSyncInvite(inviteId);
       res.json({ success: true, message: "RSVP status synced successfully" });
     } catch (error) {
@@ -1055,9 +1063,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/rsvp/stats/:campaignId", async (req, res) => {
+  app.get("/api/rsvp/stats/:campaignId", requireAuth, async (req, res) => {
     try {
       const campaignId = parseInt(req.params.campaignId);
+      const userId = (req as any).user.id;
+      
+      // Verify the campaign belongs to this user
+      const campaign = await storage.getCampaign(campaignId, userId);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      
       const stats = await rsvpTracker.getCampaignRsvpStats(campaignId);
       res.json(stats);
     } catch (error) {
@@ -1099,23 +1115,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/webhooks/events", async (req, res) => {
+  app.get("/api/webhooks/events", requireAuth, async (req, res) => {
     try {
+      const userId = (req as any).user.id;
       const { processed } = req.query;
       const processedFilter = processed === 'true' ? true : processed === 'false' ? false : undefined;
       const events = await storage.getWebhookEvents(processedFilter);
-      res.json(events);
+      
+      // Filter webhook events to only show those related to this user's data
+      const userCampaigns = await storage.getCampaigns(userId);
+      const userCampaignIds = userCampaigns.map(c => c.id);
+      
+      const filteredEvents = events.filter(event => {
+        if (event.metadata && (event.metadata as any).campaignId) {
+          return userCampaignIds.includes((event.metadata as any).campaignId);
+        }
+        return false; // If no campaign association, don't show
+      });
+      
+      res.json(filteredEvents);
     } catch (error) {
       res.status(500).json({ error: "Failed to get webhook events" });
     }
   });
 
   // Activity Logs (enhanced with RSVP filtering)
-  app.get("/api/activity", async (req, res) => {
+  app.get("/api/activity", requireAuth, async (req, res) => {
     try {
+      const userId = (req as any).user.id;
       const { limit, type } = req.query;
       let logs = await storage.getActivityLogs(
-        limit ? parseInt(limit as string) : undefined
+        limit ? parseInt(limit as string) : undefined,
+        userId
       );
       
       // Filter by type if specified
@@ -1130,7 +1161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // System Settings
-  app.get("/api/settings", async (req, res) => {
+  app.get("/api/settings", requireAuth, async (req, res) => {
     try {
       const settings = await storage.getSystemSettings();
       res.json(settings);
@@ -1139,7 +1170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/settings", async (req, res) => {
+  app.put("/api/settings", requireAuth, async (req, res) => {
     try {
       const updates = req.body;
       const settings = await storage.updateSystemSettings(updates);
@@ -1150,20 +1181,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Queue Status
-  app.get("/api/queue/status", async (req, res) => {
+  app.get("/api/queue/status", requireAuth, async (req, res) => {
     try {
+      const userId = (req as any).user.id;
       const status = await queueManager.getQueueStatus();
-      res.json(status);
+      // Filter queue status to only show this user's items
+      const userQueueItems = await storage.getQueueItems();
+      const userPendingItems = userQueueItems.filter(item => 
+        item.status === 'pending' && 
+        item.metadata && 
+        (item.metadata as any).userId === userId
+      );
+      
+      res.json({
+        ...status,
+        pendingItems: userPendingItems.length,
+        userSpecific: true
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to get queue status" });
     }
   });
 
   // Enhanced Load Balancing & Scheduling API
-  app.get("/api/inbox/stats", async (req, res) => {
+  app.get("/api/inbox/stats", requireAuth, async (req, res) => {
     try {
-      const stats = await inboxLoadBalancer.getAllUsageStats();
-      res.json(stats);
+      const userId = (req as any).user.id;
+      // Get only this user's account stats
+      const userAccounts = await storage.getAccountsWithStatus(userId);
+      res.json(userAccounts);
     } catch (error) {
       res.status(500).json({ error: "Failed to get inbox stats" });
     }
@@ -1256,10 +1302,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Email Provider Management
-  app.get("/api/email/providers", async (req, res) => {
+  app.get("/api/email/providers", requireAuth, async (req, res) => {
     try {
-      const providers = await multiProviderEmailService.getAvailableProviders();
-      res.json(providers);
+      const userId = (req as any).user.id;
+      // Get providers specific to this user's connected accounts
+      const userAccounts = await storage.getAccountsWithStatus(userId);
+      const availableProviders = userAccounts.map(account => ({
+        id: account.email,
+        type: 'gmail',
+        name: account.name || account.email,
+        email: account.email,
+        isActive: account.isActive
+      }));
+      res.json(availableProviders);
     } catch (error) {
       res.status(500).json({ error: "Failed to get email providers" });
     }

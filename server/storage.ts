@@ -245,8 +245,9 @@ export class MemStorage implements IStorage {
     this.outlookAccounts.delete(id);
   }
 
-  async getAccountsWithStatus(): Promise<AccountWithStatus[]> {
-    const accounts = Array.from(this.googleAccounts.values());
+  async getAccountsWithStatus(userId: string): Promise<AccountWithStatus[]> {
+    const accounts = Array.from(this.googleAccounts.values())
+      .filter(account => account.userId === userId);
     const now = new Date();
     
     return accounts.map(account => {
@@ -268,12 +269,14 @@ export class MemStorage implements IStorage {
   }
 
   // Campaigns
-  async getCampaigns(): Promise<Campaign[]> {
-    return Array.from(this.campaigns.values()).filter(c => c.isActive);
+  async getCampaigns(userId: string): Promise<Campaign[]> {
+    return Array.from(this.campaigns.values())
+      .filter(c => c.isActive && c.userId === userId);
   }
 
-  async getCampaign(id: number): Promise<Campaign | undefined> {
-    return this.campaigns.get(id);
+  async getCampaign(id: number, userId: string): Promise<Campaign | undefined> {
+    const campaign = this.campaigns.get(id);
+    return campaign && campaign.userId === userId ? campaign : undefined;
   }
 
   async createCampaign(campaign: InsertCampaign): Promise<Campaign> {
@@ -294,16 +297,22 @@ export class MemStorage implements IStorage {
     return newCampaign;
   }
 
-  async updateCampaign(id: number, updates: Partial<Campaign>): Promise<Campaign> {
+  async updateCampaign(id: number, updates: Partial<Campaign>, userId: string): Promise<Campaign> {
     const campaign = this.campaigns.get(id);
-    if (!campaign) throw new Error("Campaign not found");
+    if (!campaign || campaign.userId !== userId) throw new Error("Campaign not found");
     
     const updated = { ...campaign, ...updates, updatedAt: new Date() };
     this.campaigns.set(id, updated);
     return updated;
   }
 
-  async deleteCampaign(id: number): Promise<void> {
+  async deleteCampaign(id: number, userId: string): Promise<void> {
+    // Verify campaign ownership
+    const campaign = this.campaigns.get(id);
+    if (!campaign || campaign.userId !== userId) {
+      throw new Error('Campaign not found');
+    }
+
     // Check if there are any processing queue items
     const processingItems = Array.from(this.inviteQueue.values()).filter(
       item => item.campaignId === id && item.status === 'processing'
@@ -314,12 +323,9 @@ export class MemStorage implements IStorage {
     }
 
     // Set campaign as inactive first to prevent new processing
-    const campaign = this.campaigns.get(id);
-    if (campaign) {
-      campaign.isActive = false;
-      campaign.status = 'deleted';
-      this.campaigns.set(id, campaign);
-    }
+    campaign.isActive = false;
+    campaign.status = 'deleted';
+    this.campaigns.set(id, campaign);
 
     // Delete related records
     Array.from(this.inviteQueue.entries()).forEach(([queueId, item]) => {
@@ -344,8 +350,8 @@ export class MemStorage implements IStorage {
     this.campaigns.delete(id);
   }
 
-  async getCampaignsWithStats(): Promise<CampaignWithStats[]> {
-    const campaigns = await this.getCampaigns();
+  async getCampaignsWithStats(userId: string): Promise<CampaignWithStats[]> {
+    const campaigns = await this.getCampaigns(userId);
     
     return campaigns.map(campaign => {
       const campaignInvites = Array.from(this.invites.values()).filter(
@@ -376,15 +382,17 @@ export class MemStorage implements IStorage {
   }
 
   // Invites
-  async getInvites(campaignId?: number): Promise<Invite[]> {
-    const invites = Array.from(this.invites.values());
+  async getInvites(userId: string, campaignId?: number): Promise<Invite[]> {
+    const invites = Array.from(this.invites.values())
+      .filter(invite => invite.userId === userId);
     return campaignId 
       ? invites.filter(invite => invite.campaignId === campaignId)
       : invites;
   }
 
-  async getInvite(id: number): Promise<Invite | undefined> {
-    return this.invites.get(id);
+  async getInvite(id: number, userId: string): Promise<Invite | undefined> {
+    const invite = this.invites.get(id);
+    return invite && invite.userId === userId ? invite : undefined;
   }
 
   async createInvite(invite: InsertInvite): Promise<Invite> {
@@ -411,9 +419,9 @@ export class MemStorage implements IStorage {
     return newInvite;
   }
 
-  async updateInvite(id: number, updates: Partial<Invite>): Promise<Invite> {
+  async updateInvite(id: number, updates: Partial<Invite>, userId: string): Promise<Invite> {
     const invite = this.invites.get(id);
-    if (!invite) throw new Error("Invite not found");
+    if (!invite || invite.userId !== userId) throw new Error("Invite not found");
     
     const updated = { ...invite, ...updates, updatedAt: new Date() };
     this.invites.set(id, updated);
@@ -428,18 +436,18 @@ export class MemStorage implements IStorage {
     return Array.from(this.invites.values()).filter(invite => invite.rsvpStatus === rsvpStatus && invite.userId === userId);
   }
 
-  async getInvitesToday(): Promise<number> {
+  async getInvitesToday(userId: string): Promise<number> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     return Array.from(this.invites.values()).filter(
-      invite => invite.sentAt && invite.sentAt >= today
+      invite => invite.sentAt && invite.sentAt >= today && invite.userId === userId
     ).length;
   }
 
-  async getAcceptedInvites(): Promise<number> {
+  async getAcceptedInvites(userId: string): Promise<number> {
     return Array.from(this.invites.values()).filter(
-      invite => invite.status === "accepted"
+      invite => invite.status === "accepted" && invite.userId === userId
     ).length;
   }
 
@@ -573,22 +581,25 @@ export class MemStorage implements IStorage {
   }
 
   // Dashboard
-  async getDashboardStats(): Promise<DashboardStats> {
+  async getDashboardStats(userId: string): Promise<DashboardStats> {
     const activeCampaigns = Array.from(this.campaigns.values()).filter(
-      c => c.isActive && c.status === "active"
+      c => c.isActive && c.status === "active" && c.userId === userId
     ).length;
     
-    const invitesToday = await this.getInvitesToday();
-    const acceptedInvites = await this.getAcceptedInvites();
+    const invitesToday = await this.getInvitesToday(userId);
+    const acceptedInvites = await this.getAcceptedInvites(userId);
     const connectedAccounts = Array.from(this.googleAccounts.values()).filter(
-      a => a.isActive
+      a => a.isActive && a.userId === userId
     ).length;
     
-    const totalInvites = Array.from(this.invites.values()).length;
+    const totalInvites = Array.from(this.invites.values()).filter(
+      invite => invite.userId === userId
+    ).length;
     const acceptanceRate = totalInvites > 0 ? (acceptedInvites / totalInvites) * 100 : 0;
     
     const pendingQueue = Array.from(this.inviteQueue.values()).filter(
-      item => item.status === "pending"
+      item => item.status === "pending" && 
+      item.metadata && (item.metadata as any).userId === userId
     ).length;
     
     return {
@@ -603,7 +614,7 @@ export class MemStorage implements IStorage {
     };
   }
 
-  async getCampaignInboxStats(campaignId: number): Promise<Array<{
+  async getCampaignInboxStats(campaignId: number, userId: string): Promise<Array<{
     inboxId: number;
     email: string;
     name: string;
@@ -616,20 +627,22 @@ export class MemStorage implements IStorage {
     dailyLimit: number;
     dailyUsed: number;
   }>> {
-    const campaign = this.campaigns.get(campaignId);
+    const campaign = await this.getCampaign(campaignId, userId);
     if (!campaign) return [];
 
     const stats: Array<any> = [];
     
     for (const inboxId of campaign.selectedInboxes) {
       const inbox = this.googleAccounts.get(inboxId);
-      if (!inbox) continue;
+      if (!inbox || inbox.userId !== userId) continue;
 
       const campaignInvites = Array.from(this.invites.values()).filter(
-        invite => invite.campaignId === campaignId && invite.googleAccountId === inboxId
+        invite => invite.campaignId === campaignId && 
+                 invite.googleAccountId === inboxId &&
+                 invite.userId === userId
       );
 
-      const dailyUsed = await this.getInvitesTodayByAccount(inboxId);
+      const dailyUsed = await this.getInvitesTodayByAccount(inboxId, userId);
 
       stats.push({
         inboxId: inbox.id,
