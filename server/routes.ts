@@ -251,9 +251,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/accounts/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // Get the account first
+      const account = await storage.getGoogleAccount(id);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      // Cancel all pending queue items for this inbox
+      try {
+        const queueItems = await storage.getQueueItems("pending");
+        const itemsToCancel = queueItems.filter(item => {
+          const prospectData = item.prospectData as any;
+          return prospectData.assignedInboxId === id;
+        });
+
+        for (const item of itemsToCancel) {
+          await storage.updateQueueItem(item.id, {
+            status: "cancelled",
+          });
+        }
+      } catch (queueError) {
+        console.warn("Failed to cancel queue items:", queueError);
+      }
+
+      // Try to revoke OAuth tokens
+      try {
+        if (account.refreshToken) {
+          const revokeUrl = `https://oauth2.googleapis.com/revoke?token=${account.refreshToken}`;
+          await fetch(revokeUrl, { method: 'POST' });
+        }
+      } catch (revokeError) {
+        console.warn("Failed to revoke OAuth tokens:", revokeError);
+      }
+
+      // Log the deletion
+      try {
+        await storage.createActivityLog({
+          type: "account_deleted",
+          googleAccountId: id,
+          message: `Account ${account.email} has been deleted from the platform`,
+          metadata: {
+            email: account.email,
+            action: "deletion"
+          }
+        });
+      } catch (logError) {
+        console.warn("Failed to log deletion:", logError);
+      }
+
+      // Delete the account
       await storage.deleteGoogleAccount(id);
-      res.json({ success: true });
+      
+      res.json({ 
+        success: true,
+        message: "Account deleted successfully"
+      });
     } catch (error) {
+      console.error("Delete account error:", error);
       res.status(500).json({ error: "Failed to delete account" });
     }
   });
