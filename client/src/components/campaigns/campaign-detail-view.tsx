@@ -1249,89 +1249,154 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
 
                   {/* Per-Inbox Analytics */}
                   <div className="space-y-4">
-                    <h4 className="font-medium">Per-Inbox Performance</h4>
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Per-Inbox Performance</h4>
+                      <div className="text-sm text-muted-foreground">
+                        Showing {campaign.selectedInboxes?.length || 0} campaign inbox{(campaign.selectedInboxes?.length || 0) !== 1 ? 'es' : ''}
+                      </div>
+                    </div>
+                    
+                    {/* Debug information */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="text-xs text-muted-foreground p-2 bg-yellow-50 rounded">
+                        Debug: Campaign has {campaign.selectedInboxes?.length || 0} selected inboxes, 
+                        fetched {inboxStats.length} inbox stats, 
+                        {accounts.length} total accounts available
+                      </div>
+                    )}
+                    
                     {campaign.selectedInboxes?.length > 0 ? (
-                      campaign.selectedInboxes.map((inboxId: number) => {
-                        const account = accounts.find((acc: GoogleAccount) => acc.id === inboxId);
-                        const inboxStat = inboxStats.find((stat: any) => stat.inboxId === inboxId);
-                        
-                        if (!account) return null;
-                        
-                        return (
-                          <Card key={inboxId} className="p-4">
-                            <div className="space-y-4">
-                              {/* Header with email and daily usage */}
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h4 className="font-medium flex items-center gap-2">
-                                    {account.name}
-                                    <Badge variant="outline" className="text-xs">
-                                      Campaign Inbox
-                                    </Badge>
-                                  </h4>
-                                  <p className="text-sm text-muted-foreground">{account.email}</p>
+                      <div className="space-y-4">
+                        {campaign.selectedInboxes.map((inboxId: number) => {
+                          const account = accounts.find((acc: GoogleAccount) => acc.id === inboxId);
+                          const inboxStat = inboxStats.find((stat: any) => stat.inboxId === inboxId);
+                          
+                          // Calculate stats from invites if inboxStat is not available
+                          const campaignInvites = invites.filter((invite: any) => invite.fromInbox === inboxId);
+                          const calculatedStats = {
+                            invitesSent: campaignInvites.filter((invite: any) => invite.status === 'sent').length,
+                            accepted: campaignInvites.filter((invite: any) => invite.rsvpStatus === 'accepted').length,
+                            declined: campaignInvites.filter((invite: any) => invite.rsvpStatus === 'declined').length,
+                            tentative: campaignInvites.filter((invite: any) => invite.rsvpStatus === 'tentative').length,
+                            pending: campaignInvites.filter((invite: any) => invite.status === 'sent' && !invite.rsvpStatus).length,
+                            dailyUsed: campaignInvites.filter((invite: any) => {
+                              if (!invite.sentAt) return false;
+                              const sentDate = new Date(invite.sentAt);
+                              const today = new Date();
+                              return sentDate.toDateString() === today.toDateString();
+                            }).length,
+                            lastUsed: campaignInvites
+                              .filter((invite: any) => invite.sentAt)
+                              .sort((a: any, b: any) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())[0]?.sentAt
+                          };
+                          
+                          const displayStats = inboxStat || calculatedStats;
+                          
+                          if (!account) {
+                            return (
+                              <Card key={inboxId} className="p-4 border-yellow-200 bg-yellow-50">
+                                <div className="text-sm text-yellow-800">
+                                  ⚠️ Inbox {inboxId} is selected but account not found
                                 </div>
-                                <div className="text-right">
-                                  <div className="text-sm font-medium">
-                                    {inboxStat?.dailyUsed || 0} / {campaign.maxInvitesPerInbox || 20} invites today
+                              </Card>
+                            );
+                          }
+                          
+                          return (
+                            <Card key={inboxId} className="p-4">
+                              <div className="space-y-4">
+                                {/* Header with email and daily usage */}
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h4 className="font-medium flex items-center gap-2">
+                                      {account.name}
+                                      <Badge variant="outline" className="text-xs">
+                                        Campaign Inbox
+                                      </Badge>
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">{account.email}</p>
                                   </div>
-                                  <Progress 
-                                    value={((inboxStat?.dailyUsed || 0) / (campaign.maxInvitesPerInbox || 20)) * 100} 
-                                    className="w-32 h-2 mt-1"
-                                  />
+                                  <div className="text-right">
+                                    <div className="text-sm font-medium">
+                                      {displayStats.dailyUsed || 0} / {campaign.maxInvitesPerInbox || 20} invites today
+                                    </div>
+                                    <Progress 
+                                      value={((displayStats.dailyUsed || 0) / (campaign.maxInvitesPerInbox || 20)) * 100} 
+                                      className="w-32 h-2 mt-1"
+                                    />
+                                  </div>
                                 </div>
-                              </div>
 
-                              {/* Performance metrics */}
-                              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                <div className="text-center">
-                                  <div className="text-lg font-bold text-blue-600">{inboxStat?.invitesSent || 0}</div>
-                                  <div className="text-xs text-muted-foreground">Sent</div>
+                                {/* Performance metrics */}
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                  <div className="text-center">
+                                    <div className="text-lg font-bold text-blue-600">{displayStats.invitesSent || 0}</div>
+                                    <div className="text-xs text-muted-foreground">Sent</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-lg font-bold text-green-600">{displayStats.accepted || 0}</div>
+                                    <div className="text-xs text-muted-foreground">Accepted</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-lg font-bold text-red-600">{displayStats.declined || 0}</div>
+                                    <div className="text-xs text-muted-foreground">Declined</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-lg font-bold text-yellow-600">{displayStats.tentative || 0}</div>
+                                    <div className="text-xs text-muted-foreground">Tentative</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-lg font-bold text-orange-600">{displayStats.pending || 0}</div>
+                                    <div className="text-xs text-muted-foreground">Pending</div>
+                                  </div>
                                 </div>
-                                <div className="text-center">
-                                  <div className="text-lg font-bold text-green-600">{inboxStat?.accepted || 0}</div>
-                                  <div className="text-xs text-muted-foreground">Accepted</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="text-lg font-bold text-red-600">{inboxStat?.declined || 0}</div>
-                                  <div className="text-xs text-muted-foreground">Declined</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="text-lg font-bold text-yellow-600">{inboxStat?.tentative || 0}</div>
-                                  <div className="text-xs text-muted-foreground">Tentative</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="text-lg font-bold text-orange-600">{inboxStat?.pending || 0}</div>
-                                  <div className="text-xs text-muted-foreground">Pending</div>
-                                </div>
-                              </div>
 
-                              {/* Success rate and last used */}
-                              <div className="flex items-center justify-between text-sm">
-                                <div>
-                                  <span className="text-muted-foreground">Success Rate: </span>
-                                  <span className="font-medium">
-                                    {(inboxStat?.invitesSent || 0) > 0 ? 
-                                      Math.round(((inboxStat?.accepted || 0) / (inboxStat?.invitesSent || 1)) * 100) : 0}%
-                                  </span>
+                                {/* Success rate and last used */}
+                                <div className="flex items-center justify-between text-sm">
+                                  <div>
+                                    <span className="text-muted-foreground">Success Rate: </span>
+                                    <span className="font-medium">
+                                      {(displayStats.invitesSent || 0) > 0 ? 
+                                        Math.round(((displayStats.accepted || 0) / (displayStats.invitesSent || 1)) * 100) : 0}%
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Last Used: </span>
+                                    <span className="font-medium">
+                                      {displayStats.lastUsed ? 
+                                        new Date(displayStats.lastUsed).toLocaleDateString() : 
+                                        "Never"
+                                      }
+                                    </span>
+                                  </div>
                                 </div>
-                                <div>
-                                  <span className="text-muted-foreground">Last Used: </span>
-                                  <span className="font-medium">
-                                    {inboxStat?.lastUsed ? 
-                                      new Date(inboxStat.lastUsed).toLocaleDateString() : 
-                                      "Never"
-                                    }
-                                  </span>
+
+                                {/* Additional Campaign-Specific Info */}
+                                <div className="pt-2 border-t">
+                                  <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">Campaign Invites: </span>
+                                      <span className="font-medium">{campaignInvites.length}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Response Rate: </span>
+                                      <span className="font-medium">
+                                        {campaignInvites.length > 0 ? 
+                                          Math.round((campaignInvites.filter((inv: any) => inv.rsvpStatus).length / campaignInvites.length) * 100) : 0}%
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </Card>
-                        );
-                      })
+                            </Card>
+                          );
+                        })}
+                      </div>
                     ) : (
                       <div className="text-center py-8 text-muted-foreground">
-                        No inboxes selected for this campaign
+                        <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No inboxes selected for this campaign</p>
+                        <p className="text-xs mt-1">Click "Edit Inboxes" above to assign inboxes to this campaign</p>
                       </div>
                     )}
                   </div>
