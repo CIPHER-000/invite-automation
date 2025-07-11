@@ -141,6 +141,8 @@ Changelog:
 - January 11, 2025. CRITICAL FIXES: Fixed 30-minute minimum gap enforcement (was sending every 30 seconds instead of 30 minutes)
 - January 11, 2025. CRITICAL FIXES: Fixed inbox selection enforcement - now only uses campaign's selected inboxes instead of any available inbox
 - January 11, 2025. CRITICAL FIXES: Fixed campaign pause/stop functionality - now properly cancels pending queue items when campaigns are paused
+- January 11, 2025. ADVANCED SCHEDULING FEATURE: Implemented comprehensive advanced scheduling with date ranges, day-of-week selection, time windows, timezone awareness, and randomized non-repeating time slots
+- January 11, 2025. CUSTOM SUBJECT LINE FEATURE: Added campaign-level custom subject lines with personalization variables ({{name}}, {{company}}, {{sender_name}}, {{email}}) and live preview functionality
 ```
 
 ## User Preferences

@@ -55,6 +55,7 @@ export const campaigns = pgTable("campaigns", {
   eventTitleTemplate: text("event_title_template").notNull(),
   eventDescriptionTemplate: text("event_description_template").notNull(),
   confirmationEmailTemplate: text("confirmation_email_template").notNull(),
+  subjectLine: text("subject_line").default("Hi from {{sender_name}}"),
   senderName: text("sender_name"), // Sender name variable for personalized messaging
   eventDuration: integer("event_duration").notNull().default(30), // minutes
   timeZone: text("time_zone").notNull().default("UTC"),

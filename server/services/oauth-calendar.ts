@@ -10,6 +10,7 @@ export interface OAuthEventDetails {
   startTime: Date;
   endTime: Date;
   timeZone: string;
+  subjectLine?: string;
 }
 
 export class OAuthCalendarService {
@@ -25,7 +26,7 @@ export class OAuthCalendarService {
     const calendar = google.calendar({ version: "v3", auth });
 
     const event = {
-      summary: eventDetails.title,
+      summary: eventDetails.subjectLine || eventDetails.title,
       description: eventDetails.description,
       start: {
         dateTime: eventDetails.startTime.toISOString(),

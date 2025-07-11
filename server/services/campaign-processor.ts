@@ -186,6 +186,21 @@ export class CampaignProcessor {
     return processed;
   }
 
+  private processSubjectLine(campaign: Campaign, prospectData: Record<string, any>): string {
+    // Use campaign's custom subject line or default fallback
+    const subjectTemplate = campaign.subjectLine || "Hi from {{sender_name}}";
+    
+    // Process merge fields
+    const mergeData = {
+      name: prospectData.name || prospectData.first_name || prospectData.firstName || '',
+      company: prospectData.company || prospectData.company_name || prospectData.companyName || '',
+      sender_name: campaign.senderName || 'Your Team',
+      email: prospectData.email || ''
+    };
+    
+    return this.processMergeFields(subjectTemplate, mergeData);
+  }
+
   async createInviteFromQueue(queueItem: any): Promise<void> {
     const campaign = await storage.getCampaign(queueItem.campaignId);
     if (!campaign) {
@@ -266,6 +281,9 @@ export class CampaignProcessor {
         mergeData
       );
 
+      // Process subject line for the invite email
+      const subjectLine = this.processSubjectLine(campaign, mergeData);
+
       // Calculate event times
       const startTime = new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
       startTime.setHours(10, 0, 0, 0); // 10 AM
@@ -279,6 +297,7 @@ export class CampaignProcessor {
         startTime,
         endTime,
         timeZone: campaign.timeZone,
+        subjectLine: subjectLine,
       });
 
       // Update invite with event ID and status

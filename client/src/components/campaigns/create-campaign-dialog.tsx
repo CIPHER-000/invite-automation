@@ -37,6 +37,7 @@ import { insertCampaignSchema, type GoogleAccount } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { Plus, Upload, FileText, Users, Mail, Calendar, Clock } from "lucide-react";
 import { AdvancedSchedulingForm, type AdvancedSchedulingFormData } from "./advanced-scheduling-form";
+import { SubjectLinePreview } from "./subject-line-preview";
 
 interface CreateCampaignDialogProps {
   open: boolean;
@@ -51,6 +52,7 @@ const campaignSchema = z.object({
   eventTitleTemplate: z.string().min(1, "Event title template is required"),
   eventDescriptionTemplate: z.string().min(1, "Event description template is required"),
   confirmationEmailTemplate: z.string().min(1, "Confirmation email template is required"),
+  subjectLine: z.string().max(100, "Subject line must be 100 characters or less").optional(),
   senderName: z.string().optional(),
   eventDuration: z.number().min(15).max(240),
   timeZone: z.string(),
@@ -92,6 +94,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       eventDescriptionTemplate: "Hi {{name}}, I'm {{sender_name}} and I'm looking forward to our meeting!",
       confirmationEmailTemplate: "Thanks for accepting our meeting invitation!",
       senderName: "",
+      subjectLine: "",
       eventDuration: 30,
       timeZone: "UTC",
       selectedInboxes: [],
@@ -465,6 +468,34 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                         {...field} 
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="subjectLine"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Subject Line (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Hi from {{sender_name}}"
+                        maxLength={100}
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Use merge fields: {"{{name}}"}, {"{{company}}"}, {"{{sender_name}}"}, {"{{email}}"}. 
+                      Defaults to "Hi from {"{{sender_name}}"}" if empty. Max 100 characters.
+                    </FormDescription>
+                    <SubjectLinePreview 
+                      subjectLine={field.value} 
+                      sampleData={{
+                        sender_name: form.watch('senderName') || 'Your Team'
+                      }}
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
