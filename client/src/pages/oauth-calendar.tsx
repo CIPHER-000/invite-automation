@@ -7,7 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, SendIcon, TestTube2Icon, UserIcon, CheckCircleIcon, AlertCircleIcon, PlusIcon } from "lucide-react";
+import { CalendarIcon, SendIcon, TestTube2Icon, UserIcon, CheckCircleIcon, AlertCircleIcon, PlusIcon, Trash2, MoreHorizontal } from "lucide-react";
+import { RemoveInboxDialog } from "@/components/inbox/remove-inbox-dialog";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { apiRequest } from "@/lib/queryClient";
 
 interface OAuthAccount {
@@ -24,6 +31,8 @@ export default function OAuthCalendar() {
   const [eventTitle, setEventTitle] = useState("Quick Meeting Request");
   const [eventDescription, setEventDescription] = useState("I'd love to schedule a quick meeting to discuss potential collaboration opportunities.");
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [selectedInbox, setSelectedInbox] = useState<OAuthAccount | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -169,18 +178,44 @@ export default function OAuthCalendar() {
                     <Badge variant={account.isActive ? "default" : "secondary"}>
                       {account.isActive ? "Active" : "Inactive"}
                     </Badge>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        testAccessMutation.mutate(account.id);
-                      }}
-                      disabled={testAccessMutation.isPending}
-                    >
-                      <TestTube2Icon className="h-3 w-3 mr-1" />
-                      Test
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          testAccessMutation.mutate(account.id);
+                        }}
+                        disabled={testAccessMutation.isPending}
+                      >
+                        <TestTube2Icon className="h-3 w-3 mr-1" />
+                        Test
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInbox(account);
+                              setRemoveDialogOpen(true);
+                            }}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Remove Inbox
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -244,7 +279,7 @@ export default function OAuthCalendar() {
               </div>
             )}
 
-            {!selectedAccountId && activeAccounts.length > 0 && (
+            {!selectedAccountId && accounts.length > 0 && (
               <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                 <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
                   <AlertCircleIcon className="h-4 w-4 inline mr-1" />
@@ -311,6 +346,13 @@ export default function OAuthCalendar() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Remove Inbox Dialog */}
+      <RemoveInboxDialog
+        open={removeDialogOpen}
+        onOpenChange={setRemoveDialogOpen}
+        inbox={selectedInbox}
+      />
     </div>
   );
 }
