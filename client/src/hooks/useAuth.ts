@@ -12,8 +12,26 @@ export function useAuth() {
 
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["/api/me"],
+    queryFn: async () => {
+      const response = await fetch("/api/me", {
+        credentials: "include",
+      });
+      
+      if (response.status === 401) {
+        return null; // Return null instead of throwing for 401
+      }
+      
+      if (!response.ok) {
+        throw new Error(`${response.status}: ${response.statusText}`);
+      }
+      
+      return response.json();
+    },
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false,
   });
 
   const loginMutation = useMutation({
