@@ -115,7 +115,7 @@ export class MemStorage implements IStorage {
   constructor() {
     this.systemSettings = {
       id: 1,
-      dailyInviteLimit: 100,
+      dailyInviteLimit: 400, // 20 inboxes × 20 invites = 400 max per day system-wide
       inboxCooldownMinutes: 30,
       acceptanceCheckIntervalMinutes: 60,
       isSystemActive: true,

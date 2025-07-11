@@ -125,7 +125,7 @@ export const activityLogs = pgTable("activity_logs", {
 // System settings and configuration
 export const systemSettings = pgTable("system_settings", {
   id: serial("id").primaryKey(),
-  dailyInviteLimit: integer("daily_invite_limit").notNull().default(100),
+  dailyInviteLimit: integer("daily_invite_limit").notNull().default(400), // 20 inboxes × 20 invites per day
   inboxCooldownMinutes: integer("inbox_cooldown_minutes").notNull().default(30),
   acceptanceCheckIntervalMinutes: integer("acceptance_check_interval_minutes").notNull().default(60),
   isSystemActive: boolean("is_system_active").notNull().default(true),

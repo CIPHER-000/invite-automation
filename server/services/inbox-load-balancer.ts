@@ -30,9 +30,9 @@ export class InboxLoadBalancer {
 
   constructor(config?: Partial<LoadBalancingConfig>) {
     this.config = {
-      dailyQuotaPerInbox: 50,
-      weeklyQuotaPerInbox: 300,
-      cooldownMinutes: 30,
+      dailyQuotaPerInbox: 20, // CRITICAL: Max 20 invites per inbox per day for deliverability
+      weeklyQuotaPerInbox: 140, // 20 * 7 days
+      cooldownMinutes: 30, // CRITICAL: Minimum 30-minute gap between sends per inbox
       maxErrorsBeforePause: 3,
       healthThreshold: 70,
       ...config

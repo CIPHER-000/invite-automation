@@ -61,9 +61,10 @@ export class QueueManager {
         return;
       }
 
-      // Check daily limit
+      // Check global daily limit
       const invitesToday = await storage.getInvitesToday();
       if (invitesToday >= settings.dailyInviteLimit) {
+        console.log(`Daily global limit reached: ${invitesToday}/${settings.dailyInviteLimit}`);
         return;
       }
 
@@ -71,6 +72,48 @@ export class QueueManager {
       const nextItem = await storage.getNextQueueItem();
       if (!nextItem) {
         return;
+      }
+
+      // CRITICAL: Check per-inbox daily limits and cooldown before processing
+      const prospectData = nextItem.prospectData as any;
+      if (prospectData.assignedInboxId) {
+        const account = await storage.getGoogleAccount(prospectData.assignedInboxId);
+        if (!account) {
+          await storage.updateQueueItem(nextItem.id, {
+            status: "failed",
+            errorMessage: "Assigned inbox no longer exists"
+          });
+          return;
+        }
+
+        // Check if inbox has exceeded daily limit (20 invites per day)
+        const inboxInvitesToday = await this.getInboxInvitesToday(prospectData.assignedInboxId);
+        if (inboxInvitesToday >= 20) {
+          console.log(`Inbox ${account.email} has reached daily limit: ${inboxInvitesToday}/20`);
+          // Reschedule for tomorrow
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(9, 0, 0, 0); // 9 AM tomorrow
+          
+          await storage.updateQueueItem(nextItem.id, {
+            scheduledFor: tomorrow
+          });
+          return;
+        }
+
+        // Check if inbox is in cooldown (minimum 30 minutes between sends)
+        const lastUsed = account.lastUsed;
+        if (lastUsed) {
+          const cooldownUntil = new Date(lastUsed.getTime() + (30 * 60 * 1000)); // 30 minutes
+          if (new Date() < cooldownUntil) {
+            console.log(`Inbox ${account.email} is in cooldown until ${cooldownUntil.toISOString()}`);
+            // Reschedule for after cooldown
+            await storage.updateQueueItem(nextItem.id, {
+              scheduledFor: cooldownUntil
+            });
+            return;
+          }
+        }
       }
 
       // Check if it's time to process this item
@@ -91,6 +134,21 @@ export class QueueManager {
     } finally {
       this.isProcessing = false;
     }
+  }
+
+  /**
+   * Get number of invites sent today for a specific inbox
+   */
+  private async getInboxInvitesToday(inboxId: number): Promise<number> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const invites = await storage.getInvites();
+    return invites.filter(invite => 
+      invite.googleAccountId === inboxId &&
+      invite.sentAt &&
+      invite.sentAt >= startOfDay
+    ).length;
   }
 
   private async checkAcceptedInvites(): Promise<void> {
