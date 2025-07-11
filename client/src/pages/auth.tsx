@@ -60,7 +60,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
@@ -139,11 +139,7 @@ export default function Auth() {
                   </Button>
                 </form>
 
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800 font-medium">Demo Account:</p>
-                  <p className="text-xs text-blue-700">Email: admin@shady5.com</p>
-                  <p className="text-xs text-blue-700">Password: admin123</p>
-                </div>
+
               </CardContent>
             </Card>
           </TabsContent>
