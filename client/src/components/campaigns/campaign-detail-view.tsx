@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -278,9 +279,10 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
         </DialogHeader>
 
         <Tabs defaultValue="analytics" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="analytics">Analytics & Stats</TabsTrigger>
             <TabsTrigger value="inboxes">Inbox Management</TabsTrigger>
+            <TabsTrigger value="invites">Invites & Errors</TabsTrigger>
             <TabsTrigger value="overview">Campaign Settings</TabsTrigger>
             <TabsTrigger value="messaging">Templates & Messaging</TabsTrigger>
           </TabsList>
@@ -1248,82 +1250,283 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
                   {/* Per-Inbox Analytics */}
                   <div className="space-y-4">
                     <h4 className="font-medium">Per-Inbox Performance</h4>
-                    {inboxStats.length > 0 ? (
-                      inboxStats.map((inbox: any) => (
-                        <Card key={inbox.inboxId} className="p-4">
-                          <div className="space-y-4">
-                            {/* Header with email and daily usage */}
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-medium">{inbox.name}</h4>
-                                <p className="text-sm text-muted-foreground">{inbox.email}</p>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium">
-                                  {inbox.dailyUsed} / {inbox.dailyLimit} invites today
+                    {campaign.selectedInboxes?.length > 0 ? (
+                      campaign.selectedInboxes.map((inboxId: number) => {
+                        const account = accounts.find((acc: GoogleAccount) => acc.id === inboxId);
+                        const inboxStat = inboxStats.find((stat: any) => stat.inboxId === inboxId);
+                        
+                        if (!account) return null;
+                        
+                        return (
+                          <Card key={inboxId} className="p-4">
+                            <div className="space-y-4">
+                              {/* Header with email and daily usage */}
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-medium flex items-center gap-2">
+                                    {account.name}
+                                    <Badge variant="outline" className="text-xs">
+                                      Campaign Inbox
+                                    </Badge>
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground">{account.email}</p>
                                 </div>
-                                <Progress 
-                                  value={(inbox.dailyUsed / inbox.dailyLimit) * 100} 
-                                  className="w-32 h-2 mt-1"
-                                />
+                                <div className="text-right">
+                                  <div className="text-sm font-medium">
+                                    {inboxStat?.dailyUsed || 0} / {campaign.maxInvitesPerInbox || 20} invites today
+                                  </div>
+                                  <Progress 
+                                    value={((inboxStat?.dailyUsed || 0) / (campaign.maxInvitesPerInbox || 20)) * 100} 
+                                    className="w-32 h-2 mt-1"
+                                  />
+                                </div>
                               </div>
-                            </div>
 
-                            {/* Performance metrics */}
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-blue-600">{inbox.invitesSent}</div>
-                                <div className="text-xs text-muted-foreground">Sent</div>
+                              {/* Performance metrics */}
+                              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                <div className="text-center">
+                                  <div className="text-lg font-bold text-blue-600">{inboxStat?.invitesSent || 0}</div>
+                                  <div className="text-xs text-muted-foreground">Sent</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-lg font-bold text-green-600">{inboxStat?.accepted || 0}</div>
+                                  <div className="text-xs text-muted-foreground">Accepted</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-lg font-bold text-red-600">{inboxStat?.declined || 0}</div>
+                                  <div className="text-xs text-muted-foreground">Declined</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-lg font-bold text-yellow-600">{inboxStat?.tentative || 0}</div>
+                                  <div className="text-xs text-muted-foreground">Tentative</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-lg font-bold text-orange-600">{inboxStat?.pending || 0}</div>
+                                  <div className="text-xs text-muted-foreground">Pending</div>
+                                </div>
                               </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-green-600">{inbox.accepted}</div>
-                                <div className="text-xs text-muted-foreground">Accepted</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-red-600">{inbox.declined}</div>
-                                <div className="text-xs text-muted-foreground">Declined</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-yellow-600">{inbox.tentative}</div>
-                                <div className="text-xs text-muted-foreground">Tentative</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-orange-600">{inbox.pending}</div>
-                                <div className="text-xs text-muted-foreground">Pending</div>
-                              </div>
-                            </div>
 
-                            {/* Success rate and last used */}
-                            <div className="flex items-center justify-between text-sm">
-                              <div>
-                                <span className="text-muted-foreground">Success Rate: </span>
-                                <span className="font-medium">
-                                  {inbox.invitesSent > 0 ? 
-                                    Math.round((inbox.accepted / inbox.invitesSent) * 100) : 0}%
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Last Used: </span>
-                                <span className="font-medium">
-                                  {inbox.lastUsed ? 
-                                    new Date(inbox.lastUsed).toLocaleDateString() : 
-                                    "Never"
-                                  }
-                                </span>
+                              {/* Success rate and last used */}
+                              <div className="flex items-center justify-between text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Success Rate: </span>
+                                  <span className="font-medium">
+                                    {(inboxStat?.invitesSent || 0) > 0 ? 
+                                      Math.round(((inboxStat?.accepted || 0) / (inboxStat?.invitesSent || 1)) * 100) : 0}%
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Last Used: </span>
+                                  <span className="font-medium">
+                                    {inboxStat?.lastUsed ? 
+                                      new Date(inboxStat.lastUsed).toLocaleDateString() : 
+                                      "Never"
+                                    }
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </Card>
-                      ))
+                          </Card>
+                        );
+                      })
                     ) : (
                       <div className="text-center py-8 text-muted-foreground">
-                        {campaign.selectedInboxes?.length === 0 ? 
-                          "No inboxes selected for this campaign" : 
-                          "No performance data available yet"
-                        }
+                        No inboxes selected for this campaign
                       </div>
                     )}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Invites & Errors Tab */}
+          <TabsContent value="invites" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Invite Details & Error Analysis
+                </CardTitle>
+                <CardDescription>
+                  View all invites sent for this campaign with detailed error information
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {invites.length > 0 ? (
+                    <div className="space-y-3">
+                      {invites.map((invite: any) => (
+                        <Card key={invite.id} className={`p-4 ${invite.status === 'error' ? 'border-red-200 bg-red-50' : ''}`}>
+                          <div className="space-y-3">
+                            {/* Header */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium">{invite.prospectName || invite.prospectEmail}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {invite.prospectEmail}
+                                  {invite.prospectCompany && ` • ${invite.prospectCompany}`}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant={
+                                  invite.status === 'sent' ? 'default' :
+                                  invite.status === 'pending' ? 'secondary' :
+                                  invite.status === 'error' ? 'destructive' : 'outline'
+                                }>
+                                  {invite.status}
+                                </Badge>
+                                {invite.rsvpStatus && (
+                                  <Badge variant={
+                                    invite.rsvpStatus === 'accepted' ? 'default' :
+                                    invite.rsvpStatus === 'declined' ? 'destructive' :
+                                    invite.rsvpStatus === 'tentative' ? 'secondary' : 'outline'
+                                  } className="ml-2">
+                                    {invite.rsvpStatus}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Details */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Sent: </span>
+                                <span className="font-medium">
+                                  {invite.sentAt ? new Date(invite.sentAt).toLocaleDateString() : "Not sent"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Scheduled: </span>
+                                <span className="font-medium">
+                                  {invite.scheduledFor ? new Date(invite.scheduledFor).toLocaleDateString() : "Not scheduled"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">From: </span>
+                                <span className="font-medium">
+                                  {invite.fromInbox ? 
+                                    accounts.find((acc: GoogleAccount) => acc.id === invite.fromInbox)?.email || "Unknown" : 
+                                    "Not assigned"
+                                  }
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Event ID: </span>
+                                <span className="font-medium text-xs">
+                                  {invite.eventId || "None"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Error Details */}
+                            {invite.status === 'error' && invite.errorMessage && (
+                              <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded-lg">
+                                <div className="flex items-start gap-2">
+                                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
+                                  <div className="flex-1">
+                                    <h5 className="font-medium text-red-900 mb-1">Error Details</h5>
+                                    <p className="text-sm text-red-800 mb-2">{invite.errorMessage}</p>
+                                    {invite.errorDetails && (
+                                      <details className="text-xs">
+                                        <summary className="cursor-pointer text-red-700 hover:text-red-900">
+                                          Technical Details
+                                        </summary>
+                                        <pre className="mt-2 p-2 bg-red-50 rounded text-red-700 overflow-x-auto">
+                                          {typeof invite.errorDetails === 'string' ? 
+                                            invite.errorDetails : 
+                                            JSON.stringify(invite.errorDetails, null, 2)
+                                          }
+                                        </pre>
+                                      </details>
+                                    )}
+                                    {invite.retryCount && (
+                                      <p className="text-xs text-red-600 mt-1">
+                                        Retry attempts: {invite.retryCount}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* RSVP Response Details */}
+                            {invite.rsvpStatus && invite.rsvpResponseTime && (
+                              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="flex items-start gap-2">
+                                  <Users className="h-4 w-4 text-green-600 mt-0.5" />
+                                  <div className="flex-1">
+                                    <h5 className="font-medium text-green-900 mb-1">RSVP Response</h5>
+                                    <p className="text-sm text-green-800">
+                                      Responded {invite.rsvpStatus} on {new Date(invite.rsvpResponseTime).toLocaleDateString()}
+                                    </p>
+                                    {invite.rsvpNote && (
+                                      <p className="text-xs text-green-700 mt-1">
+                                        Note: {invite.rsvpNote}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No invites found for this campaign
+                    </div>
+                  )}
+
+                  {/* Error Summary */}
+                  {invites.filter((invite: any) => invite.status === 'error').length > 0 && (
+                    <Card className="mt-6 border-red-200 bg-red-50">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-red-900">
+                          <AlertCircle className="h-4 w-4" />
+                          Error Summary
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm">Total Errors:</span>
+                            <span className="font-medium text-red-900">
+                              {invites.filter((invite: any) => invite.status === 'error').length}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Success Rate:</span>
+                            <span className="font-medium text-red-900">
+                              {invites.length > 0 ? 
+                                Math.round((invites.filter((invite: any) => invite.status === 'sent').length / invites.length) * 100) : 0
+                              }%
+                            </span>
+                          </div>
+                          <div className="mt-3 text-xs text-red-700">
+                            <p className="font-medium">Common Error Types:</p>
+                            <ul className="mt-1 space-y-1">
+                              {Array.from(new Set(
+                                invites
+                                  .filter((invite: any) => invite.status === 'error')
+                                  .map((invite: any) => invite.errorMessage?.split(':')[0] || 'Unknown Error')
+                              )).map((errorType: string) => (
+                                <li key={errorType} className="flex justify-between">
+                                  <span>{errorType}</span>
+                                  <span>
+                                    {invites.filter((invite: any) => 
+                                      invite.status === 'error' && invite.errorMessage?.startsWith(errorType)
+                                    ).length}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               </CardContent>
             </Card>
