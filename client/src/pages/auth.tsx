@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, Lock, UserPlus, LogIn } from "lucide-react";
+import logoPath from "@assets/shady5_no_bg_cropped_strict_1751311214067.png";
 
 export default function Auth() {
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
@@ -62,7 +63,9 @@ export default function Auth() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Shady 5.0</h1>
+          <div className="flex justify-center mb-4">
+            <img src={logoPath} alt="Shady 5.0" className="w-48 h-auto object-contain" />
+          </div>
           <p className="text-gray-600">Calendar Invite Automation Platform</p>
         </div>
 
