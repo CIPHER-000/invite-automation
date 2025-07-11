@@ -225,34 +225,22 @@ export default function OAuthCalendar() {
                 }`}
                 onClick={() => setSelectedAccountId(account.id)}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{account.name}</h3>
-                    <p className="text-sm text-muted-foreground">{account.email}</p>
-                    {account.lastUsed && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Last used: {new Date(account.lastUsed).toLocaleDateString()}
-                      </p>
-                    )}
-                    <DailyStatsDisplay accountId={account.id} />
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge variant={account.isActive ? "default" : "secondary"}>
-                      {account.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          testAccessMutation.mutate(account.id);
-                        }}
-                        disabled={testAccessMutation.isPending}
-                      >
-                        <TestTube2Icon className="h-3 w-3 mr-1" />
-                        Test
-                      </Button>
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{account.name}</h3>
+                      <p className="text-sm text-muted-foreground">{account.email}</p>
+                      {account.lastUsed && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Last used: {new Date(account.lastUsed).toLocaleDateString()}
+                        </p>
+                      )}
+                      <DailyStatsDisplay accountId={account.id} />
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge variant={account.isActive ? "default" : "secondary"}>
+                        {account.isActive ? "Active" : "Inactive"}
+                      </Badge>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -266,6 +254,21 @@ export default function OAuthCalendar() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        testAccessMutation.mutate(account.id);
+                      }}
+                      disabled={testAccessMutation.isPending}
+                      className="w-20"
+                    >
+                      <TestTube2Icon className="h-3 w-3 mr-1" />
+                      Test
+                    </Button>
                   </div>
                 </div>
               </div>
