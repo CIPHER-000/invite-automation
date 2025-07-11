@@ -70,7 +70,7 @@ export default function OAuthCalendar() {
   // Delete account mutation
   const deleteAccountMutation = useMutation({
     mutationFn: async (accountId: number) => {
-      await apiRequest("DELETE", `/api/accounts/${accountId}`);
+      await apiRequest("DELETE", `/api/oauth-calendar/accounts/${accountId}`);
     },
     onSuccess: () => {
       toast({

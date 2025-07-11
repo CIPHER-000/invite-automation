@@ -756,6 +756,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/oauth-calendar/accounts/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Get the account first
+      const account = await storage.getGoogleAccount(id);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      console.log(`Starting deletion of OAuth account ${id} (${account.email})`);
+
+      // Cancel all pending queue items for this inbox
+      try {
+        const queueItems = await storage.getQueueItems("pending");
+        const itemsToCancel = queueItems.filter(item => {
+          const prospectData = item.prospectData as any;
+          return prospectData.assignedInboxId === id;
+        });
+
+        for (const item of itemsToCancel) {
+          await storage.updateQueueItem(item.id, {
+            status: "cancelled",
+          });
+        }
+        console.log(`Cancelled ${itemsToCancel.length} pending queue items`);
+      } catch (queueError) {
+        console.warn("Failed to cancel queue items:", queueError);
+      }
+
+      // Try to revoke OAuth tokens
+      try {
+        if (account.refreshToken) {
+          const revokeUrl = `https://oauth2.googleapis.com/revoke?token=${account.refreshToken}`;
+          await fetch(revokeUrl, { method: 'POST' });
+          console.log("OAuth tokens revoked successfully");
+        }
+      } catch (revokeError) {
+        console.warn("Failed to revoke OAuth tokens:", revokeError);
+      }
+
+      // Log the deletion
+      try {
+        await storage.createActivityLog({
+          type: "account_deleted",
+          googleAccountId: id,
+          message: `OAuth account ${account.email} has been deleted from the platform`,
+          metadata: {
+            email: account.email,
+            action: "deletion"
+          }
+        });
+      } catch (logError) {
+        console.warn("Failed to log deletion:", logError);
+      }
+
+      // Delete the account
+      await storage.deleteGoogleAccount(id);
+      console.log(`OAuth account ${account.email} deleted successfully`);
+      
+      res.json({ 
+        success: true,
+        message: "OAuth account deleted successfully"
+      });
+    } catch (error) {
+      console.error("Delete OAuth account error:", error);
+      res.status(500).json({ error: "Failed to delete OAuth account" });
+    }
+  });
+
   // RSVP Tracking API
   app.get("/api/rsvp/events", async (req, res) => {
     try {
