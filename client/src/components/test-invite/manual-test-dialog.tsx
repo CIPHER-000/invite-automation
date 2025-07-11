@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type GoogleAccount } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { Send, Calendar, Clock, Mail, User } from "lucide-react";
+import { InboxSearch, filterInboxes } from "@/components/inbox/inbox-search";
 
 interface ManualTestDialogProps {
   open: boolean;
@@ -57,6 +58,7 @@ type TestInviteFormData = z.infer<typeof testInviteSchema>;
 export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) {
   const { toast } = useToast();
   const [isScheduling, setIsScheduling] = useState(false);
+  const [inboxSearchTerm, setInboxSearchTerm] = useState("");
 
   const form = useForm<TestInviteFormData>({
     resolver: zodResolver(testInviteSchema),
@@ -291,19 +293,25 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
                   No accounts available. Please add Gmail accounts in Account Setup first.
                 </div>
               ) : (
-                <FormField
-                  control={form.control}
-                  name="selectedAccountId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Select onValueChange={(value) => field.onChange(parseInt(value))}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose an inbox to send from" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {accounts.map((account) => (
+                <div className="space-y-3">
+                  <InboxSearch
+                    value={inboxSearchTerm}
+                    onChange={setInboxSearchTerm}
+                    placeholder="Search inboxes by email or name..."
+                  />
+                  <FormField
+                    control={form.control}
+                    name="selectedAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose an inbox to send from" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {filterInboxes(accounts, inboxSearchTerm).map((account) => (
                             <SelectItem key={account.id} value={account.id.toString()}>
                               <div className="flex items-center gap-2">
                                 <Mail className="h-3 w-3" />
@@ -322,6 +330,7 @@ export function ManualTestDialog({ open, onOpenChange }: ManualTestDialogProps) 
                     </FormItem>
                   )}
                 />
+                </div>
               )}
 
               {selectedAccount && (

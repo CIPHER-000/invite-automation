@@ -38,6 +38,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Plus, Upload, FileText, Users, Mail, Calendar, Clock } from "lucide-react";
 import { AdvancedSchedulingForm, type AdvancedSchedulingFormData } from "./advanced-scheduling-form";
 import { SubjectLinePreview } from "./subject-line-preview";
+import { InboxSearch, filterInboxes } from "@/components/inbox/inbox-search";
 
 interface CreateCampaignDialogProps {
   open: boolean;
@@ -84,6 +85,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const [currentStep, setCurrentStep] = useState(1);
   const [schedulingMode, setSchedulingMode] = useState<"immediate" | "advanced">("immediate");
   const [advancedSchedulingData, setAdvancedSchedulingData] = useState<AdvancedSchedulingFormData | null>(null);
+  const [inboxSearchTerm, setInboxSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -644,8 +646,14 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                   No accounts available. Please add Gmail accounts in Account Setup first.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
-                  {accounts.map((account) => (
+                <div className="space-y-3">
+                  <InboxSearch
+                    value={inboxSearchTerm}
+                    onChange={setInboxSearchTerm}
+                    placeholder="Search inboxes by email or name..."
+                  />
+                  <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                    {filterInboxes(accounts, inboxSearchTerm).map((account) => (
                     <div key={account.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`account-${account.id}`}
@@ -665,7 +673,8 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                         )}
                       </Label>
                     </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
               {form.watch('selectedInboxes').length > 0 && (

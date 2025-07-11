@@ -368,6 +368,13 @@ export default function Accounts() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {activeAccounts.length > 1 && (
+                <InboxSearch
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="Search accounts by email or name..."
+                />
+              )}
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="flex items-center space-x-3 p-4 border border-slate-200 rounded-lg">
@@ -380,7 +387,7 @@ export default function Accounts() {
                   </div>
                 ))
               ) : (
-                activeAccounts.map((account: AccountWithStatus) => (
+                filterInboxes(activeAccounts, searchTerm).map((account: AccountWithStatus) => (
                   <AccountStatus key={account.id} account={account} />
                 ))
               )}
@@ -400,7 +407,14 @@ export default function Accounts() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {inactiveAccounts.map((account: AccountWithStatus) => (
+              {inactiveAccounts.length > 1 && (
+                <InboxSearch
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="Search accounts by email or name..."
+                />
+              )}
+              {filterInboxes(inactiveAccounts, searchTerm).map((account: AccountWithStatus) => (
                 <AccountStatus key={account.id} account={account} />
               ))}
             </CardContent>

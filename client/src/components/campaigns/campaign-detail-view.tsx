@@ -65,6 +65,7 @@ import {
   BarChart,
   Bar
 } from "recharts";
+import { InboxSearch, filterInboxes } from "@/components/inbox/inbox-search";
 
 interface CampaignDetailViewProps {
   open: boolean;
@@ -109,6 +110,8 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
     timeWindowEnd: "",
     schedulingTimezone: "",
   });
+  
+  const [inboxSearchTerm, setInboxSearchTerm] = useState("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -448,8 +451,14 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
                   <div className="space-y-4">
                     <div>
                       <Label>Select Inboxes</Label>
+                      <InboxSearch
+                        value={inboxSearchTerm}
+                        onChange={setInboxSearchTerm}
+                        placeholder="Search inboxes by email or name..."
+                        className="mt-2 mb-2"
+                      />
                       <div className="mt-2 space-y-2">
-                        {accounts.map((account: GoogleAccount) => (
+                        {filterInboxes(accounts, inboxSearchTerm).map((account: GoogleAccount) => (
                           <div key={account.id} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
