@@ -36,15 +36,15 @@ import * as schema from "@shared/schema";
 
 export interface IStorage {
   // Google Accounts
-  getGoogleAccounts(): Promise<GoogleAccount[]>;
-  getGoogleAccount(id: number): Promise<GoogleAccount | undefined>;
-  getGoogleAccountByEmail(email: string): Promise<GoogleAccount | undefined>;
+  getGoogleAccounts(userId: string): Promise<GoogleAccount[]>;
+  getGoogleAccount(id: number, userId: string): Promise<GoogleAccount | undefined>;
+  getGoogleAccountByEmail(email: string, userId: string): Promise<GoogleAccount | undefined>;
   createGoogleAccount(account: InsertGoogleAccount): Promise<GoogleAccount>;
-  updateGoogleAccount(id: number, updates: Partial<GoogleAccount>): Promise<GoogleAccount>;
-  deleteGoogleAccount(id: number): Promise<void>;
-  disconnectGoogleAccount(id: number): Promise<void>;
-  getCampaignsUsingInbox(inboxId: number): Promise<{ id: number; name: string; status: string }[]>;
-  getAccountsWithStatus(): Promise<AccountWithStatus[]>;
+  updateGoogleAccount(id: number, updates: Partial<GoogleAccount>, userId: string): Promise<GoogleAccount>;
+  deleteGoogleAccount(id: number, userId: string): Promise<void>;
+  disconnectGoogleAccount(id: number, userId: string): Promise<void>;
+  getCampaignsUsingInbox(inboxId: number, userId: string): Promise<{ id: number; name: string; status: string }[]>;
+  getAccountsWithStatus(userId: string): Promise<AccountWithStatus[]>;
 
   // Outlook Accounts
   getOutlookAccounts(): Promise<OutlookAccount[]>;
@@ -55,30 +55,30 @@ export interface IStorage {
   deleteOutlookAccount(id: number): Promise<void>;
 
   // Campaigns
-  getCampaigns(): Promise<Campaign[]>;
-  getCampaign(id: number): Promise<Campaign | undefined>;
+  getCampaigns(userId: string): Promise<Campaign[]>;
+  getCampaign(id: number, userId: string): Promise<Campaign | undefined>;
   createCampaign(campaign: InsertCampaign): Promise<Campaign>;
-  updateCampaign(id: number, updates: Partial<Campaign>): Promise<Campaign>;
-  deleteCampaign(id: number): Promise<void>;
-  getCampaignsWithStats(): Promise<CampaignWithStats[]>;
+  updateCampaign(id: number, updates: Partial<Campaign>, userId: string): Promise<Campaign>;
+  deleteCampaign(id: number, userId: string): Promise<void>;
+  getCampaignsWithStats(userId: string): Promise<CampaignWithStats[]>;
 
   // Invites
-  getInvites(campaignId?: number): Promise<Invite[]>;
-  getInvite(id: number): Promise<Invite | undefined>;
+  getInvites(userId: string, campaignId?: number): Promise<Invite[]>;
+  getInvite(id: number, userId: string): Promise<Invite | undefined>;
   createInvite(invite: InsertInvite): Promise<Invite>;
-  updateInvite(id: number, updates: Partial<Invite>): Promise<Invite>;
-  getInvitesByStatus(status: string): Promise<Invite[]>;
-  getInvitesByRsvpStatus(rsvpStatus: string): Promise<Invite[]>;
-  getInvitesToday(): Promise<number>;
-  getAcceptedInvites(): Promise<number>;
-  getInvitesTodayByAccount(accountId: number): Promise<number>;
+  updateInvite(id: number, updates: Partial<Invite>, userId: string): Promise<Invite>;
+  getInvitesByStatus(status: string, userId: string): Promise<Invite[]>;
+  getInvitesByRsvpStatus(rsvpStatus: string, userId: string): Promise<Invite[]>;
+  getInvitesToday(userId: string): Promise<number>;
+  getAcceptedInvites(userId: string): Promise<number>;
+  getInvitesTodayByAccount(accountId: number, userId: string): Promise<number>;
   updateInviteRsvpStatus(inviteId: number, rsvpStatus: string, source: string, webhookPayload?: any): Promise<void>;
   getInviteByEventId(eventId: string): Promise<Invite | undefined>;
 
   // RSVP Events
-  getRsvpEvents(inviteId?: number): Promise<RsvpEvent[]>;
+  getRsvpEvents(inviteId?: number, userId?: string): Promise<RsvpEvent[]>;
   createRsvpEvent(event: InsertRsvpEvent): Promise<RsvpEvent>;
-  getRsvpHistory(inviteId: number): Promise<RsvpEvent[]>;
+  getRsvpHistory(inviteId: number, userId?: string): Promise<RsvpEvent[]>;
 
   // Webhook Events
   getWebhookEvents(processed?: boolean): Promise<WebhookEvent[]>;
@@ -86,7 +86,7 @@ export interface IStorage {
   markWebhookProcessed(id: number, success: boolean, error?: string): Promise<void>;
 
   // Activity Logs
-  getActivityLogs(limit?: number): Promise<ActivityLog[]>;
+  getActivityLogs(limit?: number, userId?: string): Promise<ActivityLog[]>;
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
   cleanupActivityLogsForAccount(accountId: number): Promise<void>;
   cleanupInvitesForAccount(accountId: number): Promise<void>;
@@ -102,10 +102,10 @@ export interface IStorage {
   getNextQueueItem(): Promise<InviteQueue | undefined>;
 
   // Dashboard
-  getDashboardStats(): Promise<DashboardStats>;
+  getDashboardStats(userId: string): Promise<DashboardStats>;
   
   // Campaign Analytics
-  getCampaignInboxStats(campaignId: number): Promise<Array<{
+  getCampaignInboxStats(campaignId: number, userId: string): Promise<Array<{
     inboxId: number;
     email: string;
     name: string;
@@ -118,7 +118,7 @@ export interface IStorage {
     dailyLimit: number;
     dailyUsed: number;
   }>>;
-  getCampaignDetailedStats(campaignId: number): Promise<{
+  getCampaignDetailedStats(campaignId: number, userId: string): Promise<{
     totalProspects: number;
     invitesSent: number;
     pending: number;
@@ -420,8 +420,12 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async getInvitesByStatus(status: string): Promise<Invite[]> {
-    return Array.from(this.invites.values()).filter(invite => invite.status === status);
+  async getInvitesByStatus(status: string, userId: string): Promise<Invite[]> {
+    return Array.from(this.invites.values()).filter(invite => invite.status === status && invite.userId === userId);
+  }
+
+  async getInvitesByRsvpStatus(rsvpStatus: string, userId: string): Promise<Invite[]> {
+    return Array.from(this.invites.values()).filter(invite => invite.rsvpStatus === rsvpStatus && invite.userId === userId);
   }
 
   async getInvitesToday(): Promise<number> {
@@ -439,20 +443,28 @@ export class MemStorage implements IStorage {
     ).length;
   }
 
-  async getInvitesTodayByAccount(accountId: number): Promise<number> {
+  async getInvitesTodayByAccount(accountId: number, userId: string): Promise<number> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     return Array.from(this.invites.values()).filter(
       invite => invite.googleAccountId === accountId && 
                 invite.sentAt && 
-                invite.sentAt >= today
+                invite.sentAt >= today &&
+                invite.userId === userId
     ).length;
   }
 
   // Activity Logs
-  async getActivityLogs(limit = 50): Promise<ActivityLog[]> {
-    return Array.from(this.activityLogs.values())
+  async getActivityLogs(limit = 50, userId?: string): Promise<ActivityLog[]> {
+    let logs = Array.from(this.activityLogs.values());
+    
+    // Filter by userId if provided
+    if (userId) {
+      logs = logs.filter(log => log.userId === userId);
+    }
+    
+    return logs
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
   }
@@ -498,6 +510,27 @@ export class MemStorage implements IStorage {
   async updateSystemSettings(updates: Partial<SystemSettings>): Promise<SystemSettings> {
     this.systemSettings = { ...this.systemSettings, ...updates, updatedAt: new Date() };
     return this.systemSettings;
+  }
+
+  // RSVP Events (placeholders for MemStorage)
+  async getRsvpEvents(inviteId?: number, userId?: string): Promise<RsvpEvent[]> {
+    // Placeholder implementation for memory storage
+    return [];
+  }
+
+  async createRsvpEvent(event: InsertRsvpEvent): Promise<RsvpEvent> {
+    // Placeholder implementation for memory storage
+    const newEvent = {
+      ...event,
+      id: this.currentId++,
+      createdAt: new Date()
+    } as RsvpEvent;
+    return newEvent;
+  }
+
+  async getRsvpHistory(inviteId: number, userId?: string): Promise<RsvpEvent[]> {
+    // Placeholder implementation for memory storage
+    return [];
   }
 
   // Queue
@@ -616,7 +649,7 @@ export class MemStorage implements IStorage {
     return stats;
   }
 
-  async getCampaignDetailedStats(campaignId: number): Promise<{
+  async getCampaignDetailedStats(campaignId: number, userId: string): Promise<{
     totalProspects: number;
     invitesSent: number;
     pending: number;
@@ -628,10 +661,10 @@ export class MemStorage implements IStorage {
     inboxUsage: Array<{ inboxId: number; email: string; usage: number; limit: number }>;
   }> {
     const campaignInvites = Array.from(this.invites.values()).filter(
-      invite => invite.campaignId === campaignId
+      invite => invite.campaignId === campaignId && invite.userId === userId
     );
 
-    const campaign = this.campaigns.get(campaignId);
+    const campaign = await this.getCampaign(campaignId, userId);
     const csvData = campaign?.csvData as any[];
     
     const stats = {
@@ -669,7 +702,7 @@ export class MemStorage implements IStorage {
       for (const inboxId of campaign.selectedInboxes) {
         const inbox = this.googleAccounts.get(inboxId);
         if (inbox) {
-          const dailyUsed = await this.getInvitesTodayByAccount(inboxId);
+          const dailyUsed = await this.getInvitesTodayByAccount(inboxId, userId);
           stats.inboxUsage.push({
             inboxId: inbox.id,
             email: inbox.email,
@@ -694,17 +727,32 @@ class PostgresStorage implements IStorage {
   }
 
   // Google Accounts
-  async getGoogleAccounts(): Promise<GoogleAccount[]> {
-    return await this.db.select().from(schema.googleAccounts);
+  async getGoogleAccounts(userId: string): Promise<GoogleAccount[]> {
+    return await this.db.select().from(schema.googleAccounts).where(
+      and(
+        eq(schema.googleAccounts.userId, userId),
+        eq(schema.googleAccounts.isActive, true)
+      )
+    );
   }
 
-  async getGoogleAccount(id: number): Promise<GoogleAccount | undefined> {
-    const result = await this.db.select().from(schema.googleAccounts).where(eq(schema.googleAccounts.id, id));
+  async getGoogleAccount(id: number, userId: string): Promise<GoogleAccount | undefined> {
+    const result = await this.db.select().from(schema.googleAccounts).where(
+      and(
+        eq(schema.googleAccounts.id, id),
+        eq(schema.googleAccounts.userId, userId)
+      )
+    );
     return result[0];
   }
 
-  async getGoogleAccountByEmail(email: string): Promise<GoogleAccount | undefined> {
-    const result = await this.db.select().from(schema.googleAccounts).where(eq(schema.googleAccounts.email, email));
+  async getGoogleAccountByEmail(email: string, userId: string): Promise<GoogleAccount | undefined> {
+    const result = await this.db.select().from(schema.googleAccounts).where(
+      and(
+        eq(schema.googleAccounts.email, email),
+        eq(schema.googleAccounts.userId, userId)
+      )
+    );
     return result[0];
   }
 
@@ -713,26 +761,41 @@ class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async updateGoogleAccount(id: number, updates: Partial<GoogleAccount>): Promise<GoogleAccount> {
-    const result = await this.db.update(schema.googleAccounts).set(updates).where(eq(schema.googleAccounts.id, id)).returning();
+  async updateGoogleAccount(id: number, updates: Partial<GoogleAccount>, userId: string): Promise<GoogleAccount> {
+    const result = await this.db.update(schema.googleAccounts).set(updates).where(
+      and(
+        eq(schema.googleAccounts.id, id),
+        eq(schema.googleAccounts.userId, userId)
+      )
+    ).returning();
     return result[0];
   }
 
-  async deleteGoogleAccount(id: number): Promise<void> {
-    await this.db.delete(schema.googleAccounts).where(eq(schema.googleAccounts.id, id));
+  async deleteGoogleAccount(id: number, userId: string): Promise<void> {
+    await this.db.delete(schema.googleAccounts).where(
+      and(
+        eq(schema.googleAccounts.id, id),
+        eq(schema.googleAccounts.userId, userId)
+      )
+    );
   }
 
-  async disconnectGoogleAccount(id: number): Promise<void> {
+  async disconnectGoogleAccount(id: number, userId: string): Promise<void> {
     // COMPLETE DELETION: Remove account entirely from database
     await this.db
       .delete(schema.googleAccounts)
-      .where(eq(schema.googleAccounts.id, id));
+      .where(
+        and(
+          eq(schema.googleAccounts.id, id),
+          eq(schema.googleAccounts.userId, userId)
+        )
+      );
   }
 
-  async getCampaignsUsingInbox(inboxId: number): Promise<{ id: number; name: string; status: string }[]> {
+  async getCampaignsUsingInbox(inboxId: number, userId: string): Promise<{ id: number; name: string; status: string }[]> {
     try {
-      // Get all campaigns and filter those that include this inbox
-      const campaigns = await this.db.select().from(schema.campaigns);
+      // Get user's campaigns and filter those that include this inbox
+      const campaigns = await this.db.select().from(schema.campaigns).where(eq(schema.campaigns.userId, userId));
       
       return campaigns
         .filter(campaign => {
@@ -754,8 +817,8 @@ class PostgresStorage implements IStorage {
     }
   }
 
-  async getAccountsWithStatus(): Promise<AccountWithStatus[]> {
-    const accounts = await this.getGoogleAccounts();
+  async getAccountsWithStatus(userId: string): Promise<AccountWithStatus[]> {
+    const accounts = await this.getGoogleAccounts(userId);
     return accounts.map(account => ({
       ...account,
       nextAvailable: null,
@@ -793,12 +856,17 @@ class PostgresStorage implements IStorage {
   }
 
   // Campaigns
-  async getCampaigns(): Promise<Campaign[]> {
-    return await this.db.select().from(schema.campaigns).orderBy(desc(schema.campaigns.createdAt));
+  async getCampaigns(userId: string): Promise<Campaign[]> {
+    return await this.db.select().from(schema.campaigns).where(eq(schema.campaigns.userId, userId)).orderBy(desc(schema.campaigns.createdAt));
   }
 
-  async getCampaign(id: number): Promise<Campaign | undefined> {
-    const result = await this.db.select().from(schema.campaigns).where(eq(schema.campaigns.id, id));
+  async getCampaign(id: number, userId: string): Promise<Campaign | undefined> {
+    const result = await this.db.select().from(schema.campaigns).where(
+      and(
+        eq(schema.campaigns.id, id),
+        eq(schema.campaigns.userId, userId)
+      )
+    );
     return result[0];
   }
 
@@ -807,12 +875,17 @@ class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async updateCampaign(id: number, updates: Partial<Campaign>): Promise<Campaign> {
-    const result = await this.db.update(schema.campaigns).set(updates).where(eq(schema.campaigns.id, id)).returning();
+  async updateCampaign(id: number, updates: Partial<Campaign>, userId: string): Promise<Campaign> {
+    const result = await this.db.update(schema.campaigns).set(updates).where(
+      and(
+        eq(schema.campaigns.id, id),
+        eq(schema.campaigns.userId, userId)
+      )
+    ).returning();
     return result[0];
   }
 
-  async deleteCampaign(id: number): Promise<void> {
+  async deleteCampaign(id: number, userId: string): Promise<void> {
     // First check if there are any processing queue items
     const processingItems = await this.db.select()
       .from(schema.inviteQueue)
@@ -835,12 +908,17 @@ class PostgresStorage implements IStorage {
     await this.db.delete(schema.invites).where(eq(schema.invites.campaignId, id));
     await this.db.delete(schema.activityLogs).where(eq(schema.activityLogs.campaignId, id));
     
-    // Finally delete the campaign
-    await this.db.delete(schema.campaigns).where(eq(schema.campaigns.id, id));
+    // Finally delete the campaign (with user filtering)
+    await this.db.delete(schema.campaigns).where(
+      and(
+        eq(schema.campaigns.id, id),
+        eq(schema.campaigns.userId, userId)
+      )
+    );
   }
 
-  async getCampaignsWithStats(): Promise<CampaignWithStats[]> {
-    const campaigns = await this.getCampaigns();
+  async getCampaignsWithStats(userId: string): Promise<CampaignWithStats[]> {
+    const campaigns = await this.getCampaigns(userId);
     const campaignsWithStats: CampaignWithStats[] = [];
 
     for (const campaign of campaigns) {
@@ -888,15 +966,25 @@ class PostgresStorage implements IStorage {
   }
 
   // Invites
-  async getInvites(campaignId?: number): Promise<Invite[]> {
+  async getInvites(userId: string, campaignId?: number): Promise<Invite[]> {
     if (campaignId) {
-      return await this.db.select().from(schema.invites).where(eq(schema.invites.campaignId, campaignId));
+      return await this.db.select().from(schema.invites).where(
+        and(
+          eq(schema.invites.campaignId, campaignId),
+          eq(schema.invites.userId, userId)
+        )
+      );
     }
-    return await this.db.select().from(schema.invites).orderBy(desc(schema.invites.createdAt));
+    return await this.db.select().from(schema.invites).where(eq(schema.invites.userId, userId)).orderBy(desc(schema.invites.createdAt));
   }
 
-  async getInvite(id: number): Promise<Invite | undefined> {
-    const result = await this.db.select().from(schema.invites).where(eq(schema.invites.id, id));
+  async getInvite(id: number, userId: string): Promise<Invite | undefined> {
+    const result = await this.db.select().from(schema.invites).where(
+      and(
+        eq(schema.invites.id, id),
+        eq(schema.invites.userId, userId)
+      )
+    );
     return result[0];
   }
 
@@ -905,42 +993,64 @@ class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async updateInvite(id: number, updates: Partial<Invite>): Promise<Invite> {
-    const result = await this.db.update(schema.invites).set(updates).where(eq(schema.invites.id, id)).returning();
+  async updateInvite(id: number, updates: Partial<Invite>, userId: string): Promise<Invite> {
+    const result = await this.db.update(schema.invites).set(updates).where(
+      and(
+        eq(schema.invites.id, id),
+        eq(schema.invites.userId, userId)
+      )
+    ).returning();
     return result[0];
   }
 
-  async getInvitesByStatus(status: string): Promise<Invite[]> {
-    return await this.db.select().from(schema.invites).where(eq(schema.invites.status, status));
+  async getInvitesByStatus(status: string, userId: string): Promise<Invite[]> {
+    return await this.db.select().from(schema.invites).where(
+      and(
+        eq(schema.invites.status, status),
+        eq(schema.invites.userId, userId)
+      )
+    );
   }
 
-  async getInvitesToday(): Promise<number> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const result = await this.db.select({ count: count() }).from(schema.invites)
-      .where(sql`${schema.invites.createdAt} >= ${today}`);
-    return result[0]?.count || 0;
-  }
-
-  async getAcceptedInvites(): Promise<number> {
-    const result = await this.db.select({ count: count() }).from(schema.invites)
-      .where(eq(schema.invites.status, 'accepted'));
-    return result[0]?.count || 0;
-  }
-
-  async getInvitesTodayByAccount(accountId: number): Promise<number> {
+  async getInvitesToday(userId: string): Promise<number> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const result = await this.db.select({ count: count() }).from(schema.invites)
       .where(and(
+        eq(schema.invites.userId, userId),
+        sql`${schema.invites.createdAt} >= ${today}`
+      ));
+    return result[0]?.count || 0;
+  }
+
+  async getAcceptedInvites(userId: string): Promise<number> {
+    const result = await this.db.select({ count: count() }).from(schema.invites)
+      .where(and(
+        eq(schema.invites.userId, userId),
+        eq(schema.invites.status, 'accepted')
+      ));
+    return result[0]?.count || 0;
+  }
+
+  async getInvitesTodayByAccount(accountId: number, userId: string): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const result = await this.db.select({ count: count() }).from(schema.invites)
+      .where(and(
+        eq(schema.invites.userId, userId),
         eq(schema.invites.googleAccountId, accountId),
         sql`${schema.invites.sentAt} >= ${today}`
       ));
     return result[0]?.count || 0;
   }
 
-  async getInvitesByRsvpStatus(rsvpStatus: string): Promise<Invite[]> {
-    return await this.db.select().from(schema.invites).where(eq(schema.invites.rsvpStatus, rsvpStatus));
+  async getInvitesByRsvpStatus(rsvpStatus: string, userId: string): Promise<Invite[]> {
+    return await this.db.select().from(schema.invites).where(
+      and(
+        eq(schema.invites.rsvpStatus, rsvpStatus),
+        eq(schema.invites.userId, userId)
+      )
+    );
   }
 
   async updateInviteRsvpStatus(inviteId: number, rsvpStatus: string, source: string, webhookPayload?: any): Promise<void> {
@@ -1009,14 +1119,21 @@ class PostgresStorage implements IStorage {
   }
 
   // RSVP Events
-  async getRsvpEvents(inviteId?: number): Promise<RsvpEvent[]> {
+  async getRsvpEvents(inviteId?: number, userId?: string): Promise<RsvpEvent[]> {
+    const conditions = [];
     if (inviteId) {
-      return await this.db.select().from(schema.rsvpEvents)
-        .where(eq(schema.rsvpEvents.inviteId, inviteId))
-        .orderBy(desc(schema.rsvpEvents.createdAt));
+      conditions.push(eq(schema.rsvpEvents.inviteId, inviteId));
     }
-    return await this.db.select().from(schema.rsvpEvents)
-      .orderBy(desc(schema.rsvpEvents.createdAt));
+    if (userId) {
+      conditions.push(eq(schema.rsvpEvents.userId, userId));
+    }
+    
+    let query = this.db.select().from(schema.rsvpEvents);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    return await query.orderBy(desc(schema.rsvpEvents.createdAt));
   }
 
   async createRsvpEvent(event: InsertRsvpEvent): Promise<RsvpEvent> {
@@ -1024,9 +1141,14 @@ class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getRsvpHistory(inviteId: number): Promise<RsvpEvent[]> {
+  async getRsvpHistory(inviteId: number, userId?: string): Promise<RsvpEvent[]> {
+    const conditions = [eq(schema.rsvpEvents.inviteId, inviteId)];
+    if (userId) {
+      conditions.push(eq(schema.rsvpEvents.userId, userId));
+    }
+    
     return await this.db.select().from(schema.rsvpEvents)
-      .where(eq(schema.rsvpEvents.inviteId, inviteId))
+      .where(and(...conditions))
       .orderBy(schema.rsvpEvents.responseAt);
   }
 
@@ -1057,8 +1179,14 @@ class PostgresStorage implements IStorage {
   }
 
   // Activity Logs
-  async getActivityLogs(limit = 50): Promise<ActivityLog[]> {
-    return await this.db.select().from(schema.activityLogs)
+  async getActivityLogs(limit = 50, userId?: string): Promise<ActivityLog[]> {
+    let query = this.db.select().from(schema.activityLogs);
+    
+    if (userId) {
+      query = query.where(eq(schema.activityLogs.userId, userId));
+    }
+    
+    return await query
       .orderBy(desc(schema.activityLogs.createdAt))
       .limit(limit);
   }
@@ -1133,15 +1261,19 @@ class PostgresStorage implements IStorage {
   }
 
   // Dashboard
-  async getDashboardStats(): Promise<DashboardStats> {
+  async getDashboardStats(userId: string): Promise<DashboardStats> {
     const campaigns = await this.db.select({ count: count() }).from(schema.campaigns)
-      .where(eq(schema.campaigns.status, 'active'));
+      .where(and(
+        eq(schema.campaigns.userId, userId),
+        eq(schema.campaigns.status, 'active')
+      ));
     const activeCampaigns = campaigns[0]?.count || 0;
 
-    const invitesToday = await this.getInvitesToday();
-    const acceptedInvites = await this.getAcceptedInvites();
+    const invitesToday = await this.getInvitesToday(userId);
+    const acceptedInvites = await this.getAcceptedInvites(userId);
     
-    const accounts = await this.db.select({ count: count() }).from(schema.googleAccounts);
+    const accounts = await this.db.select({ count: count() }).from(schema.googleAccounts)
+      .where(eq(schema.googleAccounts.userId, userId));
     const outlookAccounts = await this.db.select({ count: count() }).from(schema.outlookAccounts);
     const connectedAccounts = (accounts[0]?.count || 0) + (outlookAccounts[0]?.count || 0);
 
@@ -1165,7 +1297,7 @@ class PostgresStorage implements IStorage {
     };
   }
 
-  async getCampaignInboxStats(campaignId: number): Promise<Array<{
+  async getCampaignInboxStats(campaignId: number, userId: string): Promise<Array<{
     inboxId: number;
     email: string;
     name: string;
@@ -1178,23 +1310,24 @@ class PostgresStorage implements IStorage {
     dailyLimit: number;
     dailyUsed: number;
   }>> {
-    const campaign = await this.getCampaign(campaignId);
+    const campaign = await this.getCampaign(campaignId, userId);
     if (!campaign) return [];
 
     const stats: Array<any> = [];
     
     for (const inboxId of campaign.selectedInboxes) {
-      const inbox = await this.getGoogleAccount(inboxId);
+      const inbox = await this.getGoogleAccount(inboxId, userId);
       if (!inbox) continue;
 
-      // Get campaign-specific invite statistics
+      // Get campaign-specific invite statistics for this user
       const campaignInvites = await this.db.select().from(schema.invites)
         .where(and(
           eq(schema.invites.campaignId, campaignId),
-          eq(schema.invites.googleAccountId, inboxId)
+          eq(schema.invites.googleAccountId, inboxId),
+          eq(schema.invites.userId, userId)
         ));
 
-      const dailyUsed = await this.getInvitesTodayByAccount(inboxId);
+      const dailyUsed = await this.getInvitesTodayByAccount(inboxId, userId);
 
       stats.push({
         inboxId: inbox.id,
@@ -1214,7 +1347,7 @@ class PostgresStorage implements IStorage {
     return stats;
   }
 
-  async getCampaignDetailedStats(campaignId: number): Promise<{
+  async getCampaignDetailedStats(campaignId: number, userId: string): Promise<{
     totalProspects: number;
     invitesSent: number;
     pending: number;
@@ -1226,9 +1359,12 @@ class PostgresStorage implements IStorage {
     inboxUsage: Array<{ inboxId: number; email: string; usage: number; limit: number }>;
   }> {
     const campaignInvites = await this.db.select().from(schema.invites)
-      .where(eq(schema.invites.campaignId, campaignId));
+      .where(and(
+        eq(schema.invites.campaignId, campaignId),
+        eq(schema.invites.userId, userId)
+      ));
 
-    const campaign = await this.getCampaign(campaignId);
+    const campaign = await this.getCampaign(campaignId, userId);
     const csvData = campaign?.csvData as any[];
     
     const stats = {
@@ -1264,9 +1400,9 @@ class PostgresStorage implements IStorage {
     // Generate inbox usage stats
     if (campaign) {
       for (const inboxId of campaign.selectedInboxes) {
-        const inbox = await this.getGoogleAccount(inboxId);
+        const inbox = await this.getGoogleAccount(inboxId, userId);
         if (inbox) {
-          const dailyUsed = await this.getInvitesTodayByAccount(inboxId);
+          const dailyUsed = await this.getInvitesTodayByAccount(inboxId, userId);
           stats.inboxUsage.push({
             inboxId: inbox.id,
             email: inbox.email,

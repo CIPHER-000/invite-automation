@@ -135,7 +135,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats - protected route
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
-      const stats = await storage.getDashboardStats();
+      const userId = (req as any).user.id;
+      const stats = await storage.getDashboardStats(userId);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to get dashboard stats" });
@@ -263,8 +264,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { accessToken, refreshToken, expiresAt, userInfo } = 
         await googleAuthService.exchangeCodeForTokens(code);
 
-      // Check if account already exists
-      const existingAccount = await storage.getGoogleAccountByEmail(userInfo.email);
+      // Check if account already exists for this user
+      const userId = (req as any).user.id;
+      const existingAccount = await storage.getGoogleAccountByEmail(userInfo.email, userId);
       
       if (existingAccount) {
         // Update existing account
@@ -283,7 +285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           metadata: { email: userInfo.email, name: userInfo.name, action: "reconnected" }
         });
       } else {
-        // Create new account
+        // Create new account for this user
         const newAccount = await storage.createGoogleAccount({
           email: userInfo.email,
           name: userInfo.name,
@@ -291,6 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           refreshToken,
           expiresAt,
           isActive: true,
+          userId: userId,
         });
         
         // Log new account connection
@@ -351,21 +354,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Google Accounts
-  app.get("/api/accounts", async (req, res) => {
+  app.get("/api/accounts", requireAuth, async (req, res) => {
     try {
-      const accounts = await storage.getAccountsWithStatus();
+      const userId = (req as any).user.id;
+      const accounts = await storage.getAccountsWithStatus(userId);
       res.json(accounts);
     } catch (error) {
       res.status(500).json({ error: "Failed to get accounts" });
     }
   });
 
-  app.delete("/api/accounts/:id", async (req, res) => {
+  app.delete("/api/accounts/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
       
-      // Get the account first
-      const account = await storage.getGoogleAccount(id);
+      // Get the account first (ensure it belongs to this user)
+      const account = await storage.getGoogleAccount(id, userId);
       if (!account) {
         return res.status(404).json({ error: "Account not found" });
       }
@@ -412,8 +417,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("Failed to log deletion:", logError);
       }
 
-      // Delete the account
-      await storage.deleteGoogleAccount(id);
+      // Delete the account (ensure user owns it)
+      await storage.deleteGoogleAccount(id, userId);
       
       res.json({ 
         success: true,
@@ -425,10 +430,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/accounts/:id/toggle", async (req, res) => {
+  app.put("/api/accounts/:id/toggle", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const account = await storage.getGoogleAccount(id);
+      const userId = (req as any).user.id;
+      const account = await storage.getGoogleAccount(id, userId);
       
       if (!account) {
         return res.status(404).json({ error: "Account not found" });
@@ -436,7 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateGoogleAccount(id, {
         isActive: !account.isActive,
-      });
+      }, userId);
 
       res.json({ success: true });
     } catch (error) {
@@ -447,7 +453,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Campaigns - protected
   app.get("/api/campaigns", requireAuth, async (req, res) => {
     try {
-      const campaigns = await storage.getCampaignsWithStats();
+      const userId = (req as any).user.id;
+      const campaigns = await storage.getCampaignsWithStats(userId);
       res.json(campaigns);
     } catch (error) {
       res.status(500).json({ error: "Failed to get campaigns" });
@@ -457,7 +464,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/campaigns/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const campaign = await storage.getCampaign(id);
+      const userId = (req as any).user.id;
+      const campaign = await storage.getCampaign(id, userId);
       
       if (!campaign) {
         return res.status(404).json({ error: "Campaign not found" });
@@ -489,7 +497,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         campaignData.randomizedSlots = slots;
       }
       
-      const validatedData = insertCampaignSchema.parse(campaignData);
+      const userId = (req as any).user.id;
+      const validatedData = insertCampaignSchema.parse({
+        ...campaignData,
+        userId: userId
+      });
       const campaign = await storage.createCampaign(validatedData);
       
       // Log campaign creation
@@ -519,9 +531,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/campaigns/:id", async (req, res) => {
+  app.put("/api/campaigns/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
       const updates = req.body;
       
       // CRITICAL FIX: Cancel queue when campaign is paused/stopped
@@ -529,17 +542,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await campaignProcessor.cancelCampaignQueue(id);
       }
       
-      const campaign = await storage.updateCampaign(id, updates);
+      const campaign = await storage.updateCampaign(id, updates, userId);
       res.json(campaign);
     } catch (error) {
       res.status(500).json({ error: "Failed to update campaign" });
     }
   });
 
-  app.delete("/api/campaigns/:id", async (req, res) => {
+  app.delete("/api/campaigns/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      await storage.deleteCampaign(id);
+      const userId = (req as any).user.id;
+      await storage.deleteCampaign(id, userId);
       res.json({ success: true });
     } catch (error: any) {
       console.error("Campaign deletion error:", error);
@@ -726,10 +740,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Invites
-  app.get("/api/invites", async (req, res) => {
+  app.get("/api/invites", requireAuth, async (req, res) => {
     try {
       const { campaignId } = req.query;
+      const userId = (req as any).user.id;
       const invites = await storage.getInvites(
+        userId,
         campaignId ? parseInt(campaignId as string) : undefined
       );
       res.json(invites);
@@ -739,7 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // OAuth Calendar Management
-  app.post("/api/oauth-calendar/test-invite", async (req, res) => {
+  app.post("/api/oauth-calendar/test-invite", requireAuth, async (req, res) => {
     try {
       const { prospectEmail, eventTitle, eventDescription, accountId } = req.body;
       
@@ -747,7 +763,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      const account = await storage.getGoogleAccount(parseInt(accountId));
+      const userId = (req as any).user.id;
+      const account = await storage.getGoogleAccount(parseInt(accountId), userId);
       if (!account || !account.isActive) {
         return res.status(404).json({ error: "Account not found or inactive" });
       }
@@ -808,7 +825,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/oauth-calendar/test-access", async (req, res) => {
+  app.post("/api/oauth-calendar/test-access", requireAuth, async (req, res) => {
     try {
       const { accountId } = req.body;
       
@@ -816,7 +833,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Account ID required" });
       }
 
-      const account = await storage.getGoogleAccount(parseInt(accountId));
+      const userId = (req as any).user.id;
+      const account = await storage.getGoogleAccount(parseInt(accountId), userId);
       if (!account) {
         return res.status(404).json({ error: "Account not found" });
       }
@@ -843,9 +861,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/oauth-calendar/accounts", async (req, res) => {
+  app.get("/api/oauth-calendar/accounts", requireAuth, async (req, res) => {
     try {
-      const accounts = await storage.getGoogleAccounts();
+      const userId = (req as any).user.id;
+      const accounts = await storage.getGoogleAccounts(userId);
       
       // Filter out service account and organization user tokens
       const oauthAccounts = accounts.filter(account => 
@@ -868,10 +887,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/oauth-calendar/accounts/:id/daily-stats", async (req, res) => {
+  app.get("/api/oauth-calendar/accounts/:id/daily-stats", requireAuth, async (req, res) => {
     try {
       const accountId = parseInt(req.params.id);
-      const invitesToday = await storage.getInvitesTodayByAccount(accountId);
+      const userId = (req as any).user.id;
+      const invitesToday = await storage.getInvitesTodayByAccount(accountId, userId);
       const maxDailyLimit = 20; // Per-inbox daily limit
       
       res.json({
@@ -885,10 +905,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Campaign Analytics API endpoints
-  app.get("/api/campaigns/:id/inbox-stats", async (req, res) => {
+  app.get("/api/campaigns/:id/inbox-stats", requireAuth, async (req, res) => {
     try {
       const campaignId = parseInt(req.params.id);
-      const stats = await storage.getCampaignInboxStats(campaignId);
+      const userId = (req as any).user.id;
+      const stats = await storage.getCampaignInboxStats(campaignId, userId);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching campaign inbox stats:", error);
@@ -896,10 +917,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/campaigns/:id/detailed-stats", async (req, res) => {
+  app.get("/api/campaigns/:id/detailed-stats", requireAuth, async (req, res) => {
     try {
       const campaignId = parseInt(req.params.id);
-      const stats = await storage.getCampaignDetailedStats(campaignId);
+      const userId = (req as any).user.id;
+      const stats = await storage.getCampaignDetailedStats(campaignId, userId);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching campaign detailed stats:", error);
@@ -907,12 +929,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/oauth-calendar/accounts/:id", async (req, res) => {
+  app.delete("/api/oauth-calendar/accounts/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
       
       // Get the account first
-      const account = await storage.getGoogleAccount(id);
+      const account = await storage.getGoogleAccount(id, userId);
       if (!account) {
         return res.status(404).json({ error: "Account not found" });
       }
@@ -980,7 +1003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Delete the account
-      await storage.deleteGoogleAccount(id);
+      await storage.deleteGoogleAccount(id, userId);
       console.log(`OAuth account ${account.email} deleted successfully`);
       
       res.json({ 
@@ -994,11 +1017,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // RSVP Tracking API
-  app.get("/api/rsvp/events", async (req, res) => {
+  app.get("/api/rsvp/events", requireAuth, async (req, res) => {
     try {
       const { inviteId } = req.query;
+      const userId = (req as any).user.id;
       const events = await storage.getRsvpEvents(
-        inviteId ? parseInt(inviteId as string) : undefined
+        inviteId ? parseInt(inviteId as string) : undefined,
+        userId
       );
       res.json(events);
     } catch (error) {
@@ -1006,10 +1031,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/rsvp/history/:inviteId", async (req, res) => {
+  app.get("/api/rsvp/history/:inviteId", requireAuth, async (req, res) => {
     try {
       const inviteId = parseInt(req.params.inviteId);
-      const history = await storage.getRsvpHistory(inviteId);
+      const userId = (req as any).user.id;
+      const history = await storage.getRsvpHistory(inviteId, userId);
       res.json(history);
     } catch (error) {
       res.status(500).json({ error: "Failed to get RSVP history" });
@@ -1039,10 +1065,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/invites/by-status/:rsvpStatus", async (req, res) => {
+  app.get("/api/invites/by-status/:rsvpStatus", requireAuth, async (req, res) => {
     try {
       const { rsvpStatus } = req.params;
-      const invites = await storage.getInvitesByRsvpStatus(rsvpStatus);
+      const userId = (req as any).user.id;
+      const invites = await storage.getInvitesByRsvpStatus(rsvpStatus, userId);
       res.json(invites);
     } catch (error) {
       res.status(500).json({ error: "Failed to get invites by RSVP status" });
