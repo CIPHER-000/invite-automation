@@ -63,6 +63,10 @@ export const campaigns = pgTable("campaigns", {
   timeZone: text("time_zone").notNull().default("UTC"),
   selectedInboxes: integer("selected_inboxes").array().notNull().default([]), // Array of account IDs
   
+  // Campaign Rate Limiting Controls
+  maxInvitesPerInbox: integer("max_invites_per_inbox").notNull().default(20), // Max invites per inbox per day for this campaign
+  maxDailyCampaignInvites: integer("max_daily_campaign_invites").notNull().default(100), // Max total invites this campaign can send per day
+  
   // Advanced Scheduling Configuration
   schedulingMode: text("scheduling_mode").notNull().default("immediate"), // 'immediate' | 'advanced'
   dateRangeStart: timestamp("date_range_start"), // Start date for advanced scheduling

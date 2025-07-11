@@ -61,16 +61,36 @@ export class QueueManager {
         return;
       }
 
-      // Check global daily limit
-      const invitesToday = await storage.getInvitesToday();
-      if (invitesToday >= settings.dailyInviteLimit) {
-        console.log(`Daily global limit reached: ${invitesToday}/${settings.dailyInviteLimit}`);
-        return;
-      }
+      // REMOVED: Global daily limit - now controlled per campaign
 
       // Get next item from queue
       const nextItem = await storage.getNextQueueItem();
       if (!nextItem) {
+        return;
+      }
+
+      // Get campaign to check rate limits
+      const campaign = await storage.getCampaign(nextItem.campaignId);
+      if (!campaign) {
+        await storage.updateQueueItem(nextItem.id, {
+          status: "failed",
+          errorMessage: "Campaign not found"
+        });
+        return;
+      }
+
+      // Check campaign daily limit
+      const campaignInvitesToday = await this.getCampaignInvitesToday(nextItem.campaignId);
+      if (campaignInvitesToday >= campaign.maxDailyCampaignInvites) {
+        console.log(`Campaign ${campaign.name} has reached daily limit: ${campaignInvitesToday}/${campaign.maxDailyCampaignInvites}`);
+        // Reschedule for tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0); // 9 AM tomorrow
+        
+        await storage.updateQueueItem(nextItem.id, {
+          scheduledFor: tomorrow
+        });
         return;
       }
 
@@ -86,10 +106,10 @@ export class QueueManager {
           return;
         }
 
-        // Check if inbox has exceeded daily limit (20 invites per day)
+        // Check if inbox has exceeded campaign's per-inbox daily limit
         const inboxInvitesToday = await this.getInboxInvitesToday(prospectData.assignedInboxId);
-        if (inboxInvitesToday >= 20) {
-          console.log(`Inbox ${account.email} has reached daily limit: ${inboxInvitesToday}/20`);
+        if (inboxInvitesToday >= campaign.maxInvitesPerInbox) {
+          console.log(`Inbox ${account.email} has reached campaign limit: ${inboxInvitesToday}/${campaign.maxInvitesPerInbox}`);
           // Reschedule for tomorrow
           const tomorrow = new Date();
           tomorrow.setDate(tomorrow.getDate() + 1);
@@ -101,15 +121,19 @@ export class QueueManager {
           return;
         }
 
-        // Check if inbox is in cooldown (minimum 30 minutes between sends)
+        // CRITICAL: Check if inbox is in cooldown (minimum 30 minutes between sends) - 100% ENFORCED
         const lastUsed = account.lastUsed;
         if (lastUsed) {
-          const cooldownUntil = new Date(lastUsed.getTime() + (30 * 60 * 1000)); // 30 minutes
+          const cooldownUntil = new Date(lastUsed.getTime() + (30 * 60 * 1000)); // EXACTLY 30 minutes
           if (new Date() < cooldownUntil) {
-            console.log(`Inbox ${account.email} is in cooldown until ${cooldownUntil.toISOString()}`);
-            // Reschedule for after cooldown
+            const remainingMs = cooldownUntil.getTime() - new Date().getTime();
+            const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+            console.log(`ENFORCING 30-MIN GAP: Inbox ${account.email} is in cooldown for ${remainingMinutes} more minutes`);
+            
+            // Reschedule for after cooldown with 1-minute buffer
+            const rescheduleTime = new Date(cooldownUntil.getTime() + (1 * 60 * 1000));
             await storage.updateQueueItem(nextItem.id, {
-              scheduledFor: cooldownUntil
+              scheduledFor: rescheduleTime
             });
             return;
           }
@@ -146,6 +170,21 @@ export class QueueManager {
     const invites = await storage.getInvites();
     return invites.filter(invite => 
       invite.googleAccountId === inboxId &&
+      invite.sentAt &&
+      invite.sentAt >= startOfDay
+    ).length;
+  }
+
+  /**
+   * Get number of invites sent today for a specific campaign
+   */
+  private async getCampaignInvitesToday(campaignId: number): Promise<number> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const invites = await storage.getInvites();
+    return invites.filter(invite => 
+      invite.campaignId === campaignId &&
       invite.sentAt &&
       invite.sentAt >= startOfDay
     ).length;

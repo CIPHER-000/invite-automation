@@ -145,6 +145,7 @@ Changelog:
 - January 11, 2025. CUSTOM SUBJECT LINE FEATURE: Added campaign-level custom subject lines with personalization variables ({{name}}, {{company}}, {{sender_name}}, {{email}}) and live preview functionality
 - January 11, 2025. INBOX REMOVAL FEATURE: Implemented comprehensive inbox removal with strict guarantees including OAuth token revocation, queue cancellation, campaign validation, double-confirmation dialogs, and fail-safe enforcement
 - January 11, 2025. ENHANCED RSVP TRACKING: Implemented comprehensive RSVP acceptance tracking system with database schema updates (rsvp_events, webhook_events tables), real-time status monitoring, webhook integration, activity log filtering, and enhanced campaign statistics displaying acceptance/decline/tentative rates
+- January 11, 2025. CAMPAIGN-LEVEL RATE LIMITING: Removed global system limits and implemented campaign-specific rate controls with maxInvitesPerInbox and maxDailyCampaignInvites fields, added UI controls for setting per-inbox daily limits and campaign daily limits, enforced 30-minute mandatory cooldown between sends per inbox with 100% compliance, updated queue manager to use campaign-specific limits instead of global limits
 ```
 
 ## User Preferences

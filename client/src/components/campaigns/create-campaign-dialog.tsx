@@ -58,6 +58,10 @@ const campaignSchema = z.object({
   timeZone: z.string(),
   selectedInboxes: z.array(z.number()).min(1, "At least one inbox must be selected"),
   
+  // Rate Limiting Controls
+  maxInvitesPerInbox: z.number().min(1).max(50).default(20),
+  maxDailyCampaignInvites: z.number().min(1).max(500).default(100),
+  
   // Advanced scheduling fields
   schedulingMode: z.enum(["immediate", "advanced"]),
   dateRangeStart: z.string().optional(),
@@ -98,6 +102,8 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       eventDuration: 30,
       timeZone: "UTC",
       selectedInboxes: [],
+      maxInvitesPerInbox: 20,
+      maxDailyCampaignInvites: 100,
       dateRangeStart: undefined,
       dateRangeEnd: undefined,
       selectedDaysOfWeek: undefined,
@@ -563,6 +569,67 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Rate Limiting Controls */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                <h4 className="text-sm font-medium">Rate Limiting Controls</h4>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="maxInvitesPerInbox"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max Invites Per Inbox/Day</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="1" 
+                          max="50" 
+                          placeholder="20"
+                          {...field} 
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Maximum invites each inbox can send per day (recommended: 20 for best deliverability)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="maxDailyCampaignInvites"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max Daily Campaign Invites</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="1" 
+                          max="500" 
+                          placeholder="100"
+                          {...field} 
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Maximum total invites this campaign can send per day
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
+                <strong>Rate Limiting Enforcement:</strong> Each inbox has a mandatory 30-minute cooldown between sends. 
+                These limits help maintain excellent email deliverability and prevent your inboxes from being flagged as spam.
+              </div>
             </div>
 
             {/* Inbox Selection */}
