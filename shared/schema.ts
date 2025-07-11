@@ -11,6 +11,8 @@ export const googleAccounts = pgTable("google_accounts", {
   refreshToken: text("refresh_token").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  status: text("status").notNull().default("active"), // 'active', 'disconnected', 'revoked'
+  disconnectedAt: timestamp("disconnected_at"),
   lastUsed: timestamp("last_used"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

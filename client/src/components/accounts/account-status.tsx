@@ -29,12 +29,20 @@ export function AccountStatus({ account }: AccountStatusProps) {
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: () => api.deleteAccount(account.id),
+    mutationFn: async () => {
+      const response = await fetch(`/api/accounts/${account.id}/disconnect`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to disconnect account');
+      }
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts"] });
       toast({
         title: "Account removed",
-        description: "Google account has been disconnected.",
+        description: "Google account has been safely disconnected.",
       });
     },
     onError: () => {
@@ -142,7 +150,7 @@ export function AccountStatus({ account }: AccountStatusProps) {
               className="text-destructive"
             >
               <Trash2 size={14} className="mr-2" />
-              Remove
+              {deleteMutation.isPending ? "Removing..." : "Remove"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

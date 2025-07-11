@@ -143,6 +143,7 @@ Changelog:
 - January 11, 2025. CRITICAL FIXES: Fixed campaign pause/stop functionality - now properly cancels pending queue items when campaigns are paused
 - January 11, 2025. ADVANCED SCHEDULING FEATURE: Implemented comprehensive advanced scheduling with date ranges, day-of-week selection, time windows, timezone awareness, and randomized non-repeating time slots
 - January 11, 2025. CUSTOM SUBJECT LINE FEATURE: Added campaign-level custom subject lines with personalization variables ({{name}}, {{company}}, {{sender_name}}, {{email}}) and live preview functionality
+- January 11, 2025. INBOX REMOVAL FEATURE: Implemented comprehensive inbox removal with strict guarantees including OAuth token revocation, queue cancellation, campaign validation, double-confirmation dialogs, and fail-safe enforcement
 ```
 
 ## User Preferences

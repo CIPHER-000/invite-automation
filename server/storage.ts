@@ -36,6 +36,8 @@ export interface IStorage {
   createGoogleAccount(account: InsertGoogleAccount): Promise<GoogleAccount>;
   updateGoogleAccount(id: number, updates: Partial<GoogleAccount>): Promise<GoogleAccount>;
   deleteGoogleAccount(id: number): Promise<void>;
+  disconnectGoogleAccount(id: number): Promise<void>;
+  getCampaignsUsingInbox(inboxId: number): Promise<{ id: number; name: string; status: string }[]>;
   getAccountsWithStatus(): Promise<AccountWithStatus[]>;
 
   // Outlook Accounts
@@ -139,6 +141,32 @@ export class MemStorage implements IStorage {
 
   async deleteGoogleAccount(id: number): Promise<void> {
     this.googleAccounts.delete(id);
+  }
+
+  async disconnectGoogleAccount(id: number): Promise<void> {
+    const account = this.googleAccounts.get(id);
+    if (account) {
+      const updatedAccount = {
+        ...account,
+        isActive: false,
+        status: "disconnected" as const,
+        disconnectedAt: new Date(),
+        accessToken: "", // Clear tokens
+        refreshToken: "",
+      };
+      this.googleAccounts.set(id, updatedAccount);
+    }
+  }
+
+  async getCampaignsUsingInbox(inboxId: number): Promise<{ id: number; name: string; status: string }[]> {
+    const campaigns = Array.from(this.campaigns.values());
+    return campaigns
+      .filter(campaign => campaign.selectedInboxes?.includes(inboxId))
+      .map(campaign => ({
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status
+      }));
   }
 
   async getOutlookAccounts(): Promise<OutlookAccount[]> {
@@ -512,6 +540,33 @@ class PostgresStorage implements IStorage {
 
   async deleteGoogleAccount(id: number): Promise<void> {
     await this.db.delete(schema.googleAccounts).where(eq(schema.googleAccounts.id, id));
+  }
+
+  async disconnectGoogleAccount(id: number): Promise<void> {
+    await this.db
+      .update(schema.googleAccounts)
+      .set({
+        isActive: false,
+        status: "disconnected",
+        disconnectedAt: new Date(),
+        accessToken: "", // Clear sensitive tokens
+        refreshToken: "",
+      })
+      .where(eq(schema.googleAccounts.id, id));
+  }
+
+  async getCampaignsUsingInbox(inboxId: number): Promise<{ id: number; name: string; status: string }[]> {
+    // Use SQL to find campaigns that include this inbox in their selectedInboxes array
+    const result = await this.db
+      .select({
+        id: schema.campaigns.id,
+        name: schema.campaigns.name,
+        status: schema.campaigns.status,
+      })
+      .from(schema.campaigns)
+      .where(sql`${schema.campaigns.selectedInboxes} @> ${JSON.stringify([inboxId])}`);
+    
+    return result;
   }
 
   async getAccountsWithStatus(): Promise<AccountWithStatus[]> {

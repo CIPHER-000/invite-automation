@@ -17,12 +17,16 @@ import {
   RefreshCw,
   CheckCircle,
   Clock,
-  Power
+  Power,
+  Trash2
 } from "lucide-react";
+import { RemoveInboxDialog } from "@/components/inbox/remove-inbox-dialog";
 import type { AccountWithStatus } from "@shared/schema";
 
 export default function Accounts() {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [selectedInbox, setSelectedInbox] = useState<AccountWithStatus | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -419,7 +423,20 @@ export default function Accounts() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Remove Inbox Dialog */}
+        <RemoveInboxDialog
+          open={removeDialogOpen}
+          onOpenChange={setRemoveDialogOpen}
+          inbox={selectedInbox}
+        />
       </div>
     </div>
   );
+
+  // Helper function to handle remove inbox
+  const handleRemoveInbox = (account: AccountWithStatus) => {
+    setSelectedInbox(account);
+    setRemoveDialogOpen(true);
+  };
 }

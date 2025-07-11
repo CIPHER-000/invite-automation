@@ -981,6 +981,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check campaigns using specific inbox
+  app.get("/api/campaigns/using-inbox/:inboxId", async (req, res) => {
+    try {
+      const inboxId = parseInt(req.params.inboxId);
+      const campaigns = await storage.getCampaignsUsingInbox(inboxId);
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error checking campaigns using inbox:", error);
+      res.status(500).json({ error: "Failed to check campaigns" });
+    }
+  });
+
+  // Disconnect/remove inbox endpoint
+  app.post("/api/accounts/:id/disconnect", async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.id);
+      
+      // Get the account first to verify it exists
+      const account = await storage.getGoogleAccount(accountId);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      // Cancel all pending queue items for this inbox
+      const queueItems = await storage.getQueueItems("pending");
+      const itemsToCancel = queueItems.filter(item => {
+        const prospectData = item.prospectData as any;
+        return prospectData.assignedInboxId === accountId;
+      });
+
+      for (const item of itemsToCancel) {
+        await storage.updateQueueItem(item.id, {
+          status: "cancelled",
+        });
+      }
+
+      // Revoke OAuth tokens and disconnect account
+      try {
+        // Attempt to revoke Google OAuth tokens
+        const revokeUrl = `https://oauth2.googleapis.com/revoke?token=${account.refreshToken}`;
+        await fetch(revokeUrl, { method: 'POST' });
+      } catch (revokeError) {
+        console.warn("Failed to revoke OAuth tokens:", revokeError);
+        // Continue with disconnection even if token revocation fails
+      }
+
+      // Update account status to disconnected
+      await storage.disconnectGoogleAccount(accountId);
+
+      // Log the disconnection
+      await storage.createActivityLog({
+        type: "account_disconnected",
+        googleAccountId: accountId,
+        message: `Account ${account.email} has been disconnected and removed`,
+        metadata: {
+          email: account.email,
+          cancelledQueueItems: itemsToCancel.length,
+          action: "disconnect"
+        }
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Account disconnected successfully",
+        cancelledItems: itemsToCancel.length
+      });
+    } catch (error) {
+      console.error("Error disconnecting account:", error);
+      res.status(500).json({ error: "Failed to disconnect account" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

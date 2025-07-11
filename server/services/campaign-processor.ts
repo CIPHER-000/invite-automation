@@ -44,7 +44,8 @@ export class CampaignProcessor {
       const selectedAccounts: GoogleAccount[] = [];
       for (const inboxId of selectedInboxes) {
         const account = await storage.getGoogleAccount(inboxId);
-        if (account && account.isActive) {
+        // CRITICAL FAIL-SAFE: Only use accounts with active status
+        if (account && account.isActive && account.status === "active") {
           selectedAccounts.push(account);
         }
       }
@@ -246,6 +247,11 @@ export class CampaignProcessor {
     
     if (!availableAccount) {
       throw new Error("No available Google account from campaign's selected inboxes");
+    }
+
+    // CRITICAL FAIL-SAFE: Double check account status before using
+    if (availableAccount.status !== "active" || !availableAccount.isActive) {
+      throw new Error(`Account ${availableAccount.email} is not active (status: ${availableAccount.status})`);
     }
 
     const prospect = prospectData;
