@@ -7,14 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, SendIcon, TestTube2Icon, UserIcon, CheckCircleIcon, AlertCircleIcon, PlusIcon, Trash2, MoreHorizontal } from "lucide-react";
-import { RemoveInboxDialog } from "@/components/inbox/remove-inbox-dialog";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { CalendarIcon, SendIcon, TestTube2Icon, UserIcon, CheckCircleIcon, AlertCircleIcon, PlusIcon, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface OAuthAccount {
@@ -31,8 +24,7 @@ export default function OAuthCalendar() {
   const [eventTitle, setEventTitle] = useState("Quick Meeting Request");
   const [eventDescription, setEventDescription] = useState("I'd love to schedule a quick meeting to discuss potential collaboration opportunities.");
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
-  const [selectedInbox, setSelectedInbox] = useState<OAuthAccount | null>(null);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -71,6 +63,28 @@ export default function OAuthCalendar() {
         title: data.success ? "Calendar Access Verified" : "Access Failed",
         description: data.message,
         variant: data.success ? "default" : "destructive",
+      });
+    },
+  });
+
+  // Delete account mutation
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (accountId: number) => {
+      await apiRequest("DELETE", `/api/accounts/${accountId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Inbox Deleted",
+        description: "The inbox has been removed from the platform.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/oauth-calendar/accounts"] });
+    },
+    onError: (error) => {
+      console.error("Delete error:", error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete inbox. Please try again.",
+        variant: "destructive",
       });
     },
   });
@@ -191,30 +205,18 @@ export default function OAuthCalendar() {
                         <TestTube2Icon className="h-3 w-3 mr-1" />
                         Test
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedInbox(account);
-                              setRemoveDialogOpen(true);
-                            }}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Remove Inbox
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteAccountMutation.mutate(account.id);
+                        }}
+                        disabled={deleteAccountMutation.isPending}
+                        className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -347,12 +349,7 @@ export default function OAuthCalendar() {
         </CardContent>
       </Card>
 
-      {/* Remove Inbox Dialog */}
-      <RemoveInboxDialog
-        open={removeDialogOpen}
-        onOpenChange={setRemoveDialogOpen}
-        inbox={selectedInbox}
-      />
+
     </div>
   );
 }
