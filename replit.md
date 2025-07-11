@@ -138,6 +138,9 @@ Changelog:
 - January 8, 2025. Renamed "OAuth Calendar" to "Inbox Setup" throughout the application
 - January 8, 2025. Restructured dashboard to show campaigns as full-width vertical cards with better metrics display
 - January 8, 2025. Added sender name variable feature for personalized campaign messaging using {{sender_name}} merge field
+- January 11, 2025. CRITICAL FIXES: Fixed 30-minute minimum gap enforcement (was sending every 30 seconds instead of 30 minutes)
+- January 11, 2025. CRITICAL FIXES: Fixed inbox selection enforcement - now only uses campaign's selected inboxes instead of any available inbox
+- January 11, 2025. CRITICAL FIXES: Fixed campaign pause/stop functionality - now properly cancels pending queue items when campaigns are paused
 ```
 
 ## User Preferences

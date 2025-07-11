@@ -335,6 +335,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const updates = req.body;
       
+      // CRITICAL FIX: Cancel queue when campaign is paused/stopped
+      if (updates.status && (updates.status === "paused" || updates.status === "completed" || updates.isActive === false)) {
+        await campaignProcessor.cancelCampaignQueue(id);
+      }
+      
       const campaign = await storage.updateCampaign(id, updates);
       res.json(campaign);
     } catch (error) {

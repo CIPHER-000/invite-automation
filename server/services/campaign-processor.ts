@@ -32,55 +32,50 @@ export class CampaignProcessor {
         return;
       }
 
+      // Get campaign selected inboxes - CRITICAL FIX for inbox selection
+      const selectedInboxes = campaign.selectedInboxes || [];
+      if (selectedInboxes.length === 0) {
+        console.warn(`Campaign ${campaign.id} has no selected inboxes, skipping`);
+        return;
+      }
+
+      // Get only the selected accounts for this campaign
+      const selectedAccounts: GoogleAccount[] = [];
+      for (const inboxId of selectedInboxes) {
+        const account = await storage.getGoogleAccount(inboxId);
+        if (account && account.isActive) {
+          selectedAccounts.push(account);
+        }
+      }
+
+      if (selectedAccounts.length === 0) {
+        console.warn(`Campaign ${campaign.id} has no active selected inboxes available`);
+        return;
+      }
+
       // Get existing invites for this campaign to avoid duplicates
       const existingInvites = await storage.getInvites(campaign.id);
       const existingEmails = new Set(existingInvites.map(invite => invite.prospectEmail));
 
-      // Add new prospects to the queue with smart scheduling
+      // Add new prospects to the queue with proper 30-minute spacing
       for (let index = 0; index < prospects.length; index++) {
         const prospect = prospects[index];
         if (existingEmails.has(prospect.email)) {
           continue; // Skip already processed prospects
         }
 
-        // Convert prospect data to scheduling format
-        const prospectScheduleData: ProspectScheduleData = {
-          email: prospect.email,
-          timezone: prospect.timezone || prospect.time_zone,
-          preferredHours: prospect.preferred_hours || prospect.preferredHours,
-          preferredDays: prospect.preferred_days || prospect.preferredDays,
-        };
+        // Calculate proper schedule time with 30-minute gaps - CRITICAL FIX
+        const scheduledFor = this.calculateScheduleTimeWithProperGaps(index);
 
-        // Get best available inbox for this prospect
-        const availableInbox = await inboxLoadBalancer.getBestAvailableInbox();
-        if (!availableInbox) {
-          console.warn(`No available inbox for prospect ${prospect.email}, using fallback scheduling`);
-          // Fallback to old method if no inbox available
-          const scheduledFor = this.calculateScheduleTime(index);
-          await storage.createQueueItem({
-            campaignId: campaign.id,
-            prospectData: prospect as any,
-            scheduledFor,
-            status: "pending",
-            attempts: 0,
-          });
-          continue;
-        }
-
-        // Generate smart time slot
-        const scheduledFor = timeSlotManager.generateTimeSlot(
-          prospectScheduleData,
-          campaign,
-          availableInbox.email,
-          new Date()
-        );
+        // Select inbox from campaign's selected inboxes only - CRITICAL FIX
+        const selectedAccount = selectedAccounts[index % selectedAccounts.length];
 
         await storage.createQueueItem({
           campaignId: campaign.id,
           prospectData: {
             ...prospect,
-            assignedInboxId: availableInbox.id,
-            assignedInboxEmail: availableInbox.email,
+            assignedInboxId: selectedAccount.id,
+            assignedInboxEmail: selectedAccount.email,
           } as any,
           scheduledFor,
           status: "pending",
@@ -89,9 +84,9 @@ export class CampaignProcessor {
 
         await storage.createActivityLog({
           type: "prospect_scheduled",
-          message: `Prospect ${prospect.email} scheduled for ${scheduledFor.toLocaleString()} via ${availableInbox.email}`,
+          message: `Prospect ${prospect.email} scheduled for ${scheduledFor.toLocaleString()} via ${selectedAccount.email}`,
           campaignId: campaign.id,
-          googleAccountId: availableInbox.id,
+          googleAccountId: selectedAccount.id,
         });
       }
 
@@ -146,6 +141,7 @@ export class CampaignProcessor {
     const campaigns = await storage.getCampaigns();
     
     for (const campaign of campaigns) {
+      // CRITICAL FIX: Only process truly active campaigns
       if (campaign.status === "active" && campaign.isActive) {
         await this.processCampaign(campaign);
       }
@@ -153,9 +149,16 @@ export class CampaignProcessor {
   }
 
   private calculateScheduleTime(index: number): Date {
-    // Send invites starting 1 minute from now, with 30 seconds between each
+    // Send invites starting 1 minute from now, with 30 seconds between each (LEGACY METHOD)
     const now = new Date();
     const minutesDelay = 1 + (index * 0.5); // Start at 1 minute, then 30 seconds between each
+    return new Date(now.getTime() + minutesDelay * 60000);
+  }
+
+  private calculateScheduleTimeWithProperGaps(index: number): Date {
+    // CRITICAL FIX: Send invites with minimum 30-minute gaps
+    const now = new Date();
+    const minutesDelay = 2 + (index * 30); // Start at 2 minutes, then 30 minutes between each
     return new Date(now.getTime() + minutesDelay * 60000);
   }
 
@@ -176,25 +179,45 @@ export class CampaignProcessor {
       throw new Error("Campaign not found");
     }
 
-    // Use load balancer to get best available inbox
+    // CRITICAL FIX: Check campaign status before processing
+    if (campaign.status !== "active" || !campaign.isActive) {
+      console.log(`Skipping queue item for paused/inactive campaign ${campaign.id}`);
+      await storage.updateQueueItem(queueItem.id, {
+        status: "cancelled",
+      });
+      return;
+    }
+
+    // CRITICAL FIX: Only use pre-assigned inbox from campaign's selected inboxes
     let availableAccount: GoogleAccount | null = null;
     
-    // Check if prospect has pre-assigned inbox
+    // Check if prospect has pre-assigned inbox from campaign selection
     const prospectData = queueItem.prospectData as ProspectData;
     if (prospectData.assignedInboxId) {
       const assignedAccount = await storage.getGoogleAccount(prospectData.assignedInboxId);
       if (assignedAccount && assignedAccount.isActive) {
-        availableAccount = assignedAccount;
+        // Verify this account is in campaign's selected inboxes
+        const selectedInboxes = campaign.selectedInboxes || [];
+        if (selectedInboxes.includes(assignedAccount.id)) {
+          availableAccount = assignedAccount;
+        }
       }
     }
     
-    // If no assigned account or it's not available, get best one
+    // If no assigned account, select from campaign's selected inboxes only
     if (!availableAccount) {
-      availableAccount = await inboxLoadBalancer.getBestAvailableInbox();
+      const selectedInboxes = campaign.selectedInboxes || [];
+      for (const inboxId of selectedInboxes) {
+        const account = await storage.getGoogleAccount(inboxId);
+        if (account && account.isActive) {
+          availableAccount = account;
+          break;
+        }
+      }
     }
     
     if (!availableAccount) {
-      throw new Error("No available Google account");
+      throw new Error("No available Google account from campaign's selected inboxes");
     }
 
     const prospect = prospectData;
@@ -327,6 +350,31 @@ export class CampaignProcessor {
       const bLastUsed = b.lastUsed?.getTime() || 0;
       return aLastUsed - bLastUsed;
     })[0];
+  }
+
+  // Cancel all pending queue items for a campaign when it's paused/stopped
+  async cancelCampaignQueue(campaignId: number): Promise<void> {
+    try {
+      const pendingItems = await storage.getQueueItems("pending");
+      const campaignItems = pendingItems.filter(item => item.campaignId === campaignId);
+      
+      for (const item of campaignItems) {
+        await storage.updateQueueItem(item.id, {
+          status: "cancelled",
+        });
+      }
+
+      await storage.createActivityLog({
+        type: "campaign_queue_cancelled",
+        campaignId,
+        message: `Cancelled ${campaignItems.length} pending queue items for campaign`,
+        metadata: { cancelledItems: campaignItems.length },
+      });
+
+      console.log(`Cancelled ${campaignItems.length} pending queue items for campaign ${campaignId}`);
+    } catch (error) {
+      console.error(`Error cancelling queue for campaign ${campaignId}:`, error);
+    }
   }
 }
 
