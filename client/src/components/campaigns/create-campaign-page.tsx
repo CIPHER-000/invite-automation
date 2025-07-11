@@ -629,70 +629,39 @@ export default function CreateCampaignPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="h-5 w-5" />
-                      Scheduling Configuration
+                      Campaign Scheduling Setup
                     </CardTitle>
                     <CardDescription>
-                      Choose when and how invites should be sent
+                      Configure both your invite sending rates and proposed meeting time slots
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <Label className="text-sm font-medium">Scheduling Mode</Label>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="immediate"
-                            value="immediate"
-                            checked={schedulingMode === "immediate"}
-                            onChange={(e) => setSchedulingMode(e.target.value as "immediate" | "advanced")}
-                            className="h-4 w-4"
-                          />
-                          <Label htmlFor="immediate" className="cursor-pointer">
-                            Immediate - Start sending invites right away
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="advanced"
-                            value="advanced"
-                            checked={schedulingMode === "advanced"}
-                            onChange={(e) => setSchedulingMode(e.target.value as "immediate" | "advanced")}
-                            className="h-4 w-4"
-                          />
-                          <Label htmlFor="advanced" className="cursor-pointer">
-                            Advanced - Configure specific date ranges and time windows
-                          </Label>
-                        </div>
-                      </div>
-                    </div>
-
-                    {schedulingMode === "advanced" && (
-                      <div className="border rounded-lg p-4">
-                        <AdvancedSchedulingForm
-                          totalProspects={csvData.length}
-                          onValidate={handleAdvancedSchedulingValidation}
-                          onChange={handleAdvancedSchedulingChange}
-                          initialData={advancedSchedulingData || undefined}
-                        />
-                      </div>
-                    )}
-
-                    <Separator />
-
+                  <CardContent className="space-y-8">
+                    
+                    {/* Section 1: Invite Sending Rate (How fast we send emails) */}
                     <div className="space-y-4">
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <h4 className="text-sm font-medium">Rate Limiting Controls</h4>
+                        <Target className="h-5 w-5 text-blue-600" />
+                        <h3 className="text-lg font-semibold">1. Invite Sending Rate Limits</h3>
                       </div>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                        <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
+                          <strong>Controls how many email invites we send per day.</strong> This is about delivery rate, not meeting times.
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-300">
+                          Example: Set 20 invites/day per inbox means we'll send 20 emails daily from each selected inbox.
+                        </p>
+                      </div>
+                      
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
                           name="maxInvitesPerInbox"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Max Invites Per Inbox/Day</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <Mail className="h-4 w-4" />
+                                Max Invites Per Inbox/Day
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
@@ -703,6 +672,9 @@ export default function CreateCampaignPage() {
                                   onChange={(e) => field.onChange(parseInt(e.target.value))}
                                 />
                               </FormControl>
+                              <FormDescription>
+                                How many emails each inbox can send daily
+                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -713,7 +685,10 @@ export default function CreateCampaignPage() {
                           name="maxDailyCampaignInvites"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Max Daily Campaign Invites</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <Target className="h-4 w-4" />
+                                Max Daily Campaign Total
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
@@ -724,11 +699,85 @@ export default function CreateCampaignPage() {
                                   onChange={(e) => field.onChange(parseInt(e.target.value))}
                                 />
                               </FormControl>
+                              <FormDescription>
+                                Total emails this campaign can send daily (across all inboxes)
+                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
                       </div>
+                    </div>
+
+                    <Separator className="my-6" />
+
+                    {/* Section 2: Meeting Time Slot Distribution */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-green-600" />
+                        <h3 className="text-lg font-semibold">2. Proposed Meeting Time Slots</h3>
+                      </div>
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                        <p className="text-sm text-green-800 dark:text-green-200 mb-3">
+                          <strong>Controls what meeting times we propose to prospects.</strong> Each invite suggests a different time slot.
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-300">
+                          Example: If sending 100 invites, we'll propose 100 different meeting time slots so prospects don't overlap.
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Label className="text-sm font-medium">Time Slot Distribution Mode</Label>
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <input
+                              type="radio"
+                              id="immediate"
+                              value="immediate"
+                              checked={schedulingMode === "immediate"}
+                              onChange={(e) => setSchedulingMode(e.target.value as "immediate" | "advanced")}
+                              className="h-4 w-4"
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor="immediate" className="cursor-pointer font-medium">
+                                Simple Distribution
+                              </Label>
+                              <p className="text-xs text-gray-600 mt-1">
+                                Automatically spread meeting times across business hours. System will generate diverse time slots for each invite.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <input
+                              type="radio"
+                              id="advanced"
+                              value="advanced"
+                              checked={schedulingMode === "advanced"}
+                              onChange={(e) => setSchedulingMode(e.target.value as "immediate" | "advanced")}
+                              className="h-4 w-4"
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor="advanced" className="cursor-pointer font-medium">
+                                Advanced Time Control
+                              </Label>
+                              <p className="text-xs text-gray-600 mt-1">
+                                Specify exact date ranges, days of the week, and time windows for proposed meeting slots.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {schedulingMode === "advanced" && (
+                        <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
+                          <AdvancedSchedulingForm
+                            totalProspects={csvData.length}
+                            onValidate={handleAdvancedSchedulingValidation}
+                            onChange={handleAdvancedSchedulingChange}
+                            initialData={advancedSchedulingData || undefined}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex justify-between">
