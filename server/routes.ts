@@ -797,15 +797,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("Failed to revoke OAuth tokens:", revokeError);
       }
 
-      // Log the deletion
+      // Clean up all foreign key references to this account
+      try {
+        await storage.cleanupActivityLogsForAccount(id);
+        console.log(`Cleaned up activity logs for account ${id}`);
+      } catch (cleanupError) {
+        console.warn("Failed to cleanup activity logs:", cleanupError);
+      }
+
+      try {
+        await storage.cleanupInvitesForAccount(id);
+        console.log(`Cleaned up invites for account ${id}`);
+      } catch (cleanupError) {
+        console.warn("Failed to cleanup invites:", cleanupError);
+      }
+
+      // Log the deletion (after cleanup, before deletion)
       try {
         await storage.createActivityLog({
           type: "account_deleted",
-          googleAccountId: id,
+          googleAccountId: null, // Don't reference the account being deleted
           message: `OAuth account ${account.email} has been deleted from the platform`,
           metadata: {
             email: account.email,
-            action: "deletion"
+            action: "deletion",
+            deletedAccountId: id
           }
         });
       } catch (logError) {

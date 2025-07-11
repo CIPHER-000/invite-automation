@@ -87,6 +87,8 @@ export interface IStorage {
   // Activity Logs
   getActivityLogs(limit?: number): Promise<ActivityLog[]>;
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
+  cleanupActivityLogsForAccount(accountId: number): Promise<void>;
+  cleanupInvitesForAccount(accountId: number): Promise<void>;
 
   // System Settings
   getSystemSettings(): Promise<SystemSettings>;
@@ -430,6 +432,24 @@ export class MemStorage implements IStorage {
     };
     this.activityLogs.set(id, newLog);
     return newLog;
+  }
+
+  async cleanupActivityLogsForAccount(accountId: number): Promise<void> {
+    // Update all activity logs that reference this account
+    for (const [id, log] of this.activityLogs.entries()) {
+      if (log.googleAccountId === accountId) {
+        this.activityLogs.set(id, { ...log, googleAccountId: null });
+      }
+    }
+  }
+
+  async cleanupInvitesForAccount(accountId: number): Promise<void> {
+    // Update all invites that reference this account
+    for (const [id, invite] of this.invites.entries()) {
+      if (invite.googleAccountId === accountId) {
+        this.invites.set(id, { ...invite, googleAccountId: null });
+      }
+    }
   }
 
   // System Settings
@@ -884,6 +904,20 @@ class PostgresStorage implements IStorage {
   async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
     const result = await this.db.insert(schema.activityLogs).values(log).returning();
     return result[0];
+  }
+
+  async cleanupActivityLogsForAccount(accountId: number): Promise<void> {
+    const { activityLogs } = schema;
+    await this.db.update(activityLogs)
+      .set({ googleAccountId: null })
+      .where(eq(activityLogs.googleAccountId, accountId));
+  }
+
+  async cleanupInvitesForAccount(accountId: number): Promise<void> {
+    const { invites } = schema;
+    await this.db.update(invites)
+      .set({ googleAccountId: null })
+      .where(eq(invites.googleAccountId, accountId));
   }
 
   // System Settings
