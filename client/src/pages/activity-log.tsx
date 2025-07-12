@@ -103,9 +103,10 @@ export default function ActivityLog() {
     return params.toString();
   }, [filters, offset]);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch, error } = useQuery({
     queryKey: ["/api/activity", queryParams],
     refetchInterval: 30000, // Auto-refresh every 30 seconds
+    retry: false,
   });
 
   const logs = data?.logs || [];
@@ -212,6 +213,32 @@ export default function ActivityLog() {
   };
 
   const counts = getFilteredCounts();
+
+  // Handle authentication error
+  if (error && error.message?.includes('401')) {
+    return (
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+          <h2 className="text-3xl font-bold tracking-tight">Activity Log</h2>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+            <p className="text-sm text-muted-foreground text-center">
+              Please log in to view the activity log.
+            </p>
+            <Button 
+              onClick={() => window.location.href = '/login'}
+              className="mt-4"
+            >
+              Log In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoading && allLogs.length === 0) {
     return (

@@ -80,7 +80,7 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 w-64 bg-white shadow-lg border-r border-gray-200 h-screen flex-shrink-0 z-10 flex flex-col">
       {/* Logo Section */}
-      <div className="p-4 border-b border-gray-200 flex justify-start">
+      <div className="p-4 border-b border-gray-200 flex justify-center">
         <img src={logoPath} alt="Logo" className="w-40 h-auto object-contain max-w-full" />
       </div>
       
