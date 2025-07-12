@@ -31,14 +31,9 @@ const navigation = [
     icon: Megaphone,
   },
   {
-    name: "Inbox Setup",
-    href: "/inbox-setup",
-    icon: Calendar,
-  },
-  {
-    name: "Inbox Management",
-    href: "/inbox-management",
-    icon: Server,
+    name: "Inboxes",
+    href: "/inboxes",
+    icon: Mail,
   },
   {
     name: "Activity",

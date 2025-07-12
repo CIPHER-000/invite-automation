@@ -13,6 +13,7 @@ import Accounts from "@/pages/accounts";
 import Activity from "@/pages/activity";
 import ActivityLog from "@/pages/activity-log";
 import InboxManagement from "@/pages/inbox-management";
+import UnifiedInboxManagement from "@/pages/unified-inbox-management";
 import Settings from "@/pages/settings";
 import ServiceAccountSetup from "@/pages/service-account-setup";
 import InboxSetup from "@/pages/oauth-calendar";
@@ -65,6 +66,7 @@ function Router() {
               <Route path="/accounts" component={ServiceAccountSetup} />
               <Route path="/inbox-setup" component={InboxSetup} />
               <Route path="/inbox-management" component={InboxManagement} />
+              <Route path="/inboxes" component={UnifiedInboxManagement} />
               <Route path="/activity" component={Activity} />
               <Route path="/activity-log" component={ActivityLog} />
               <Route path="/settings" component={Settings} />
