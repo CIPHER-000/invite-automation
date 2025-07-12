@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -149,11 +149,11 @@ Best regards,
 
     // Replace variables with actual data
     const processedTemplate = template
-      .replace(/{{name}}/g, invite.recipient_name || invite.recipient_email)
-      .replace(/{{meeting_time}}/g, invite.meeting_time ? format(new Date(invite.meeting_time), 'PPpp') : '[Meeting Time]')
-      .replace(/{{meeting_link}}/g, invite.merge_data?.meetingLink || '[Meeting Link]')
-      .replace(/{{sender_name}}/g, invite.merge_data?.senderName || '[Sender Name]')
-      .replace(/{{company}}/g, invite.merge_data?.company || '[Company]');
+      .replace(/\{\{name\}\}/g, invite.recipient_name || invite.recipient_email)
+      .replace(/\{\{meeting_time\}\}/g, invite.meeting_time ? format(new Date(invite.meeting_time), 'PPpp') : '[Meeting Time]')
+      .replace(/\{\{meeting_link\}\}/g, invite.merge_data?.meetingLink || '[Meeting Link]')
+      .replace(/\{\{sender_name\}\}/g, invite.merge_data?.senderName || '[Sender Name]')
+      .replace(/\{\{company\}\}/g, invite.merge_data?.company || '[Company]');
 
     return processedTemplate;
   };
@@ -327,7 +327,7 @@ Best regards,
                 placeholder="Dear {{name}}, Thank you for accepting our meeting..."
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Available variables: {{name}}, {{meeting_time}}, {{meeting_link}}, {{sender_name}}, {{company}}
+                Available variables: name, meeting_time, meeting_link, sender_name, company
               </p>
             </div>
           </div>
