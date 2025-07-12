@@ -28,7 +28,6 @@ export default function Campaigns() {
 
   const { data: campaigns, isLoading } = useQuery({
     queryKey: ["/api/campaigns"],
-    queryFn: api.getCampaigns,
   });
 
   const deleteMutation = useMutation({

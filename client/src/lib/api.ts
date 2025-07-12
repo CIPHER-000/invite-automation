@@ -65,5 +65,41 @@ export const api = {
     
     const blob = await response.blob();
     return blob;
+  },
+
+  // Get campaigns
+  getCampaigns: async () => {
+    const response = await apiRequest('GET', '/api/campaigns');
+    return response.json();
+  },
+
+  // Get campaign
+  getCampaign: async (id: number) => {
+    const response = await apiRequest('GET', `/api/campaigns/${id}`);
+    return response.json();
+  },
+
+  // Create campaign
+  createCampaign: async (campaign: any) => {
+    const response = await apiRequest('POST', '/api/campaigns', campaign);
+    return response.json();
+  },
+
+  // Update campaign
+  updateCampaign: async (id: number, updates: any) => {
+    const response = await apiRequest('PATCH', `/api/campaigns/${id}`, updates);
+    return response.json();
+  },
+
+  // Delete campaign
+  deleteCampaign: async (id: number) => {
+    const response = await apiRequest('DELETE', `/api/campaigns/${id}`);
+    return response.json();
+  },
+
+  // Process campaign
+  processCampaign: async (id: number) => {
+    const response = await apiRequest('POST', `/api/campaigns/${id}/process`);
+    return response.json();
   }
 };
