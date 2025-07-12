@@ -191,7 +191,7 @@ Best regards,
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Pending Confirmation Emails</h1>
+          <h1 className="text-3xl font-bold">Accepted Invites</h1>
           <p className="text-muted-foreground">
             Manage confirmation emails for accepted meeting invitations
           </p>
@@ -205,7 +205,7 @@ Best regards,
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            Confirmation Email Queue
+            Accepted Invite Queue
           </CardTitle>
           <CardDescription>
             Review and send confirmation emails to prospects who have accepted meeting invitations

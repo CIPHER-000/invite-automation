@@ -49,12 +49,12 @@ const navigation = [
     icon: Search,
   },
   {
-    name: "Confirmation Emails",
+    name: "Accepted Invites",
     href: "/confirmation-emails",
     icon: Mail,
   },
   {
-    name: "Response Intelligence",
+    name: "Response Tracker",
     href: "/response-intelligence",
     icon: TrendingUp,
   },

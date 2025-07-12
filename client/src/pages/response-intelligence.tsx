@@ -36,7 +36,7 @@ interface MonitoringSettings {
   lastSync?: string;
 }
 
-export default function ResponseIntelligence() {
+export default function ResponseTracker() {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [activityFilter, setActivityFilter] = useState("all");
   
