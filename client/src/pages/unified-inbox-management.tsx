@@ -146,7 +146,7 @@ export default function UnifiedInboxManagement() {
   // Connect new Google account mutation
   const connectAccountMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/auth/google");
+      const response = await fetch("/api/oauth-calendar/auth");
       const data = await response.json();
       if (data.authUrl) {
         window.location.href = data.authUrl;

@@ -58,10 +58,10 @@ export class TimeSlotManager {
     prospect: ProspectScheduleData,
     campaign: Campaign
   ): TimeSlotPreferences {
-    // Default preferences
+    // Default preferences - 12PM-4PM as per user requirements
     let preferences: TimeSlotPreferences = {
-      startHour: 9,
-      endHour: 17,
+      startHour: 12,
+      endHour: 16,
       timezone: campaign.timeZone || 'UTC',
       daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
     };
@@ -137,18 +137,19 @@ export class TimeSlotManager {
   }
 
   /**
-   * Find the next available time slot (immediate or near-immediate scheduling)
+   * Find the next available time slot with minimum 2-day gap enforcement
    */
   private findNextBusinessDay(startDate: Date, preferences: TimeSlotPreferences): Date {
-    let date = new Date(startDate);
     const now = new Date();
     
-    // For campaign automation, send invites 1 minute after creation
-    // Add 1-2 minutes from now to spread out the sends slightly
-    const delayMinutes = 1 + Math.random(); // 1-2 minutes
-    date = new Date(now.getTime() + delayMinutes * 60000);
-
-    // Find next valid business day only if we're on a weekend
+    // ENFORCE MINIMUM 2-DAY GAP: Add 2 days to current date
+    const minimumDate = new Date(now);
+    minimumDate.setDate(minimumDate.getDate() + 2);
+    
+    // Start from the minimum date or provided date (whichever is later)
+    let date = new Date(Math.max(startDate.getTime(), minimumDate.getTime()));
+    
+    // Find next valid business day that meets the minimum gap requirement
     let attempts = 0;
     while (attempts < 14) { // Don't search more than 2 weeks
       const dayOfWeek = date.getDay();
@@ -166,8 +167,8 @@ export class TimeSlotManager {
       attempts++;
     }
 
-    // Fallback to original date if no valid day found
-    return startDate;
+    // Fallback to minimum date if no valid day found
+    return minimumDate;
   }
 
   /**
