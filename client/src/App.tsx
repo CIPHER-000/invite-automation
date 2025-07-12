@@ -25,6 +25,8 @@ import SchedulingDashboard from "@/pages/scheduling-dashboard";
 import CampaignScheduling from "@/pages/campaign-scheduling";
 import ProspectValidation from "@/pages/prospect-validation";
 import ConfirmationEmails from "@/pages/confirmation-emails";
+import ResponseIntelligence from "@/pages/response-intelligence";
+import InviteTimeline from "@/pages/invite-timeline";
 import { Loader2 } from "lucide-react";
 
 function Router() {
@@ -71,6 +73,8 @@ function Router() {
               <Route path="/scheduling" component={SchedulingDashboard} />
               <Route path="/prospect-validation" component={ProspectValidation} />
               <Route path="/confirmation-emails" component={ConfirmationEmails} />
+              <Route path="/response-intelligence" component={ResponseIntelligence} />
+              <Route path="/invites/:inviteId/timeline" component={InviteTimeline} />
               <Route path="/accounts" component={ServiceAccountSetup} />
               <Route path="/inbox-setup" component={InboxSetup} />
               <Route path="/inbox-management" component={InboxManagement} />

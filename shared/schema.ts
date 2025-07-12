@@ -568,3 +568,81 @@ export type AccountWithStatus = GoogleAccount & {
   nextAvailable: string | null;
   isInCooldown: boolean;
 };
+
+// Invite Timeline for tracking all post-invite interactions
+export const inviteTimeline = pgTable("invite_timeline", {
+  id: serial("id").primaryKey(),
+  inviteId: integer("invite_id").notNull().references(() => invites.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  campaignId: integer("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // 'invite_sent', 'rsvp_response', 'email_received', 'time_proposal', 'domain_activity'
+  source: text("source").notNull(), // 'gmail', 'outlook', 'calendar_api', 'webhook'
+  action: text("action"), // 'accepted', 'declined', 'tentative', 'reply', 'forward', 'reschedule'
+  summary: text("summary").notNull(), // Human-readable description
+  details: jsonb("details"), // Structured data: email content, response details, etc.
+  recipientEmail: text("recipient_email"),
+  recipientDomain: text("recipient_domain"),
+  senderEmail: text("sender_email"),
+  subject: text("subject"),
+  messageId: text("message_id"), // For email tracking
+  threadId: text("thread_id"), // For conversation tracking
+  severity: text("severity").notNull().default("info"), // 'info', 'warning', 'error', 'success'
+  metadata: jsonb("metadata"), // Additional tracking data
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Email Activity Monitoring for inbound email tracking
+export const emailActivity = pgTable("email_activity", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accountType: text("account_type").notNull(), // 'google', 'outlook'
+  accountId: integer("account_id").notNull(),
+  messageId: text("message_id").notNull().unique(),
+  threadId: text("thread_id"),
+  historyId: text("history_id"), // For Gmail API tracking
+  deltaToken: text("delta_token"), // For Microsoft Graph API tracking
+  fromEmail: text("from_email").notNull(),
+  fromDomain: text("from_domain").notNull(),
+  toEmail: text("to_email").notNull(),
+  subject: text("subject"),
+  snippet: text("snippet"), // Email preview
+  labels: jsonb("labels"), // Gmail labels or Outlook categories
+  isProcessed: boolean("is_processed").notNull().default(false),
+  relatedInviteId: integer("related_invite_id").references(() => invites.id),
+  relatedCampaignId: integer("related_campaign_id").references(() => campaigns.id),
+  matchingCriteria: text("matching_criteria"), // How it was matched to invite/campaign
+  receivedAt: timestamp("received_at").notNull(),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Response Intelligence Settings for monitoring configuration
+export const responseSettings = pgTable("response_settings", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accountType: text("account_type").notNull(), // 'google', 'outlook'
+  accountId: integer("account_id").notNull(),
+  isMonitoringEnabled: boolean("is_monitoring_enabled").notNull().default(true),
+  watchLabels: jsonb("watch_labels"), // Gmail labels to monitor
+  watchCategories: jsonb("watch_categories"), // Outlook categories to monitor
+  domainMatching: boolean("domain_matching").notNull().default(true),
+  subjectMatching: boolean("subject_matching").notNull().default(true),
+  historyId: text("history_id"), // Last processed Gmail history ID
+  deltaToken: text("delta_token"), // Last processed Microsoft Graph delta token
+  lastSync: timestamp("last_sync"),
+  syncStatus: text("sync_status").notNull().default("active"), // 'active', 'paused', 'error'
+  syncError: text("sync_error"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Type definitions for new tables
+export type InsertInviteTimeline = typeof inviteTimeline.$inferInsert;
+export type InviteTimeline = typeof inviteTimeline.$inferSelect;
+
+export type InsertEmailActivity = typeof emailActivity.$inferInsert;
+export type EmailActivity = typeof emailActivity.$inferSelect;
+
+export type InsertResponseSettings = typeof responseSettings.$inferInsert;
+export type ResponseSettings = typeof responseSettings.$inferSelect;

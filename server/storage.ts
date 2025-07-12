@@ -2152,6 +2152,89 @@ class PostgresStorage implements IStorage {
       return [];
     }
   }
+
+  // Response Intelligence Methods
+  async getInviteTimeline(inviteId: number): Promise<any[]> {
+    try {
+      const timeline = await db
+        .select()
+        .from(schema.inviteTimeline)
+        .where(eq(schema.inviteTimeline.inviteId, inviteId))
+        .orderBy(desc(schema.inviteTimeline.timestamp));
+      
+      return timeline;
+    } catch (error) {
+      console.error("Error getting invite timeline:", error);
+      return [];
+    }
+  }
+
+  async getEmailActivity(userId: string, campaignId?: number): Promise<any[]> {
+    try {
+      let query = db
+        .select()
+        .from(schema.emailActivity)
+        .where(eq(schema.emailActivity.userId, userId));
+
+      if (campaignId) {
+        query = query.where(eq(schema.emailActivity.relatedCampaignId, campaignId));
+      }
+
+      const activity = await query.orderBy(desc(schema.emailActivity.receivedAt));
+      return activity;
+    } catch (error) {
+      console.error("Error getting email activity:", error);
+      return [];
+    }
+  }
+
+  async getResponseSettings(userId: string): Promise<any[]> {
+    try {
+      const settings = await db
+        .select()
+        .from(schema.responseSettings)
+        .where(eq(schema.responseSettings.userId, userId));
+      
+      return settings;
+    } catch (error) {
+      console.error("Error getting response settings:", error);
+      return [];
+    }
+  }
+
+  async createResponseSettings(data: any): Promise<any> {
+    try {
+      const [setting] = await db
+        .insert(schema.responseSettings)
+        .values(data)
+        .returning();
+      
+      return setting;
+    } catch (error) {
+      console.error("Error creating response settings:", error);
+      throw error;
+    }
+  }
+
+  async updateResponseSettings(settingId: number, userId: string, updates: any): Promise<void> {
+    try {
+      await db
+        .update(schema.responseSettings)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.responseSettings.id, settingId),
+            eq(schema.responseSettings.userId, userId)
+          )
+        );
+    } catch (error) {
+      console.error("Error updating response settings:", error);
+      throw error;
+    }
+  }
 }
 
 // Use in-memory storage temporarily while fixing database connection issues

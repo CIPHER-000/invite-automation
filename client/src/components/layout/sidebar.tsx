@@ -14,7 +14,8 @@ import {
   FileText,
   Server,
   HelpCircle,
-  Search
+  Search,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,6 +52,11 @@ const navigation = [
     name: "Confirmation Emails",
     href: "/confirmation-emails",
     icon: Mail,
+  },
+  {
+    name: "Response Intelligence",
+    href: "/response-intelligence",
+    icon: TrendingUp,
   },
   {
     name: "Activity Log",

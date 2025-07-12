@@ -1955,6 +1955,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const confirmationEmailRouter = await import("./routes/confirmation-emails");
   app.use("/api/confirmation-emails", confirmationEmailRouter.default);
 
+  // Register response intelligence routes
+  const responseIntelligenceRoutes = await import("./routes/response-intelligence");
+  responseIntelligenceRoutes.registerResponseIntelligenceRoutes(app);
+
   const httpServer = createServer(app);
   return httpServer;
 }
