@@ -34,6 +34,7 @@ export default function Campaigns() {
   const deleteMutation = useMutation({
     mutationFn: api.deleteCampaign,
     onSuccess: () => {
+      console.log("Campaign deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
       toast({
         title: "Campaign deleted",
@@ -43,6 +44,7 @@ export default function Campaigns() {
     onError: (error: any) => {
       console.error("Delete campaign error:", error);
       const errorMessage = error?.message || "Failed to delete campaign.";
+      console.log("Full error object:", error);
       toast({
         title: "Cannot delete campaign",
         description: errorMessage.includes('while invites are being processed') 
@@ -113,8 +115,12 @@ export default function Campaigns() {
   };
 
   const handleDelete = (id: number) => {
+    console.log(`Attempting to delete campaign ${id}`);
     if (confirm("Are you sure you want to delete this campaign?")) {
+      console.log(`User confirmed deletion of campaign ${id}`);
       deleteMutation.mutate(id);
+    } else {
+      console.log(`User canceled deletion of campaign ${id}`);
     }
   };
 
