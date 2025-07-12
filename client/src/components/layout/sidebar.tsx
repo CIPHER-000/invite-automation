@@ -12,7 +12,8 @@ import {
   LogOut,
   FileText,
   Server,
-  HelpCircle
+  HelpCircle,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +40,11 @@ const navigation = [
     name: "Scheduling",
     href: "/scheduling",
     icon: Calendar,
+  },
+  {
+    name: "Prospect Validation",
+    href: "/prospect-validation",
+    icon: Search,
   },
   {
     name: "Activity Log",

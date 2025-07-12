@@ -23,6 +23,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import SchedulingDashboard from "@/pages/scheduling-dashboard";
 import CampaignScheduling from "@/pages/campaign-scheduling";
+import ProspectValidation from "@/pages/prospect-validation";
 import { Loader2 } from "lucide-react";
 
 function Router() {
@@ -67,6 +68,7 @@ function Router() {
               <Route path="/campaigns/new" component={CreateCampaignPage} />
               <Route path="/campaigns/:id/scheduling" component={CampaignScheduling} />
               <Route path="/scheduling" component={SchedulingDashboard} />
+              <Route path="/prospect-validation" component={ProspectValidation} />
               <Route path="/accounts" component={ServiceAccountSetup} />
               <Route path="/inbox-setup" component={InboxSetup} />
               <Route path="/inbox-management" component={InboxManagement} />

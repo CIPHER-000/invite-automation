@@ -17,6 +17,7 @@ import { z } from "zod";
 import { advancedScheduler } from "./services/advanced-scheduler";
 import { rsvpTracker } from "./services/rsvp-tracker";
 import { requireAuth, optionalAuth, hashPassword, verifyPassword, validateEmail, validatePassword } from "./auth";
+import { prospectValidationRouter } from "./routes/prospect-validation";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 
@@ -1946,6 +1947,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to schedule invite" });
     }
   });
+
+  // Register prospect validation routes
+  app.use("/api/prospect-validation", prospectValidationRouter);
 
   const httpServer = createServer(app);
   return httpServer;

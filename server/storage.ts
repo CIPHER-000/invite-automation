@@ -11,6 +11,10 @@ import {
   scheduledInvites,
   schedulingSettings,
   calendarSlots,
+  prospectBatches,
+  prospects,
+  industryTemplates,
+  prospectProcessingLogs,
   type GoogleAccount,
   type InsertGoogleAccount,
   type OutlookAccount,
@@ -38,6 +42,14 @@ import {
   type InsertSchedulingSettings,
   type CalendarSlot,
   type InsertCalendarSlot,
+  type ProspectBatch,
+  type InsertProspectBatch,
+  type Prospect,
+  type InsertProspect,
+  type IndustryTemplate,
+  type InsertIndustryTemplate,
+  type ProspectProcessingLog,
+  type InsertProspectProcessingLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, count, isNull, gte, lte, or, ilike } from "drizzle-orm";
@@ -165,6 +177,24 @@ export interface IStorage {
   createCalendarSlot(slot: InsertCalendarSlot): Promise<CalendarSlot>;
   updateCalendarSlot(id: number, updates: Partial<CalendarSlot>): Promise<CalendarSlot>;
   deleteCalendarSlot(id: number): Promise<void>;
+
+  // Prospect Validation
+  getProspectBatches(userId: string): Promise<ProspectBatch[]>;
+  getProspectBatch(id: number, userId: string): Promise<ProspectBatch | undefined>;
+  createProspectBatch(batch: InsertProspectBatch): Promise<ProspectBatch>;
+  updateProspectBatch(id: number, updates: Partial<ProspectBatch>): Promise<ProspectBatch>;
+  deleteProspectBatch(id: number, userId: string): Promise<void>;
+  getProspectsByBatch(batchId: number, userId: string): Promise<Prospect[]>;
+  getProspect(id: number, userId: string): Promise<Prospect | undefined>;
+  createProspect(prospect: InsertProspect): Promise<Prospect>;
+  updateProspect(id: number, updates: Partial<Prospect>): Promise<Prospect>;
+  getIndustryTemplates(userId: string): Promise<IndustryTemplate[]>;
+  getIndustryTemplate(id: number, userId: string): Promise<IndustryTemplate | undefined>;
+  createIndustryTemplate(template: InsertIndustryTemplate): Promise<IndustryTemplate>;
+  updateIndustryTemplate(id: number, updates: Partial<IndustryTemplate>, userId: string): Promise<IndustryTemplate>;
+  deleteIndustryTemplate(id: number, userId: string): Promise<void>;
+  createProspectProcessingLog(log: InsertProspectProcessingLog): Promise<ProspectProcessingLog>;
+  getProspectProcessingLogs(batchId?: number, userId?: string): Promise<ProspectProcessingLog[]>;
 }
 
 export class MemStorage implements IStorage {

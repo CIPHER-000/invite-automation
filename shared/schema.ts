@@ -334,6 +334,80 @@ export const calendarSlots = pgTable("calendar_slots", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Prospect Validation Tables for Industry Classification and Competitor Discovery
+
+// Prospect validation batches (upload sessions)
+export const prospectBatches = pgTable("prospect_batches", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  targetIndustry: text("target_industry").notNull(),
+  totalRecords: integer("total_records").notNull().default(0),
+  processedRecords: integer("processed_records").notNull().default(0),
+  confirmedRecords: integer("confirmed_records").notNull().default(0),
+  rejectedRecords: integer("rejected_records").notNull().default(0),
+  greyAreaRecords: integer("grey_area_records").notNull().default(0),
+  status: text("status").notNull().default("processing"), // 'uploading', 'processing', 'completed', 'failed'
+  error: text("error"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Individual prospect records
+export const prospects = pgTable("prospects", {
+  id: serial("id").primaryKey(),
+  batchId: integer("batch_id").notNull().references(() => prospectBatches.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  originalCompanyName: text("original_company_name").notNull(),
+  websiteDomain: text("website_domain"),
+  cleanedCompanyName: text("cleaned_company_name"),
+  companyDescription: text("company_description"),
+  scrapingStatus: text("scraping_status").default("pending"), // 'pending', 'success', 'failed', 'skipped'
+  scrapingError: text("scraping_error"),
+  classificationStatus: text("classification_status").default("pending"), // 'pending', 'completed', 'failed'
+  industryMatch: text("industry_match"), // 'confirmed', 'rejected', 'grey_area'
+  confidence: integer("confidence"), // 1-100 percentage
+  competitors: jsonb("competitors").default([]), // Array of competitor names
+  classificationReasoning: text("classification_reasoning"),
+  openaiPrompt: text("openai_prompt"),
+  openaiResponse: jsonb("openai_response"),
+  manualOverride: boolean("manual_override").notNull().default(false),
+  manualStatus: text("manual_status"), // User can override AI classification
+  manualCompetitors: jsonb("manual_competitors"), // User can edit competitors
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Industry templates for reusable prompts
+export const industryTemplates = pgTable("industry_templates", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  industryKeywords: jsonb("industry_keywords").default([]), // Array of keywords
+  classificationPrompt: text("classification_prompt").notNull(),
+  competitorPrompt: text("competitor_prompt"),
+  isDefault: boolean("is_default").notNull().default(false),
+  usageCount: integer("usage_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Processing logs for debugging and monitoring
+export const prospectProcessingLogs = pgTable("prospect_processing_logs", {
+  id: serial("id").primaryKey(),
+  prospectId: integer("prospect_id").references(() => prospects.id, { onDelete: "cascade" }),
+  batchId: integer("batch_id").references(() => prospectBatches.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  step: text("step").notNull(), // 'upload', 'scraping', 'classification', 'completion'
+  status: text("status").notNull(), // 'started', 'completed', 'failed'
+  message: text("message"),
+  metadata: jsonb("metadata").default({}),
+  executionTime: integer("execution_time"), // milliseconds
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Indexes will be added later after tables are created
 
 // Type definitions
@@ -343,6 +417,16 @@ export type SchedulingSettings = typeof schedulingSettings.$inferSelect;
 export type InsertSchedulingSettings = typeof schedulingSettings.$inferInsert;
 export type CalendarSlot = typeof calendarSlots.$inferSelect;
 export type InsertCalendarSlot = typeof calendarSlots.$inferInsert;
+
+// Prospect validation types
+export type ProspectBatch = typeof prospectBatches.$inferSelect;
+export type InsertProspectBatch = typeof prospectBatches.$inferInsert;
+export type Prospect = typeof prospects.$inferSelect;
+export type InsertProspect = typeof prospects.$inferInsert;
+export type IndustryTemplate = typeof industryTemplates.$inferSelect;
+export type InsertIndustryTemplate = typeof industryTemplates.$inferInsert;
+export type ProspectProcessingLog = typeof prospectProcessingLogs.$inferSelect;
+export type InsertProspectProcessingLog = typeof prospectProcessingLogs.$inferInsert;
 
 // Schema validation
 export const insertScheduledInviteSchema = createInsertSchema(scheduledInvites).omit({
@@ -372,6 +456,30 @@ export const insertInviteQueueSchema = createInsertSchema(inviteQueue).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+// Prospect validation schemas
+export const insertProspectBatchSchema = createInsertSchema(prospectBatches).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProspectSchema = createInsertSchema(prospects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertIndustryTemplateSchema = createInsertSchema(industryTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProspectProcessingLogSchema = createInsertSchema(prospectProcessingLogs).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertRsvpEventSchema = createInsertSchema(rsvpEvents).omit({
