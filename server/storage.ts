@@ -31,7 +31,7 @@ import {
   type AccountWithStatus,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count, isNull, gte, lte } from "drizzle-orm";
+import { eq, desc, and, sql, count, isNull, gte, lte, or, ilike } from "drizzle-orm";
 import * as schema from "@shared/schema";
 
 export interface IStorage {
@@ -46,13 +46,16 @@ export interface IStorage {
   getCampaignsUsingInbox(inboxId: number, userId: string): Promise<{ id: number; name: string; status: string }[]>;
   getAccountsWithStatus(userId: string): Promise<AccountWithStatus[]>;
 
-  // Outlook Accounts
-  getOutlookAccounts(): Promise<OutlookAccount[]>;
-  getOutlookAccount(id: number): Promise<OutlookAccount | undefined>;
-  getOutlookAccountByEmail(email: string): Promise<OutlookAccount | undefined>;
+  // Microsoft/Outlook Accounts
+  getOutlookAccounts(userId: string): Promise<OutlookAccount[]>;
+  getOutlookAccount(id: number, userId: string): Promise<OutlookAccount | undefined>;
+  getOutlookAccountByEmail(email: string, userId: string): Promise<OutlookAccount | undefined>;
   createOutlookAccount(account: InsertOutlookAccount): Promise<OutlookAccount>;
-  updateOutlookAccount(id: number, updates: Partial<OutlookAccount>): Promise<OutlookAccount>;
-  deleteOutlookAccount(id: number): Promise<void>;
+  updateOutlookAccount(id: number, updates: Partial<OutlookAccount>, userId: string): Promise<OutlookAccount>;
+  deleteOutlookAccount(id: number, userId: string): Promise<void>;
+  disconnectOutlookAccount(id: number, userId: string): Promise<void>;
+  cleanupActivityLogsForOutlookAccount(accountId: number): Promise<void>;
+  cleanupInvitesForOutlookAccount(accountId: number): Promise<void>;
 
   // Campaigns
   getCampaigns(userId: string): Promise<Campaign[]>;
@@ -103,6 +106,9 @@ export interface IStorage {
 
   // Dashboard
   getDashboardStats(userId: string, timeRange?: { start: Date; end: Date }): Promise<DashboardStats>;
+  
+  // User management for connection monitoring
+  getAllUsers?(): Promise<Array<{ id: string; email: string }>>;
   
   // Campaign Analytics
   getCampaignInboxStats(campaignId: number, userId: string): Promise<Array<{
@@ -840,17 +846,27 @@ class PostgresStorage implements IStorage {
   }
 
   // Outlook Accounts
-  async getOutlookAccounts(): Promise<OutlookAccount[]> {
-    return await this.db.select().from(schema.outlookAccounts);
+  async getOutlookAccounts(userId: string): Promise<OutlookAccount[]> {
+    return await this.db.select().from(schema.outlookAccounts)
+      .where(eq(schema.outlookAccounts.userId, userId))
+      .orderBy(desc(schema.outlookAccounts.createdAt));
   }
 
-  async getOutlookAccount(id: number): Promise<OutlookAccount | undefined> {
-    const result = await this.db.select().from(schema.outlookAccounts).where(eq(schema.outlookAccounts.id, id));
+  async getOutlookAccount(id: number, userId: string): Promise<OutlookAccount | undefined> {
+    const result = await this.db.select().from(schema.outlookAccounts)
+      .where(and(
+        eq(schema.outlookAccounts.id, id),
+        eq(schema.outlookAccounts.userId, userId)
+      ));
     return result[0];
   }
 
-  async getOutlookAccountByEmail(email: string): Promise<OutlookAccount | undefined> {
-    const result = await this.db.select().from(schema.outlookAccounts).where(eq(schema.outlookAccounts.email, email));
+  async getOutlookAccountByEmail(email: string, userId: string): Promise<OutlookAccount | undefined> {
+    const result = await this.db.select().from(schema.outlookAccounts)
+      .where(and(
+        eq(schema.outlookAccounts.email, email),
+        eq(schema.outlookAccounts.userId, userId)
+      ));
     return result[0];
   }
 
@@ -859,13 +875,59 @@ class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async updateOutlookAccount(id: number, updates: Partial<OutlookAccount>): Promise<OutlookAccount> {
-    const result = await this.db.update(schema.outlookAccounts).set(updates).where(eq(schema.outlookAccounts.id, id)).returning();
+  async updateOutlookAccount(id: number, updates: Partial<OutlookAccount>, userId: string): Promise<OutlookAccount> {
+    const result = await this.db.update(schema.outlookAccounts)
+      .set(updates)
+      .where(and(
+        eq(schema.outlookAccounts.id, id),
+        eq(schema.outlookAccounts.userId, userId)
+      ))
+      .returning();
     return result[0];
   }
 
-  async deleteOutlookAccount(id: number): Promise<void> {
-    await this.db.delete(schema.outlookAccounts).where(eq(schema.outlookAccounts.id, id));
+  async deleteOutlookAccount(id: number, userId: string): Promise<void> {
+    // First cleanup related data
+    await this.cleanupActivityLogsForOutlookAccount(id);
+    await this.cleanupInvitesForOutlookAccount(id);
+    
+    // Delete the account
+    await this.db.delete(schema.outlookAccounts)
+      .where(and(
+        eq(schema.outlookAccounts.id, id),
+        eq(schema.outlookAccounts.userId, userId)
+      ));
+  }
+
+  async disconnectOutlookAccount(id: number, userId: string): Promise<void> {
+    await this.updateOutlookAccount(id, { 
+      isActive: false,
+      accessToken: "revoked",
+      refreshToken: "revoked"
+    }, userId);
+  }
+
+  async cleanupActivityLogsForOutlookAccount(accountId: number): Promise<void> {
+    await this.db.delete(schema.activityLogs)
+      .where(and(
+        eq(schema.activityLogs.outlookAccountId, accountId)
+      ));
+  }
+
+  async cleanupInvitesForOutlookAccount(accountId: number): Promise<void> {
+    // Delete RSVP events first
+    const invites = await this.db.select({ id: schema.invites.id })
+      .from(schema.invites)
+      .where(eq(schema.invites.outlookAccountId, accountId));
+    
+    for (const invite of invites) {
+      await this.db.delete(schema.rsvpEvents)
+        .where(eq(schema.rsvpEvents.inviteId, invite.id));
+    }
+    
+    // Delete invites
+    await this.db.delete(schema.invites)
+      .where(eq(schema.invites.outlookAccountId, accountId));
   }
 
   // Campaigns
@@ -1271,27 +1333,140 @@ class PostgresStorage implements IStorage {
   }
 
   // Activity Logs
-  async getActivityLogs(limit = 50, userId?: string, timeRange?: { start: Date; end: Date }): Promise<ActivityLog[]> {
-    let query = this.db.select().from(schema.activityLogs);
-    
-    const conditions = [];
-    
-    if (userId) {
-      conditions.push(eq(schema.activityLogs.userId, userId));
+  async getActivityLogs(userId: string, options?: {
+    limit?: number;
+    offset?: number;
+    eventType?: string;
+    campaignId?: number;
+    inboxId?: number;
+    inboxType?: string;
+    recipientEmail?: string;
+    severity?: string;
+    startDate?: Date;
+    endDate?: Date;
+    search?: string;
+  }): Promise<ActivityLog[]> {
+    const {
+      limit = 50,
+      offset = 0,
+      eventType,
+      campaignId,
+      inboxId,
+      inboxType,
+      recipientEmail,
+      severity,
+      startDate,
+      endDate,
+      search
+    } = options || {};
+
+    let conditions = [eq(schema.activityLogs.userId, userId)];
+
+    // Apply filters
+    if (eventType) {
+      conditions.push(eq(schema.activityLogs.eventType, eventType));
     }
-    
-    if (timeRange) {
-      conditions.push(gte(schema.activityLogs.createdAt, timeRange.start));
-      conditions.push(lte(schema.activityLogs.createdAt, timeRange.end));
+    if (campaignId) {
+      conditions.push(eq(schema.activityLogs.campaignId, campaignId));
     }
-    
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    if (inboxId) {
+      conditions.push(eq(schema.activityLogs.inboxId, inboxId));
     }
-    
-    return await query
+    if (inboxType) {
+      conditions.push(eq(schema.activityLogs.inboxType, inboxType));
+    }
+    if (recipientEmail) {
+      conditions.push(eq(schema.activityLogs.recipientEmail, recipientEmail));
+    }
+    if (severity) {
+      conditions.push(eq(schema.activityLogs.severity, severity));
+    }
+    if (startDate) {
+      conditions.push(gte(schema.activityLogs.createdAt, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(schema.activityLogs.createdAt, endDate));
+    }
+    if (search) {
+      conditions.push(
+        or(
+          ilike(schema.activityLogs.description, `%${search}%`),
+          ilike(schema.activityLogs.action, `%${search}%`),
+          ilike(schema.activityLogs.recipientEmail, `%${search}%`)
+        )
+      );
+    }
+
+    return await this.db.select().from(schema.activityLogs)
+      .where(and(...conditions))
       .orderBy(desc(schema.activityLogs.createdAt))
-      .limit(limit);
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getActivityLogCount(userId: string, options?: {
+    eventType?: string;
+    campaignId?: number;
+    inboxId?: number;
+    inboxType?: string;
+    recipientEmail?: string;
+    severity?: string;
+    startDate?: Date;
+    endDate?: Date;
+    search?: string;
+  }): Promise<number> {
+    const {
+      eventType,
+      campaignId,
+      inboxId,
+      inboxType,
+      recipientEmail,
+      severity,
+      startDate,
+      endDate,
+      search
+    } = options || {};
+
+    let conditions = [eq(schema.activityLogs.userId, userId)];
+
+    // Apply same filters as getActivityLogs
+    if (eventType) {
+      conditions.push(eq(schema.activityLogs.eventType, eventType));
+    }
+    if (campaignId) {
+      conditions.push(eq(schema.activityLogs.campaignId, campaignId));
+    }
+    if (inboxId) {
+      conditions.push(eq(schema.activityLogs.inboxId, inboxId));
+    }
+    if (inboxType) {
+      conditions.push(eq(schema.activityLogs.inboxType, inboxType));
+    }
+    if (recipientEmail) {
+      conditions.push(eq(schema.activityLogs.recipientEmail, recipientEmail));
+    }
+    if (severity) {
+      conditions.push(eq(schema.activityLogs.severity, severity));
+    }
+    if (startDate) {
+      conditions.push(gte(schema.activityLogs.createdAt, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(schema.activityLogs.createdAt, endDate));
+    }
+    if (search) {
+      conditions.push(
+        or(
+          ilike(schema.activityLogs.description, `%${search}%`),
+          ilike(schema.activityLogs.action, `%${search}%`),
+          ilike(schema.activityLogs.recipientEmail, `%${search}%`)
+        )
+      );
+    }
+
+    const result = await this.db.select({ count: count() }).from(schema.activityLogs)
+      .where(and(...conditions));
+    return result[0]?.count || 0;
   }
 
   async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
@@ -1546,6 +1721,14 @@ class PostgresStorage implements IStorage {
     }
 
     return stats;
+  }
+
+  async getAllUsers(): Promise<Array<{ id: string; email: string }>> {
+    const result = await this.db.select({
+      id: schema.users.id,
+      email: schema.users.email
+    }).from(schema.users);
+    return result;
   }
 }
 

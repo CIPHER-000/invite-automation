@@ -64,6 +64,11 @@ app.use((req, res, next) => {
 (async () => {
   // Initialize Gmail app password service to load existing accounts
   await gmailAppPasswordService.initialize();
+
+  // Start connection monitoring service
+  console.log("Starting connection monitoring service...");
+  const { connectionMonitorService } = await import("./services/connection-monitor");
+  connectionMonitorService.startMonitoring();
   
   const server = await registerRoutes(app);
 

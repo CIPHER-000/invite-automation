@@ -9,7 +9,9 @@ import {
   Users,
   Mail,
   Key,
-  LogOut
+  LogOut,
+  FileText,
+  Server
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,9 +35,19 @@ const navigation = [
     icon: Calendar,
   },
   {
-    name: "Activity Log",
+    name: "Inbox Management",
+    href: "/inbox-management",
+    icon: Server,
+  },
+  {
+    name: "Activity",
     href: "/activity",
     icon: Clock,
+  },
+  {
+    name: "Activity Log",
+    href: "/activity-log",
+    icon: FileText,
   },
   {
     name: "Settings",

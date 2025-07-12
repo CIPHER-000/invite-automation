@@ -32,6 +32,8 @@ export const googleAccounts = pgTable("google_accounts", {
   expiresAt: timestamp("expires_at").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   status: text("status").notNull().default("active"), // 'active', 'disconnected', 'revoked'
+  lastConnectionCheck: timestamp("last_connection_check"),
+  connectionError: text("connection_error"),
   disconnectedAt: timestamp("disconnected_at"),
   lastUsed: timestamp("last_used"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -48,6 +50,10 @@ export const outlookAccounts = pgTable("outlook_accounts", {
   expiresAt: timestamp("expires_at").notNull(),
   microsoftId: text("microsoft_id").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  status: text("status").notNull().default("active"), // 'active', 'disconnected', 'revoked'
+  lastConnectionCheck: timestamp("last_connection_check"),
+  connectionError: text("connection_error"),
+  disconnectedAt: timestamp("disconnected_at"),
   lastUsed: timestamp("last_used"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -141,12 +147,26 @@ export const invites = pgTable("invites", {
 export const activityLogs = pgTable("activity_logs", {
   id: serial("id").primaryKey(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
-  type: text("type").notNull(), // invite_sent, invite_accepted, invite_declined, invite_tentative, rsvp_changed, confirmation_sent, error, etc.
+  eventType: text("event_type").notNull(), // invite_sent, invite_accepted, inbox_connected, campaign_created, etc.
+  action: text("action").notNull(), // Human readable action description
+  description: text("description").notNull(), // Detailed description
   campaignId: integer("campaign_id").references(() => campaigns.id),
   inviteId: integer("invite_id").references(() => invites.id),
-  googleAccountId: integer("google_account_id").references(() => googleAccounts.id),
-  message: text("message").notNull(),
-  metadata: jsonb("metadata"),
+  inboxId: integer("inbox_id"), // Generic inbox reference (google or outlook)
+  inboxType: text("inbox_type"), // 'google' or 'microsoft'
+  recipientEmail: text("recipient_email"),
+  recipientName: text("recipient_name"),
+  severity: text("severity").notNull().default('info'), // info, warning, error, success
+  metadata: jsonb("metadata").$type<{
+    inviteDetails?: any;
+    errorMessage?: string;
+    beforeState?: any;
+    afterState?: any;
+    meetingLink?: string;
+    timeSlot?: string;
+    authUrl?: string;
+    [key: string]: any;
+  }>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -233,6 +253,23 @@ export const insertInviteSchema = createInsertSchema(invites).omit({
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertActivityLogSchemaOld = createInsertSchema(activityLogs).omit({
+  id: true,
+  createdAt: true,
+  eventType: true,
+  action: true,
+  description: true,
+  severity: true,
+  inboxId: true,
+  inboxType: true,
+  recipientEmail: true,
+  recipientName: true
+}).extend({
+  type: z.string(),
+  message: z.string(),
+  googleAccountId: z.number().optional(),
 });
 
 export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({

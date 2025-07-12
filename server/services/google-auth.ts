@@ -146,6 +146,25 @@ export class GoogleAuthService {
     client.setCredentials({ access_token: accessToken });
     return client;
   }
+
+  /**
+   * Test calendar access for connection monitoring
+   */
+  async testCalendarAccess(accessToken: string): Promise<boolean> {
+    try {
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: accessToken });
+
+      const calendar = google.calendar({ version: 'v3', auth });
+      
+      // Try to list calendars to test access
+      await calendar.calendarList.list({ maxResults: 1 });
+      return true;
+    } catch (error: any) {
+      console.error("Calendar access test failed:", error);
+      return false;
+    }
+  }
 }
 
 export const googleAuthService = new GoogleAuthService();

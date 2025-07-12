@@ -11,6 +11,8 @@ import Campaigns from "@/pages/campaigns";
 import CreateCampaignPage from "@/components/campaigns/create-campaign-page";
 import Accounts from "@/pages/accounts";
 import Activity from "@/pages/activity";
+import ActivityLog from "@/pages/activity-log";
+import InboxManagement from "@/pages/inbox-management";
 import Settings from "@/pages/settings";
 import ServiceAccountSetup from "@/pages/service-account-setup";
 import InboxSetup from "@/pages/oauth-calendar";
@@ -61,7 +63,9 @@ function Router() {
               <Route path="/campaigns/new" component={CreateCampaignPage} />
               <Route path="/accounts" component={ServiceAccountSetup} />
               <Route path="/inbox-setup" component={InboxSetup} />
+              <Route path="/inbox-management" component={InboxManagement} />
               <Route path="/activity" component={Activity} />
+              <Route path="/activity-log" component={ActivityLog} />
               <Route path="/settings" component={Settings} />
               <Route path="/service-account" component={ServiceAccountSetup} />
               <Route component={NotFound} />

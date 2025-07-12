@@ -169,6 +169,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Microsoft OAuth routes
+  app.get("/api/auth/microsoft", requireAuth, async (req, res) => {
+    try {
+      const { microsoftAuthService } = await import("./services/microsoft-auth");
+      if (!microsoftAuthService.isConfigured()) {
+        return res.status(500).json({ error: "Microsoft OAuth not configured" });
+      }
+      const authUrl = microsoftAuthService.getAuthUrl();
+      console.log("Generated Microsoft Auth URL:", authUrl);
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error generating Microsoft Auth URL:", error);
+      res.status(500).json({ error: "Failed to generate authentication URL" });
+    }
+  });
+
   // Gmail App Password authentication
   app.post("/api/auth/gmail/app-password", async (req, res) => {
     try {
@@ -326,43 +342,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/auth/outlook/callback", async (req, res) => {
+  app.get("/api/auth/microsoft/callback", async (req, res) => {
     try {
       const { code } = req.query;
       if (!code || typeof code !== "string") {
         return res.status(400).json({ error: "Missing authorization code" });
       }
 
-      const { accessToken, refreshToken, expiresAt, userInfo } = 
-        await outlookAuthService.exchangeCodeForTokens(code);
+      const { microsoftAuthService } = await import("./services/microsoft-auth");
+      const authResult = await microsoftAuthService.exchangeCodeForTokens(code);
+      const userProfile = await microsoftAuthService.getUserProfile(authResult.accessToken);
 
-      // Check if account already exists
-      const existingAccount = await storage.getOutlookAccountByEmail(userInfo.email);
+      // Check if account already exists for this user
+      const userId = (req as any).user.id;
+      const existingAccount = await storage.getOutlookAccountByEmail(userProfile.mail || userProfile.userPrincipalName, userId);
       
       if (existingAccount) {
         // Update existing account
         await storage.updateOutlookAccount(existingAccount.id, {
-          accessToken,
-          refreshToken,
-          expiresAt,
+          accessToken: authResult.accessToken,
+          refreshToken: authResult.refreshToken || "",
+          expiresAt: new Date(authResult.expiresOn || Date.now() + 3600000),
           isActive: true,
+        }, userId);
+        
+        // Log account reconnection
+        await storage.createActivityLog({
+          type: "account_connected",
+          outlookAccountId: existingAccount.id,
+          userId: userId,
+          message: `Microsoft account ${userProfile.mail || userProfile.userPrincipalName} reconnected successfully`,
+          metadata: { email: userProfile.mail || userProfile.userPrincipalName, name: userProfile.displayName, action: "reconnected" }
         });
       } else {
-        // Create new account
-        await storage.createOutlookAccount({
-          email: userInfo.email,
-          name: userInfo.name,
-          microsoftId: userInfo.id,
-          accessToken,
-          refreshToken,
-          expiresAt,
-          isActive: true,
+        // Create new account for this user
+        const accountData = microsoftAuthService.formatAccountData(authResult, userProfile, userId);
+        const newAccount = await storage.createOutlookAccount(accountData);
+        
+        // Log new account connection
+        await storage.createActivityLog({
+          type: "account_connected",
+          outlookAccountId: newAccount.id,
+          userId: userId,
+          message: `New Microsoft account ${userProfile.mail || userProfile.userPrincipalName} connected successfully`,
+          metadata: { email: userProfile.mail || userProfile.userPrincipalName, name: userProfile.displayName, action: "new_connection" }
         });
       }
 
-      res.redirect("/?connected=outlook");
+      res.redirect("/?connected=microsoft");
     } catch (error) {
-      console.error("Outlook OAuth callback error:", error);
+      console.error("Microsoft OAuth callback error:", error);
       res.status(500).json({ error: "Authentication failed" });
     }
   });
@@ -371,10 +400,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/accounts", requireAuth, async (req, res) => {
     try {
       const userId = (req as any).user.id;
-      const accounts = await storage.getAccountsWithStatus(userId);
-      res.json(accounts);
+      const googleAccounts = await storage.getAccountsWithStatus(userId);
+      const outlookAccounts = await storage.getOutlookAccounts(userId);
+      
+      // Combine both account types with provider identification
+      const allAccounts = [
+        ...googleAccounts.map(acc => ({ ...acc, provider: 'google' })),
+        ...outlookAccounts.map(acc => ({ 
+          ...acc, 
+          provider: 'microsoft',
+          nextAvailable: null,
+          isInCooldown: false
+        }))
+      ];
+      
+      res.json(allAccounts);
     } catch (error) {
       res.status(500).json({ error: "Failed to get accounts" });
+    }
+  });
+
+  // Microsoft Accounts management
+  app.get("/api/microsoft-accounts", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const accounts = await storage.getOutlookAccounts(userId);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get Microsoft accounts" });
+    }
+  });
+
+  app.delete("/api/microsoft-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
+      
+      // Get the account first (ensure it belongs to this user)
+      const account = await storage.getOutlookAccount(id, userId);
+      if (!account) {
+        return res.status(404).json({ error: "Microsoft account not found" });
+      }
+
+      // Cancel all pending queue items for this inbox
+      try {
+        const queueItems = await storage.getQueueItems("pending");
+        const itemsToCancel = queueItems.filter(item => {
+          const prospectData = item.prospectData as any;
+          return prospectData.assignedOutlookInboxId === id;
+        });
+
+        for (const item of itemsToCancel) {
+          await storage.updateQueueItem(item.id, {
+            status: "cancelled",
+          });
+        }
+      } catch (queueError) {
+        console.warn("Failed to cancel queue items for Microsoft account:", queueError);
+      }
+
+      // Try to revoke Microsoft tokens
+      try {
+        const { microsoftAuthService } = await import("./services/microsoft-auth");
+        await microsoftAuthService.revokeTokens(account.accessToken);
+      } catch (revokeError) {
+        console.warn("Failed to revoke Microsoft tokens:", revokeError);
+      }
+
+      // Log the deletion
+      try {
+        await storage.createActivityLog({
+          type: "account_deleted",
+          outlookAccountId: id,
+          userId: userId,
+          message: `Microsoft account ${account.email} has been deleted from the platform`,
+          metadata: {
+            email: account.email,
+            name: account.name,
+            deletedAt: new Date().toISOString(),
+            action: "permanent_deletion"
+          }
+        });
+      } catch (logError) {
+        console.warn("Failed to log account deletion:", logError);
+      }
+
+      // Delete the account completely
+      await storage.deleteOutlookAccount(id, userId);
+
+      res.json({ 
+        success: true, 
+        message: `Microsoft account ${account.email} deleted successfully` 
+      });
+    } catch (error) {
+      console.error("Failed to delete Microsoft account:", error);
+      res.status(500).json({ error: "Failed to delete Microsoft account" });
+    }
+  });
+
+  // Connection monitoring and testing routes
+  app.post("/api/accounts/:id/test-connection", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
+      const { provider } = req.body;
+
+      if (!provider || !["google", "microsoft"].includes(provider)) {
+        return res.status(400).json({ error: "Invalid provider specified" });
+      }
+
+      const { connectionMonitorService } = await import("./services/connection-monitor");
+      const result = await connectionMonitorService.testAccountConnection(id, provider, userId);
+
+      res.json(result);
+    } catch (error) {
+      console.error("Connection test failed:", error);
+      res.status(500).json({ error: "Connection test failed" });
+    }
+  });
+
+  app.post("/api/accounts/:id/reconnect", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
+      const { provider } = req.body;
+
+      if (!provider || !["google", "microsoft"].includes(provider)) {
+        return res.status(400).json({ error: "Invalid provider specified" });
+      }
+
+      const { connectionMonitorService } = await import("./services/connection-monitor");
+      const authUrl = await connectionMonitorService.getReconnectionUrl(id, provider, userId);
+
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Reconnection URL generation failed:", error);
+      res.status(500).json({ error: "Failed to generate reconnection URL" });
+    }
+  });
+
+  // Health check endpoint for monitoring service
+  app.get("/api/connection-health", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const { connectionMonitorService } = await import("./services/connection-monitor");
+      
+      await connectionMonitorService.checkUserConnections(userId);
+      
+      res.json({ message: "Health check completed" });
+    } catch (error) {
+      console.error("Health check failed:", error);
+      res.status(500).json({ error: "Health check failed" });
     }
   });
 
@@ -1166,37 +1342,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Activity Logs (enhanced with RSVP filtering)
+  // Activity Logs (comprehensive filtering and pagination)
   app.get("/api/activity", requireAuth, async (req, res) => {
     try {
       const userId = (req as any).user.id;
-      const { limit, type, days } = req.query;
-      
-      let timeRange: { start: Date; end: Date } | undefined;
-      
-      if (days) {
-        const daysNum = parseInt(days as string);
-        if (!isNaN(daysNum) && daysNum > 0) {
-          const end = new Date();
-          const start = new Date();
-          start.setDate(start.getDate() - daysNum);
-          timeRange = { start, end };
+      const {
+        limit = '50',
+        offset = '0',
+        eventType,
+        campaignId,
+        inboxId,
+        inboxType,
+        recipientEmail,
+        severity,
+        startDate,
+        endDate,
+        search
+      } = req.query;
+
+      const options = {
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string),
+        eventType: eventType as string,
+        campaignId: campaignId ? parseInt(campaignId as string) : undefined,
+        inboxId: inboxId ? parseInt(inboxId as string) : undefined,
+        inboxType: inboxType as string,
+        recipientEmail: recipientEmail as string,
+        severity: severity as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        search: search as string,
+      };
+
+      // Filter out undefined values
+      Object.keys(options).forEach(key => {
+        if (options[key as keyof typeof options] === undefined || options[key as keyof typeof options] === '') {
+          delete options[key as keyof typeof options];
         }
-      }
-      
-      let logs = await storage.getActivityLogs(
-        limit ? parseInt(limit as string) : undefined,
-        userId,
-        timeRange
-      );
-      
-      // Filter by type if specified
-      if (type) {
-        logs = logs.filter(log => log.type === type);
-      }
-      
-      res.json(logs);
+      });
+
+      const [logs, total] = await Promise.all([
+        storage.getActivityLogs(userId, options),
+        storage.getActivityLogCount(userId, options)
+      ]);
+
+      res.json({
+        logs,
+        total,
+        hasMore: (options.offset + options.limit) < total
+      });
     } catch (error) {
+      console.error('Error fetching activity logs:', error);
       res.status(500).json({ error: "Failed to get activity logs" });
     }
   });
