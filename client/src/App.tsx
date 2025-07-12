@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -71,8 +71,10 @@ function Router() {
               <Route path="/inbox-setup" component={InboxSetup} />
               <Route path="/inbox-management" component={InboxManagement} />
               <Route path="/inboxes" component={UnifiedInboxManagement} />
-              <Route path="/activity" component={Activity} />
               <Route path="/activity-log" component={ActivityLog} />
+              <Route path="/activity">
+                <Redirect to="/activity-log" />
+              </Route>
               <Route path="/settings" component={Settings} />
               <Route path="/help-center" component={HelpCenter} />
               <Route path="/service-account" component={ServiceAccountSetup} />

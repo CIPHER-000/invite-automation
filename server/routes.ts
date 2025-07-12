@@ -959,6 +959,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // OAuth Calendar Management
+  // Get Google OAuth URL
+  app.get("/api/auth/google/url", requireAuth, async (req, res) => {
+    try {
+      const authUrl = await googleAuthService.getAuthUrl();
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error getting Google auth URL:", error);
+      res.status(500).json({ error: "Failed to get auth URL" });
+    }
+  });
+
   app.post("/api/oauth-calendar/test-invite", requireAuth, async (req, res) => {
     try {
       const { prospectEmail, eventTitle, eventDescription, accountId } = req.body;
