@@ -45,7 +45,7 @@ interface ActivityFilters {
 }
 
 const EVENT_TYPES = [
-  { value: '', label: 'All Events' },
+  { value: 'all', label: 'All Events' },
   { value: 'invite_sent', label: 'Invite Sent' },
   { value: 'invite_accepted', label: 'Invite Accepted' },
   { value: 'invite_declined', label: 'Invite Declined' },
@@ -60,7 +60,7 @@ const EVENT_TYPES = [
 ];
 
 const SEVERITY_LEVELS = [
-  { value: '', label: 'All Severities' },
+  { value: 'all', label: 'All Severities' },
   { value: 'success', label: 'Success' },
   { value: 'info', label: 'Info' },
   { value: 'warning', label: 'Warning' },
@@ -68,7 +68,7 @@ const SEVERITY_LEVELS = [
 ];
 
 const INBOX_TYPES = [
-  { value: '', label: 'All Providers' },
+  { value: 'all', label: 'All Providers' },
   { value: 'google', label: 'Google' },
   { value: 'microsoft', label: 'Microsoft' },
 ];
@@ -76,9 +76,9 @@ const INBOX_TYPES = [
 export default function ActivityLog() {
   const [filters, setFilters] = useState<ActivityFilters>({
     search: '',
-    eventType: '',
-    severity: '',
-    inboxType: '',
+    eventType: 'all',
+    severity: 'all',
+    inboxType: 'all',
     recipientEmail: '',
   });
   
@@ -93,15 +93,24 @@ export default function ActivityLog() {
     params.set('offset', offset.toString());
     
     if (filters.search) params.set('search', filters.search);
-    if (filters.eventType) params.set('eventType', filters.eventType);
-    if (filters.severity) params.set('severity', filters.severity);
-    if (filters.inboxType) params.set('inboxType', filters.inboxType);
+    if (filters.eventType && filters.eventType !== 'all') params.set('eventType', filters.eventType);
+    if (filters.severity && filters.severity !== 'all') params.set('severity', filters.severity);
+    if (filters.inboxType && filters.inboxType !== 'all') params.set('inboxType', filters.inboxType);
     if (filters.recipientEmail) params.set('recipientEmail', filters.recipientEmail);
     if (filters.startDate) params.set('startDate', filters.startDate.toISOString());
     if (filters.endDate) params.set('endDate', filters.endDate.toISOString());
     
     return params.toString();
-  }, [filters, offset]);
+  }, [
+    filters.search,
+    filters.eventType,
+    filters.severity,
+    filters.inboxType,
+    filters.recipientEmail,
+    filters.startDate,
+    filters.endDate,
+    offset
+  ]);
 
   const { data, isLoading, refetch, error } = useQuery({
     queryKey: ["/api/activity", queryParams],
@@ -117,16 +126,18 @@ export default function ActivityLog() {
   useEffect(() => {
     setOffset(0);
     setAllLogs([]);
-  }, [filters]);
+  }, [filters.search, filters.eventType, filters.severity, filters.inboxType, filters.recipientEmail, filters.startDate, filters.endDate]);
 
   // Accumulate logs for infinite scroll
   useEffect(() => {
-    if (offset === 0) {
-      setAllLogs(logs);
-    } else {
-      setAllLogs(prev => [...prev, ...logs]);
+    if (logs.length > 0) {
+      if (offset === 0) {
+        setAllLogs(logs);
+      } else {
+        setAllLogs(prev => [...prev, ...logs]);
+      }
     }
-  }, [logs, offset]);
+  }, [logs.length, offset]);
 
   const loadMore = () => {
     setOffset(prev => prev + 20);
@@ -139,9 +150,9 @@ export default function ActivityLog() {
   const clearFilters = () => {
     setFilters({
       search: '',
-      eventType: '',
-      severity: '',
-      inboxType: '',
+      eventType: 'all',
+      severity: 'all',
+      inboxType: 'all',
       recipientEmail: '',
     });
   };
@@ -154,9 +165,9 @@ export default function ActivityLog() {
       exportParams.set('offset', '0');
       
       if (filters.search) exportParams.set('search', filters.search);
-      if (filters.eventType) exportParams.set('eventType', filters.eventType);
-      if (filters.severity) exportParams.set('severity', filters.severity);
-      if (filters.inboxType) exportParams.set('inboxType', filters.inboxType);
+      if (filters.eventType && filters.eventType !== 'all') exportParams.set('eventType', filters.eventType);
+      if (filters.severity && filters.severity !== 'all') exportParams.set('severity', filters.severity);
+      if (filters.inboxType && filters.inboxType !== 'all') exportParams.set('inboxType', filters.inboxType);
       if (filters.recipientEmail) exportParams.set('recipientEmail', filters.recipientEmail);
       if (filters.startDate) exportParams.set('startDate', filters.startDate.toISOString());
       if (filters.endDate) exportParams.set('endDate', filters.endDate.toISOString());

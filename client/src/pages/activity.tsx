@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,6 +97,7 @@ export default function Activity() {
 
   const { data: campaigns } = useQuery({
     queryKey: ["/api/campaigns"],
+    enabled: false, // Don't auto-fetch campaigns since we're not using them
   });
 
   const filteredActivities = activities?.filter((activity: any) => {
@@ -107,18 +108,14 @@ export default function Activity() {
     return matchesSearch && matchesType;
   }) || [];
 
-  const getActivityStats = () => {
+  const stats = useMemo(() => {
     if (!activities) return {};
     
-    const stats = activities.reduce((acc: any, activity: any) => {
+    return activities.reduce((acc: any, activity: any) => {
       acc[activity.eventType] = (acc[activity.eventType] || 0) + 1;
       return acc;
     }, {});
-
-    return stats;
-  };
-
-  const stats = getActivityStats();
+  }, [activities]);
 
   return (
     <div className="space-y-6">
@@ -296,6 +293,7 @@ export default function Activity() {
                     <SelectItem value="invite_error">Invite Errors</SelectItem>
                     <SelectItem value="campaign_processed">Campaigns</SelectItem>
                     <SelectItem value="campaign_error">Campaign Errors</SelectItem>
+                    <SelectItem value="account_disconnected">Account Disconnected</SelectItem>
                   </SelectContent>
                 </Select>
 
