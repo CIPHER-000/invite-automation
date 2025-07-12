@@ -8,6 +8,9 @@ import {
   outlookAccounts,
   rsvpEvents,
   webhookEvents,
+  scheduledInvites,
+  schedulingSettings,
+  calendarSlots,
   type GoogleAccount,
   type InsertGoogleAccount,
   type OutlookAccount,
@@ -29,6 +32,12 @@ import {
   type DashboardStats,
   type CampaignWithStats,
   type AccountWithStatus,
+  type ScheduledInvite,
+  type InsertScheduledInvite,
+  type SchedulingSettings,
+  type InsertSchedulingSettings,
+  type CalendarSlot,
+  type InsertCalendarSlot,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, count, isNull, gte, lte, or, ilike } from "drizzle-orm";
@@ -135,6 +144,27 @@ export interface IStorage {
     dailyProgress: Array<{ date: string; sent: number; accepted: number }>;
     inboxUsage: Array<{ inboxId: number; email: string; usage: number; limit: number }>;
   }>;
+
+  // Advanced Scheduling
+  getScheduledInvites(userId: string, campaignId?: number): Promise<ScheduledInvite[]>;
+  getScheduledInvite(id: number, userId: string): Promise<ScheduledInvite | undefined>;
+  createScheduledInvite(invite: InsertScheduledInvite): Promise<ScheduledInvite>;
+  updateScheduledInvite(id: number, updates: Partial<ScheduledInvite>, userId: string): Promise<ScheduledInvite>;
+  getScheduledInvitesByTimeRange(accountId: number, accountType: string, startTime: Date, endTime: Date): Promise<ScheduledInvite[]>;
+  getScheduledInvitesByAccount(accountId: number, accountType: string, statuses: string[]): Promise<ScheduledInvite[]>;
+  getDoubleBookingCount(accountId: number, accountType: string, startTime: Date, endTime: Date): Promise<number>;
+  
+  // Scheduling Settings
+  getSchedulingSettings(userId: string, campaignId?: number): Promise<SchedulingSettings | undefined>;
+  getGlobalSchedulingSettings(userId: string): Promise<SchedulingSettings | undefined>;
+  createSchedulingSettings(settings: InsertSchedulingSettings): Promise<SchedulingSettings>;
+  updateSchedulingSettings(id: number, updates: Partial<SchedulingSettings>, userId: string): Promise<SchedulingSettings>;
+  
+  // Calendar Slots
+  getCalendarSlots(accountId: number, accountType: string, startDate: Date, endDate: Date): Promise<CalendarSlot[]>;
+  createCalendarSlot(slot: InsertCalendarSlot): Promise<CalendarSlot>;
+  updateCalendarSlot(id: number, updates: Partial<CalendarSlot>): Promise<CalendarSlot>;
+  deleteCalendarSlot(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -1729,6 +1759,187 @@ class PostgresStorage implements IStorage {
       email: schema.users.email
     }).from(schema.users);
     return result;
+  }
+
+  // Advanced Scheduling Methods
+  async getScheduledInvites(userId: string, campaignId?: number): Promise<ScheduledInvite[]> {
+    const whereClause = campaignId 
+      ? and(eq(scheduledInvites.userId, userId), eq(scheduledInvites.campaignId, campaignId))
+      : eq(scheduledInvites.userId, userId);
+    
+    return await this.db
+      .select()
+      .from(scheduledInvites)
+      .where(whereClause)
+      .orderBy(scheduledInvites.scheduledTimeUtc);
+  }
+
+  async getScheduledInvite(id: number, userId: string): Promise<ScheduledInvite | undefined> {
+    const result = await this.db
+      .select()
+      .from(scheduledInvites)
+      .where(and(eq(scheduledInvites.id, id), eq(scheduledInvites.userId, userId)))
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async createScheduledInvite(invite: InsertScheduledInvite): Promise<ScheduledInvite> {
+    const result = await this.db
+      .insert(scheduledInvites)
+      .values(invite)
+      .returning();
+    
+    return result[0];
+  }
+
+  async updateScheduledInvite(id: number, updates: Partial<ScheduledInvite>, userId: string): Promise<ScheduledInvite> {
+    const result = await this.db
+      .update(scheduledInvites)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(scheduledInvites.id, id), eq(scheduledInvites.userId, userId)))
+      .returning();
+    
+    return result[0];
+  }
+
+  async getScheduledInvitesByTimeRange(
+    accountId: number, 
+    accountType: string, 
+    startTime: Date, 
+    endTime: Date
+  ): Promise<ScheduledInvite[]> {
+    return await this.db
+      .select()
+      .from(scheduledInvites)
+      .where(and(
+        eq(scheduledInvites.senderAccountId, accountId),
+        eq(scheduledInvites.senderAccountType, accountType),
+        gte(scheduledInvites.scheduledTimeUtc, startTime),
+        lte(scheduledInvites.scheduledTimeUtc, endTime)
+      ));
+  }
+
+  async getScheduledInvitesByAccount(
+    accountId: number, 
+    accountType: string, 
+    statuses: string[]
+  ): Promise<ScheduledInvite[]> {
+    return await this.db
+      .select()
+      .from(scheduledInvites)
+      .where(and(
+        eq(scheduledInvites.senderAccountId, accountId),
+        eq(scheduledInvites.senderAccountType, accountType),
+        sql`${scheduledInvites.status} = ANY(${statuses})`
+      ));
+  }
+
+  async getDoubleBookingCount(
+    accountId: number, 
+    accountType: string, 
+    startTime: Date, 
+    endTime: Date
+  ): Promise<number> {
+    const result = await this.db
+      .select({ count: sql<number>`cast(count(*) as integer)` })
+      .from(scheduledInvites)
+      .where(and(
+        eq(scheduledInvites.senderAccountId, accountId),
+        eq(scheduledInvites.senderAccountType, accountType),
+        gte(scheduledInvites.scheduledTimeUtc, startTime),
+        lte(scheduledInvites.scheduledTimeUtc, endTime)
+      ));
+    
+    return result[0]?.count || 0;
+  }
+
+  // Scheduling Settings Methods
+  async getSchedulingSettings(userId: string, campaignId?: number): Promise<SchedulingSettings | undefined> {
+    const whereClause = campaignId 
+      ? and(eq(schedulingSettings.userId, userId), eq(schedulingSettings.campaignId, campaignId))
+      : and(eq(schedulingSettings.userId, userId), eq(schedulingSettings.isGlobal, false));
+    
+    const result = await this.db
+      .select()
+      .from(schedulingSettings)
+      .where(whereClause)
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async getGlobalSchedulingSettings(userId: string): Promise<SchedulingSettings | undefined> {
+    const result = await this.db
+      .select()
+      .from(schedulingSettings)
+      .where(and(eq(schedulingSettings.userId, userId), eq(schedulingSettings.isGlobal, true)))
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async createSchedulingSettings(settings: InsertSchedulingSettings): Promise<SchedulingSettings> {
+    const result = await this.db
+      .insert(schedulingSettings)
+      .values(settings)
+      .returning();
+    
+    return result[0];
+  }
+
+  async updateSchedulingSettings(id: number, updates: Partial<SchedulingSettings>, userId: string): Promise<SchedulingSettings> {
+    const result = await this.db
+      .update(schedulingSettings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(schedulingSettings.id, id), eq(schedulingSettings.userId, userId)))
+      .returning();
+    
+    return result[0];
+  }
+
+  // Calendar Slots Methods
+  async getCalendarSlots(
+    accountId: number, 
+    accountType: string, 
+    startDate: Date, 
+    endDate: Date
+  ): Promise<CalendarSlot[]> {
+    return await this.db
+      .select()
+      .from(calendarSlots)
+      .where(and(
+        eq(calendarSlots.accountId, accountId),
+        eq(calendarSlots.accountType, accountType),
+        gte(calendarSlots.date, startDate),
+        lte(calendarSlots.date, endDate)
+      ))
+      .orderBy(calendarSlots.startTime);
+  }
+
+  async createCalendarSlot(slot: InsertCalendarSlot): Promise<CalendarSlot> {
+    const result = await this.db
+      .insert(calendarSlots)
+      .values(slot)
+      .returning();
+    
+    return result[0];
+  }
+
+  async updateCalendarSlot(id: number, updates: Partial<CalendarSlot>): Promise<CalendarSlot> {
+    const result = await this.db
+      .update(calendarSlots)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(calendarSlots.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteCalendarSlot(id: number): Promise<void> {
+    await this.db
+      .delete(calendarSlots)
+      .where(eq(calendarSlots.id, id));
   }
 }
 

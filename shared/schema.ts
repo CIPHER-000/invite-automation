@@ -272,6 +272,97 @@ export const insertActivityLogSchemaOld = createInsertSchema(activityLogs).omit(
   googleAccountId: z.number().optional(),
 });
 
+// Scheduled Invites table for advanced calendar slot management
+export const scheduledInvites = pgTable("scheduled_invites", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  recipientEmail: text("recipient_email").notNull(),
+  recipientName: text("recipient_name"),
+  recipientTimezone: text("recipient_timezone").notNull().default("America/New_York"),
+  scheduledTimeUtc: timestamp("scheduled_time_utc").notNull(),
+  scheduledTimeLocal: timestamp("scheduled_time_local").notNull(),
+  status: text("status").notNull().default("pending"), // 'pending', 'sent', 'accepted', 'declined', 'canceled', 'failed'
+  senderAccountId: integer("sender_account_id").notNull(),
+  senderAccountType: text("sender_account_type").notNull().default("google"), // 'google', 'microsoft'
+  senderCalendarEventId: text("sender_calendar_event_id"),
+  wasDoubleBooked: boolean("was_double_booked").notNull().default(false),
+  leadTimeDays: integer("lead_time_days").notNull().default(2),
+  originalScheduledTime: timestamp("original_scheduled_time"),
+  rescheduledCount: integer("rescheduled_count").notNull().default(0),
+  metadata: jsonb("metadata").default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Scheduling Settings table for per-campaign and global settings
+export const schedulingSettings = pgTable("scheduling_settings", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  campaignId: integer("campaign_id").references(() => campaigns.id, { onDelete: "cascade" }),
+  isGlobal: boolean("is_global").notNull().default(false),
+  minLeadTimeDays: integer("min_lead_time_days").notNull().default(2),
+  maxLeadTimeDays: integer("max_lead_time_days").notNull().default(6),
+  preferredStartHour: integer("preferred_start_hour").notNull().default(12), // 12 PM
+  preferredEndHour: integer("preferred_end_hour").notNull().default(16), // 4 PM
+  allowDoubleBooking: boolean("allow_double_booking").notNull().default(false),
+  maxDoubleBookingsPerSlot: integer("max_double_bookings_per_slot").notNull().default(1),
+  excludeWeekends: boolean("exclude_weekends").notNull().default(true),
+  businessHoursOnly: boolean("business_hours_only").notNull().default(true),
+  fallbackPolicy: text("fallback_policy").notNull().default("skip"), // 'skip', 'double_book', 'manual'
+  enableTimezoneDetection: boolean("enable_timezone_detection").notNull().default(true),
+  retryAttempts: integer("retry_attempts").notNull().default(3),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Calendar Slots table for tracking availability
+export const calendarSlots = pgTable("calendar_slots", {
+  id: serial("id").primaryKey(),
+  accountId: integer("account_id").notNull(),
+  accountType: text("account_type").notNull().default("google"), // 'google', 'microsoft'
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: timestamp("date").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  isAvailable: boolean("is_available").notNull().default(true),
+  isBusy: boolean("is_busy").notNull().default(false),
+  eventTitle: text("event_title"),
+  eventId: text("event_id"),
+  scheduledInviteId: integer("scheduled_invite_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Indexes will be added later after tables are created
+
+// Type definitions
+export type ScheduledInvite = typeof scheduledInvites.$inferSelect;
+export type InsertScheduledInvite = typeof scheduledInvites.$inferInsert;
+export type SchedulingSettings = typeof schedulingSettings.$inferSelect;
+export type InsertSchedulingSettings = typeof schedulingSettings.$inferInsert;
+export type CalendarSlot = typeof calendarSlots.$inferSelect;
+export type InsertCalendarSlot = typeof calendarSlots.$inferInsert;
+
+// Schema validation
+export const insertScheduledInviteSchema = createInsertSchema(scheduledInvites).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSchedulingSettingsSchema = createInsertSchema(schedulingSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCalendarSlotSchema = createInsertSchema(calendarSlots).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({
   id: true,
   updatedAt: true,

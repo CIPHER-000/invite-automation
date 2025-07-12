@@ -1,89 +1,317 @@
-import { format, addDays, startOfDay, setHours, setMinutes, isAfter, isBefore, getDay } from 'date-fns';
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { 
+  addDays, 
+  isWeekend, 
+  format, 
+  parseISO, 
+  startOfDay, 
+  endOfDay, 
+  addHours, 
+  isAfter, 
+  isBefore,
+  differenceInDays,
+  addBusinessDays,
+  isBusinessDay,
+  setHours,
+  setMinutes,
+  getHours,
+  getMinutes
+} from 'date-fns';
+import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { storage } from '../storage';
+import type { 
+  ScheduledInvite, 
+  InsertScheduledInvite, 
+  SchedulingSettings, 
+  CalendarSlot,
+  Campaign,
+  GoogleAccount,
+  OutlookAccount
+} from '@shared/schema';
 
-export interface AdvancedSchedulingConfig {
-  dateRangeStart: Date;
-  dateRangeEnd: Date;
-  selectedDaysOfWeek: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday
-  timeWindowStart: string; // "09:00"
-  timeWindowEnd: string; // "17:00"
-  timezone: string; // "America/New_York"
-  totalSlots: number; // Number of unique slots needed
+export interface SchedulingRequest {
+  campaignId: number;
+  recipientEmail: string;
+  recipientName?: string;
+  recipientTimezone?: string;
+  userId: string;
+  preferredSenderAccountId?: number;
+  preferredSenderAccountType?: 'google' | 'microsoft';
 }
 
-export interface ScheduledSlot {
-  dateTime: Date;
-  localDateTime: string;
-  utcDateTime: string;
-  dayOfWeek: number;
-  slotIndex: number;
+export interface SchedulingResult {
+  success: boolean;
+  scheduledInvite?: ScheduledInvite;
+  error?: string;
+  needsManualScheduling?: boolean;
+  suggestedSlots?: TimeSlot[];
 }
 
-export class AdvancedScheduler {
+export interface TimeSlot {
+  startTime: Date;
+  endTime: Date;
+  isAvailable: boolean;
+  isDoubleBooking: boolean;
+  accountId: number;
+  accountType: 'google' | 'microsoft';
+  timezone: string;
+}
+
+export interface AvailabilityCheck {
+  accountId: number;
+  accountType: 'google' | 'microsoft';
+  startTime: Date;
+  endTime: Date;
+  isAvailable: boolean;
+  conflictingEvent?: string;
+}
+
+export class AdvancedSchedulerService {
+  private readonly BUSINESS_HOURS = { start: 9, end: 17 }; // 9 AM - 5 PM
+  private readonly MEETING_DURATION_MINUTES = 30;
+  private readonly TIMEZONE_MAPPING = {
+    'gmail.com': 'America/New_York',
+    'outlook.com': 'America/New_York',
+    'hotmail.com': 'America/New_York',
+    // Add more domain-to-timezone mappings as needed
+  };
+
   /**
-   * Generate unique randomized time slots within the specified constraints
+   * Main scheduling method that handles all the advanced logic
    */
-  generateRandomizedSlots(config: AdvancedSchedulingConfig): ScheduledSlot[] {
-    const availableSlots = this.calculateAvailableSlots(config);
-    
-    if (availableSlots.length < config.totalSlots) {
-      throw new Error(
-        `Not enough available time slots. Need ${config.totalSlots} slots but only ${availableSlots.length} are available. ` +
-        `Please expand your date range, add more days, or extend your time window.`
+  async scheduleInvite(request: SchedulingRequest): Promise<SchedulingResult> {
+    try {
+      // 1. Get campaign and settings
+      const campaign = await storage.getCampaign(request.campaignId, request.userId);
+      if (!campaign) {
+        return { success: false, error: 'Campaign not found' };
+      }
+
+      const settings = await this.getSchedulingSettings(request.userId, request.campaignId);
+      
+      // 2. Determine recipient timezone
+      const recipientTimezone = this.determineRecipientTimezone(
+        request.recipientTimezone, 
+        request.recipientEmail, 
+        settings.enableTimezoneDetection
       );
+
+      // 3. Calculate business day range
+      const schedulingRange = this.calculateSchedulingRange(settings);
+      
+      // 4. Get available sender accounts
+      const senderAccounts = await this.getAvailableSenderAccounts(
+        request.userId, 
+        request.preferredSenderAccountId,
+        request.preferredSenderAccountType
+      );
+
+      if (senderAccounts.length === 0) {
+        return { success: false, error: 'No available sender accounts' };
+      }
+
+      // 5. Find optimal time slots
+      const availableSlots = await this.findAvailableTimeSlots(
+        senderAccounts,
+        schedulingRange,
+        recipientTimezone,
+        settings
+      );
+
+      if (availableSlots.length === 0) {
+        // 6. Handle no available slots - try double booking if enabled
+        if (settings.allowDoubleBooking) {
+          const doubleBookingSlots = await this.findDoubleBookingSlots(
+            senderAccounts,
+            schedulingRange,
+            recipientTimezone,
+            settings
+          );
+          
+          if (doubleBookingSlots.length > 0) {
+            return this.createScheduledInvite(request, doubleBookingSlots[0], settings, true);
+          }
+        }
+
+        return {
+          success: false,
+          error: 'No available time slots found',
+          needsManualScheduling: true,
+          suggestedSlots: []
+        };
+      }
+
+      // 7. Select optimal slot and create scheduled invite
+      const selectedSlot = this.selectOptimalSlot(availableSlots, settings);
+      return this.createScheduledInvite(request, selectedSlot, settings, false);
+
+    } catch (error) {
+      console.error('Advanced scheduler error:', error);
+      return { success: false, error: 'Internal scheduling error' };
     }
-
-    // Randomly select unique slots
-    const selectedSlots = this.shuffleArray([...availableSlots])
-      .slice(0, config.totalSlots)
-      .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()); // Sort by date/time
-
-    return selectedSlots.map((slot, index) => ({
-      ...slot,
-      slotIndex: index
-    }));
   }
 
   /**
-   * Calculate all available time slots within constraints
+   * Get scheduling settings for user/campaign
    */
-  private calculateAvailableSlots(config: AdvancedSchedulingConfig): ScheduledSlot[] {
-    const slots: ScheduledSlot[] = [];
-    const { dateRangeStart, dateRangeEnd, selectedDaysOfWeek, timeWindowStart, timeWindowEnd, timezone } = config;
-
-    // Parse time window
-    const [startHour, startMinute] = timeWindowStart.split(':').map(Number);
-    const [endHour, endMinute] = timeWindowEnd.split(':').map(Number);
-
-    // Iterate through each day in the date range
-    let currentDate = startOfDay(dateRangeStart);
-    const endDate = startOfDay(dateRangeEnd);
-
-    while (!isAfter(currentDate, endDate)) {
-      const dayOfWeek = getDay(currentDate);
-      
-      // Check if this day is selected
-      if (selectedDaysOfWeek.includes(dayOfWeek)) {
-        // Generate 30-minute slots within the time window
-        for (let hour = startHour; hour < endHour || (hour === endHour && startMinute === 0); hour++) {
-          for (let minute = hour === startHour ? startMinute : 0; 
-               minute < 60 && (hour < endHour || (hour === endHour && minute < endMinute)); 
-               minute += 30) {
-            
-            const localDateTime = setMinutes(setHours(currentDate, hour), minute);
-            const utcDateTime = fromZonedTime(localDateTime, timezone);
-            
-            slots.push({
-              dateTime: utcDateTime,
-              localDateTime: this.formatLocalDateTime(localDateTime, timezone),
-              utcDateTime: utcDateTime.toISOString(),
-              dayOfWeek,
-              slotIndex: 0 // Will be set later
-            });
-          }
-        }
+  private async getSchedulingSettings(userId: string, campaignId?: number): Promise<SchedulingSettings> {
+    // Try to get campaign-specific settings first
+    if (campaignId) {
+      const campaignSettings = await storage.getSchedulingSettings(userId, campaignId);
+      if (campaignSettings) {
+        return campaignSettings;
       }
-      
+    }
+
+    // Fall back to global settings
+    const globalSettings = await storage.getGlobalSchedulingSettings(userId);
+    if (globalSettings) {
+      return globalSettings;
+    }
+
+    // Return default settings if none exist
+    return {
+      id: 0,
+      userId,
+      campaignId: null,
+      isGlobal: true,
+      minLeadTimeDays: 2,
+      maxLeadTimeDays: 6,
+      preferredStartHour: 12,
+      preferredEndHour: 16,
+      allowDoubleBooking: false,
+      maxDoubleBookingsPerSlot: 1,
+      excludeWeekends: true,
+      businessHoursOnly: true,
+      fallbackPolicy: 'skip',
+      enableTimezoneDetection: true,
+      retryAttempts: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+
+  /**
+   * Determine recipient timezone from various sources
+   */
+  private determineRecipientTimezone(
+    explicitTimezone?: string,
+    email?: string,
+    enableDetection: boolean = true
+  ): string {
+    if (explicitTimezone) {
+      return explicitTimezone;
+    }
+
+    if (enableDetection && email) {
+      const domain = email.split('@')[1]?.toLowerCase();
+      if (domain && this.TIMEZONE_MAPPING[domain]) {
+        return this.TIMEZONE_MAPPING[domain];
+      }
+    }
+
+    return 'America/New_York'; // Default timezone
+  }
+
+  /**
+   * Calculate the scheduling range based on business days
+   */
+  private calculateSchedulingRange(settings: SchedulingSettings): { startDate: Date; endDate: Date } {
+    const today = new Date();
+    const startDate = addBusinessDays(today, settings.minLeadTimeDays);
+    const endDate = addBusinessDays(today, settings.maxLeadTimeDays);
+
+    return { startDate, endDate };
+  }
+
+  /**
+   * Get available sender accounts for the user
+   */
+  private async getAvailableSenderAccounts(
+    userId: string,
+    preferredAccountId?: number,
+    preferredAccountType?: 'google' | 'microsoft'
+  ): Promise<Array<GoogleAccount | OutlookAccount>> {
+    const accounts: Array<GoogleAccount | OutlookAccount> = [];
+
+    // Get Google accounts
+    const googleAccounts = await storage.getGoogleAccounts(userId);
+    accounts.push(...googleAccounts.filter(acc => acc.isActive));
+
+    // Get Microsoft accounts
+    const outlookAccounts = await storage.getOutlookAccounts(userId);
+    accounts.push(...outlookAccounts.filter(acc => acc.isActive));
+
+    // Filter by preferred account if specified
+    if (preferredAccountId && preferredAccountType) {
+      const preferredAccount = accounts.find(acc => 
+        acc.id === preferredAccountId && 
+        (preferredAccountType === 'google' ? 'accessToken' in acc : 'microsoftId' in acc)
+      );
+      if (preferredAccount) {
+        return [preferredAccount];
+      }
+    }
+
+    return accounts;
+  }
+
+  /**
+   * Find available time slots across all sender accounts
+   */
+  private async findAvailableTimeSlots(
+    senderAccounts: Array<GoogleAccount | OutlookAccount>,
+    schedulingRange: { startDate: Date; endDate: Date },
+    recipientTimezone: string,
+    settings: SchedulingSettings
+  ): Promise<TimeSlot[]> {
+    const availableSlots: TimeSlot[] = [];
+    
+    for (const account of senderAccounts) {
+      const accountType = 'microsoftId' in account ? 'microsoft' : 'google';
+      const accountSlots = await this.getAccountAvailableSlots(
+        account,
+        accountType,
+        schedulingRange,
+        recipientTimezone,
+        settings
+      );
+      availableSlots.push(...accountSlots);
+    }
+
+    // Sort by date/time and remove duplicates
+    return this.sortAndDeduplicateSlots(availableSlots);
+  }
+
+  /**
+   * Get available slots for a specific account
+   */
+  private async getAccountAvailableSlots(
+    account: GoogleAccount | OutlookAccount,
+    accountType: 'google' | 'microsoft',
+    schedulingRange: { startDate: Date; endDate: Date },
+    recipientTimezone: string,
+    settings: SchedulingSettings
+  ): Promise<TimeSlot[]> {
+    const slots: TimeSlot[] = [];
+    let currentDate = new Date(schedulingRange.startDate);
+
+    while (currentDate <= schedulingRange.endDate) {
+      // Skip weekends if configured
+      if (settings.excludeWeekends && isWeekend(currentDate)) {
+        currentDate = addDays(currentDate, 1);
+        continue;
+      }
+
+      // Generate time slots for this day
+      const daySlots = await this.generateDaySlots(
+        currentDate,
+        account,
+        accountType,
+        recipientTimezone,
+        settings
+      );
+
+      slots.push(...daySlots);
       currentDate = addDays(currentDate, 1);
     }
 
@@ -91,102 +319,375 @@ export class AdvancedScheduler {
   }
 
   /**
-   * Validate scheduling configuration
+   * Generate time slots for a specific day
    */
-  validateConfiguration(config: AdvancedSchedulingConfig): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    // Check date range
-    if (isAfter(config.dateRangeStart, config.dateRangeEnd)) {
-      errors.push("Start date must be before end date");
-    }
-
-    // Check if start date is in the past
-    const today = new Date();
-    if (isBefore(config.dateRangeStart, today)) {
-      errors.push("Start date cannot be in the past");
-    }
-
-    // Check days of week
-    if (config.selectedDaysOfWeek.length === 0) {
-      errors.push("At least one day of the week must be selected");
-    }
-
-    // Check time window
-    const [startHour, startMinute] = config.timeWindowStart.split(':').map(Number);
-    const [endHour, endMinute] = config.timeWindowEnd.split(':').map(Number);
+  private async generateDaySlots(
+    date: Date,
+    account: GoogleAccount | OutlookAccount,
+    accountType: 'google' | 'microsoft',
+    recipientTimezone: string,
+    settings: SchedulingSettings
+  ): Promise<TimeSlot[]> {
+    const slots: TimeSlot[] = [];
     
-    if (startHour > endHour || (startHour === endHour && startMinute >= endMinute)) {
-      errors.push("Start time must be before end time");
-    }
+    // Convert preferred hours to recipient timezone
+    const recipientStartHour = settings.preferredStartHour;
+    const recipientEndHour = settings.preferredEndHour;
+    
+    // Generate 30-minute slots within preferred hours
+    for (let hour = recipientStartHour; hour < recipientEndHour; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const recipientTime = setMinutes(setHours(date, hour), minute);
+        const utcTime = fromZonedTime(recipientTime, recipientTimezone);
+        const slotEnd = addHours(utcTime, 0.5); // 30 minutes
 
-    if (startHour < 0 || startHour > 23 || endHour < 0 || endHour > 23) {
-      errors.push("Hours must be between 0 and 23");
-    }
-
-    if (startMinute < 0 || startMinute > 59 || endMinute < 0 || endMinute > 59) {
-      errors.push("Minutes must be between 0 and 59");
-    }
-
-    // Check if enough slots are available
-    try {
-      const availableSlots = this.calculateAvailableSlots(config);
-      if (availableSlots.length < config.totalSlots) {
-        errors.push(
-          `Not enough available time slots. Need ${config.totalSlots} but only ${availableSlots.length} available. ` +
-          `Expand your date range, add more days, or extend your time window.`
+        // Check if this slot is available
+        const isAvailable = await this.checkSlotAvailability(
+          account,
+          accountType,
+          utcTime,
+          slotEnd
         );
+
+        slots.push({
+          startTime: utcTime,
+          endTime: slotEnd,
+          isAvailable,
+          isDoubleBooking: false,
+          accountId: account.id,
+          accountType,
+          timezone: recipientTimezone
+        });
+      }
+    }
+
+    return slots.filter(slot => slot.isAvailable);
+  }
+
+  /**
+   * Check if a specific time slot is available for an account
+   */
+  private async checkSlotAvailability(
+    account: GoogleAccount | OutlookAccount,
+    accountType: 'google' | 'microsoft',
+    startTime: Date,
+    endTime: Date
+  ): Promise<boolean> {
+    try {
+      // Check against existing scheduled invites
+      const existingInvites = await storage.getScheduledInvitesByTimeRange(
+        account.id,
+        accountType,
+        startTime,
+        endTime
+      );
+
+      if (existingInvites.length > 0) {
+        return false;
+      }
+
+      // Check against calendar busy times
+      const busyTimes = await this.getCalendarBusyTimes(account, accountType, startTime, endTime);
+      
+      for (const busyTime of busyTimes) {
+        if (this.timesOverlap(startTime, endTime, busyTime.startTime, busyTime.endTime)) {
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error checking slot availability:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get busy times from calendar API
+   */
+  private async getCalendarBusyTimes(
+    account: GoogleAccount | OutlookAccount,
+    accountType: 'google' | 'microsoft',
+    startTime: Date,
+    endTime: Date
+  ): Promise<Array<{ startTime: Date; endTime: Date; title?: string }>> {
+    try {
+      if (accountType === 'google') {
+        return await this.getGoogleCalendarBusyTimes(account as GoogleAccount, startTime, endTime);
+      } else {
+        return await this.getMicrosoftCalendarBusyTimes(account as OutlookAccount, startTime, endTime);
       }
     } catch (error) {
-      errors.push("Error calculating available slots");
+      console.error('Error fetching calendar busy times:', error);
+      return [];
     }
-
-    return {
-      valid: errors.length === 0,
-      errors
-    };
   }
 
   /**
-   * Get available slot count for configuration
+   * Get busy times from Google Calendar
    */
-  getAvailableSlotCount(config: Omit<AdvancedSchedulingConfig, 'totalSlots'>): number {
+  private async getGoogleCalendarBusyTimes(
+    account: GoogleAccount,
+    startTime: Date,
+    endTime: Date
+  ): Promise<Array<{ startTime: Date; endTime: Date; title?: string }>> {
+    // Implementation would integrate with Google Calendar API
+    // For now, returning empty array
+    return [];
+  }
+
+  /**
+   * Get busy times from Microsoft Calendar
+   */
+  private async getMicrosoftCalendarBusyTimes(
+    account: OutlookAccount,
+    startTime: Date,
+    endTime: Date
+  ): Promise<Array<{ startTime: Date; endTime: Date; title?: string }>> {
+    // Implementation would integrate with Microsoft Graph API
+    // For now, returning empty array
+    return [];
+  }
+
+  /**
+   * Check if two time ranges overlap
+   */
+  private timesOverlap(
+    start1: Date,
+    end1: Date,
+    start2: Date,
+    end2: Date
+  ): boolean {
+    return start1 < end2 && end1 > start2;
+  }
+
+  /**
+   * Find slots that could be double-booked
+   */
+  private async findDoubleBookingSlots(
+    senderAccounts: Array<GoogleAccount | OutlookAccount>,
+    schedulingRange: { startDate: Date; endDate: Date },
+    recipientTimezone: string,
+    settings: SchedulingSettings
+  ): Promise<TimeSlot[]> {
+    const doubleBookingSlots: TimeSlot[] = [];
+    
+    for (const account of senderAccounts) {
+      const accountType = 'microsoftId' in account ? 'microsoft' : 'google';
+      
+      // Get existing scheduled invites that haven't been accepted
+      const existingInvites = await storage.getScheduledInvitesByAccount(
+        account.id,
+        accountType,
+        ['pending', 'sent']
+      );
+
+      // Check if any of these slots can accommodate double booking
+      for (const invite of existingInvites) {
+        if (invite.wasDoubleBooked) continue; // Skip already double-booked slots
+        
+        const slotEnd = addHours(invite.scheduledTimeUtc, 0.5);
+        const doubleBookingCount = await storage.getDoubleBookingCount(
+          account.id,
+          accountType,
+          invite.scheduledTimeUtc,
+          slotEnd
+        );
+
+        if (doubleBookingCount < settings.maxDoubleBookingsPerSlot) {
+          doubleBookingSlots.push({
+            startTime: invite.scheduledTimeUtc,
+            endTime: slotEnd,
+            isAvailable: true,
+            isDoubleBooking: true,
+            accountId: account.id,
+            accountType,
+            timezone: recipientTimezone
+          });
+        }
+      }
+    }
+
+    return doubleBookingSlots;
+  }
+
+  /**
+   * Select the optimal slot from available options
+   */
+  private selectOptimalSlot(slots: TimeSlot[], settings: SchedulingSettings): TimeSlot {
+    // Sort by preference: non-double-booking first, then by time
+    const sortedSlots = slots.sort((a, b) => {
+      if (a.isDoubleBooking !== b.isDoubleBooking) {
+        return a.isDoubleBooking ? 1 : -1;
+      }
+      return a.startTime.getTime() - b.startTime.getTime();
+    });
+
+    // Add some randomization to avoid always picking the first slot
+    const topSlots = sortedSlots.slice(0, Math.min(3, sortedSlots.length));
+    return topSlots[Math.floor(Math.random() * topSlots.length)];
+  }
+
+  /**
+   * Create a scheduled invite record
+   */
+  private async createScheduledInvite(
+    request: SchedulingRequest,
+    slot: TimeSlot,
+    settings: SchedulingSettings,
+    isDoubleBooking: boolean
+  ): Promise<SchedulingResult> {
     try {
-      const tempConfig: AdvancedSchedulingConfig = { ...config, totalSlots: 0 };
-      return this.calculateAvailableSlots(tempConfig).length;
-    } catch {
-      return 0;
+      const recipientTimezone = this.determineRecipientTimezone(
+        request.recipientTimezone,
+        request.recipientEmail,
+        settings.enableTimezoneDetection
+      );
+
+      const scheduledInvite: InsertScheduledInvite = {
+        campaignId: request.campaignId,
+        userId: request.userId,
+        recipientEmail: request.recipientEmail,
+        recipientName: request.recipientName,
+        recipientTimezone,
+        scheduledTimeUtc: slot.startTime,
+        scheduledTimeLocal: toZonedTime(slot.startTime, recipientTimezone),
+        status: 'pending',
+        senderAccountId: slot.accountId,
+        senderAccountType: slot.accountType,
+        wasDoubleBooked: isDoubleBooking,
+        leadTimeDays: settings.minLeadTimeDays,
+        metadata: {
+          selectedFromSlots: 1,
+          schedulingMethod: 'automatic',
+          fallbackUsed: false
+        }
+      };
+
+      const created = await storage.createScheduledInvite(scheduledInvite);
+      
+      // Log the scheduling activity
+      await storage.createActivityLog({
+        eventType: 'invite_scheduled',
+        action: 'schedule',
+        description: `Scheduled invite for ${request.recipientEmail} at ${format(slot.startTime, 'PPpp')}`,
+        severity: 'info',
+        userId: request.userId,
+        campaignId: request.campaignId,
+        recipientEmail: request.recipientEmail,
+        recipientName: request.recipientName,
+        inboxId: slot.accountId,
+        inboxType: slot.accountType,
+        metadata: {
+          scheduledTime: slot.startTime.toISOString(),
+          timezone: recipientTimezone,
+          wasDoubleBooked: isDoubleBooking
+        }
+      });
+
+      return { success: true, scheduledInvite: created };
+    } catch (error) {
+      console.error('Error creating scheduled invite:', error);
+      return { success: false, error: 'Failed to create scheduled invite' };
     }
   }
 
   /**
-   * Shuffle array using Fisher-Yates algorithm
+   * Sort and deduplicate time slots
    */
-  private shuffleArray<T>(array: T[]): T[] {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  private sortAndDeduplicateSlots(slots: TimeSlot[]): TimeSlot[] {
+    const uniqueSlots = new Map<string, TimeSlot>();
+    
+    for (const slot of slots) {
+      const key = `${slot.startTime.toISOString()}-${slot.accountId}-${slot.accountType}`;
+      if (!uniqueSlots.has(key)) {
+        uniqueSlots.set(key, slot);
+      }
     }
-    return shuffled;
+
+    return Array.from(uniqueSlots.values()).sort((a, b) => 
+      a.startTime.getTime() - b.startTime.getTime()
+    );
   }
 
   /**
-   * Format local date time for display
+   * Reschedule an existing invite
    */
-  private formatLocalDateTime(date: Date, timezone: string): string {
-    const zonedDate = toZonedTime(date, timezone);
-    return format(zonedDate, 'yyyy-MM-dd HH:mm');
+  async rescheduleInvite(
+    inviteId: number,
+    newTimeSlot: TimeSlot,
+    userId: string
+  ): Promise<SchedulingResult> {
+    try {
+      const existingInvite = await storage.getScheduledInvite(inviteId, userId);
+      if (!existingInvite) {
+        return { success: false, error: 'Invite not found' };
+      }
+
+      const updates = {
+        scheduledTimeUtc: newTimeSlot.startTime,
+        scheduledTimeLocal: toZonedTime(newTimeSlot.startTime, existingInvite.recipientTimezone),
+        senderAccountId: newTimeSlot.accountId,
+        senderAccountType: newTimeSlot.accountType,
+        wasDoubleBooked: newTimeSlot.isDoubleBooking,
+        originalScheduledTime: existingInvite.originalScheduledTime || existingInvite.scheduledTimeUtc,
+        rescheduledCount: existingInvite.rescheduledCount + 1,
+        status: 'pending',
+        updatedAt: new Date()
+      };
+
+      const updated = await storage.updateScheduledInvite(inviteId, updates, userId);
+      
+      // Log the rescheduling activity
+      await storage.createActivityLog({
+        eventType: 'invite_rescheduled',
+        action: 'reschedule',
+        description: `Rescheduled invite for ${existingInvite.recipientEmail} from ${format(existingInvite.scheduledTimeUtc, 'PPpp')} to ${format(newTimeSlot.startTime, 'PPpp')}`,
+        severity: 'info',
+        userId,
+        campaignId: existingInvite.campaignId,
+        recipientEmail: existingInvite.recipientEmail,
+        recipientName: existingInvite.recipientName,
+        inboxId: newTimeSlot.accountId,
+        inboxType: newTimeSlot.accountType,
+        metadata: {
+          originalTime: existingInvite.scheduledTimeUtc.toISOString(),
+          newTime: newTimeSlot.startTime.toISOString(),
+          rescheduledCount: updates.rescheduledCount
+        }
+      });
+
+      return { success: true, scheduledInvite: updated };
+    } catch (error) {
+      console.error('Error rescheduling invite:', error);
+      return { success: false, error: 'Failed to reschedule invite' };
+    }
   }
 
   /**
-   * Get timezone-aware display string
+   * Get available slots for manual scheduling
    */
-  getDisplayTime(utcDateTime: string, timezone: string): string {
-    const utcDate = new Date(utcDateTime);
-    const localDate = toZonedTime(utcDate, timezone);
-    return format(localDate, 'MMM dd, yyyy hh:mm a');
+  async getAvailableSlots(
+    userId: string,
+    campaignId: number,
+    dateRange: { startDate: Date; endDate: Date },
+    recipientTimezone: string = 'America/New_York'
+  ): Promise<TimeSlot[]> {
+    try {
+      const settings = await this.getSchedulingSettings(userId, campaignId);
+      const senderAccounts = await this.getAvailableSenderAccounts(userId);
+      
+      return await this.findAvailableTimeSlots(
+        senderAccounts,
+        dateRange,
+        recipientTimezone,
+        settings
+      );
+    } catch (error) {
+      console.error('Error getting available slots:', error);
+      return [];
+    }
   }
 }
 
-export const advancedScheduler = new AdvancedScheduler();
+export const advancedScheduler = new AdvancedSchedulerService();
