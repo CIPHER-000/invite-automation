@@ -11,6 +11,7 @@ import { inboxLoadBalancer } from "./services/inbox-load-balancer";
 import { timeSlotManager } from "./services/time-slot-manager";
 import { multiProviderEmailService } from "./services/multi-provider-email";
 import { oauthCalendarService } from "./services/oauth-calendar";
+import { schedulingService } from "./services/scheduling-service";
 import { insertCampaignSchema, insertSystemSettingsSchema, insertUserSchema, users } from "@shared/schema";
 import { z } from "zod";
 import { advancedScheduler } from "./services/advanced-scheduler";
@@ -1758,6 +1759,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error disconnecting account:", error);
       res.status(500).json({ error: "Failed to disconnect account" });
+    }
+  });
+
+  // ============================================================================
+  // SCHEDULING API ROUTES
+  // ============================================================================
+
+  // Get scheduling settings
+  app.get("/api/scheduling/settings", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const settings = await schedulingService.getSchedulingSettings(userId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching scheduling settings:", error);
+      res.status(500).json({ error: "Failed to fetch scheduling settings" });
+    }
+  });
+
+  // Update scheduling settings
+  app.patch("/api/scheduling/settings", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await schedulingService.updateSchedulingSettings(userId, req.body);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating scheduling settings:", error);
+      res.status(500).json({ error: "Failed to update scheduling settings" });
+    }
+  });
+
+  // Get scheduled invites (all or by campaign)
+  app.get("/api/scheduling/invites", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { campaignId, status, startDate, endDate } = req.query;
+      
+      const filters = {
+        campaignId: campaignId ? parseInt(campaignId as string) : undefined,
+        status: status as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      };
+
+      const invites = campaignId 
+        ? await schedulingService.getScheduledInvites(parseInt(campaignId as string), userId)
+        : await schedulingService.getAllScheduledInvites(userId, filters);
+
+      res.json(invites);
+    } catch (error) {
+      console.error("Error fetching scheduled invites:", error);
+      res.status(500).json({ error: "Failed to fetch scheduled invites" });
+    }
+  });
+
+  // Get scheduling statistics
+  app.get("/api/scheduling/stats", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const stats = await schedulingService.getSchedulingStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching scheduling stats:", error);
+      res.status(500).json({ error: "Failed to fetch scheduling stats" });
+    }
+  });
+
+  // Get campaign scheduling statistics
+  app.get("/api/scheduling/campaigns/:campaignId/stats", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const campaignId = parseInt(req.params.campaignId);
+      const stats = await schedulingService.getSchedulingStats(userId, campaignId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching campaign scheduling stats:", error);
+      res.status(500).json({ error: "Failed to fetch campaign scheduling stats" });
+    }
+  });
+
+  // Reschedule an invite
+  app.post("/api/scheduling/invites/:inviteId/reschedule", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const inviteId = parseInt(req.params.inviteId);
+      const { newTime } = req.body;
+
+      if (!newTime) {
+        return res.status(400).json({ error: "New time is required" });
+      }
+
+      const result = await schedulingService.rescheduleInvite(inviteId, newTime, userId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error rescheduling invite:", error);
+      res.status(500).json({ error: "Failed to reschedule invite" });
+    }
+  });
+
+  // Cancel an invite
+  app.post("/api/scheduling/invites/:inviteId/cancel", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const inviteId = parseInt(req.params.inviteId);
+
+      const result = await schedulingService.cancelInvite(inviteId, userId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error canceling invite:", error);
+      res.status(500).json({ error: "Failed to cancel invite" });
+    }
+  });
+
+  // Schedule a new invite
+  app.post("/api/scheduling/invites", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const inviteData = {
+        ...req.body,
+        userId,
+      };
+
+      const result = await schedulingService.scheduleInvite(inviteData);
+      res.json(result);
+    } catch (error) {
+      console.error("Error scheduling invite:", error);
+      res.status(500).json({ error: "Failed to schedule invite" });
     }
   });
 

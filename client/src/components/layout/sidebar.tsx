@@ -41,6 +41,11 @@ const navigation = [
     icon: Clock,
   },
   {
+    name: "Scheduling",
+    href: "/scheduling",
+    icon: Calendar,
+  },
+  {
     name: "Activity Log",
     href: "/activity-log",
     icon: FileText,

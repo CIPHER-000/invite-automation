@@ -272,7 +272,7 @@ export const insertActivityLogSchemaOld = createInsertSchema(activityLogs).omit(
   googleAccountId: z.number().optional(),
 });
 
-// Scheduled Invites table for advanced calendar slot management
+
 export const scheduledInvites = pgTable("scheduled_invites", {
   id: serial("id").primaryKey(),
   campaignId: integer("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
@@ -424,6 +424,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
 });
+
+
 
 // API response types
 export type DashboardStats = {
