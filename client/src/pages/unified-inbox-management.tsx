@@ -361,30 +361,31 @@ export default function UnifiedInboxManagement() {
     }
   };
 
+  // Use OAuth accounts as the primary source since they have the data
+  const primaryAccounts = oauthAccounts.map(acc => ({
+    ...acc,
+    status: acc.isActive ? 'connected' : 'disconnected',
+    lastUsed: acc.lastUsed,
+    nextAvailable: undefined,
+    isInCooldown: false,
+    campaignsCount: 0,
+    invitesSentToday: 0,
+    dailyLimit: 100
+  })) as InboxWithStatus[];
+
   // Filter accounts for search
-  const filteredAccounts = filterInboxes(accounts, searchTerm);
+  const filteredAccounts = filterInboxes(primaryAccounts, searchTerm);
   const filteredOAuthAccounts = filterInboxes(oauthAccounts, searchTerm);
 
   // Statistics
-  const totalAccounts = accounts.length + microsoftAccounts.length;
-  const connectedAccounts = accounts.filter(acc => acc.status === 'connected').length;
-  const disconnectedAccounts = accounts.filter(acc => acc.status === 'disconnected').length;
-  const errorAccounts = accounts.filter(acc => acc.status === 'error').length;
+  const totalAccounts = primaryAccounts.length + microsoftAccounts.length;
+  const connectedAccounts = primaryAccounts.filter(acc => acc.status === 'connected').length;
+  const disconnectedAccounts = primaryAccounts.filter(acc => acc.status === 'disconnected').length;
+  const errorAccounts = primaryAccounts.filter(acc => acc.status === 'error').length;
 
-  // Debug logging
-  console.log('Unified Inbox Management - Debug Info:', {
-    accountsLength: accounts.length,
-    oauthAccountsLength: oauthAccounts.length,
-    microsoftAccountsLength: microsoftAccounts.length,
-    totalAccounts,
-    connectedAccounts,
-    accountsLoading,
-    oauthLoading,
-    accounts: accounts.slice(0, 2), // Show first 2 accounts for debugging
-    oauthAccounts: oauthAccounts.slice(0, 2)
-  });
 
-  if (accountsLoading) {
+
+  if (accountsLoading || oauthLoading) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
@@ -499,7 +500,7 @@ export default function UnifiedInboxManagement() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {accounts.length === 0 ? (
+                  {primaryAccounts.length === 0 ? (
                     <div className="text-center py-8">
                       <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No accounts connected</h3>
@@ -513,7 +514,7 @@ export default function UnifiedInboxManagement() {
                     </div>
                   ) : (
                     <div className="grid gap-3">
-                      {accounts.slice(0, 5).map((account) => (
+                      {primaryAccounts.slice(0, 5).map((account) => (
                         <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center space-x-3">
                             {getStatusIcon(account)}
@@ -539,13 +540,13 @@ export default function UnifiedInboxManagement() {
                           </div>
                         </div>
                       ))}
-                      {accounts.length > 5 && (
+                      {primaryAccounts.length > 5 && (
                         <div className="text-center">
                           <Button
                             variant="outline"
                             onClick={() => setActiveTab("accounts")}
                           >
-                            View All {accounts.length} Accounts
+                            View All {primaryAccounts.length} Accounts
                           </Button>
                         </div>
                       )}
