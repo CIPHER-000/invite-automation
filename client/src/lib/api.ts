@@ -97,5 +97,27 @@ export const api = {
   processCampaign: async (id: number) => {
     const response = await apiRequest('POST', `/api/campaigns/${id}/process`);
     return response.json();
+  },
+
+  // Get activity logs
+  getActivity: async (limit?: number, timeRange?: number) => {
+    const params = new URLSearchParams();
+    if (limit) params.set('limit', limit.toString());
+    if (timeRange) params.set('timeRange', timeRange.toString());
+    
+    const url = `/api/activity${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await apiRequest('GET', url);
+    const data = await response.json();
+    return data.logs || [];
+  },
+
+  // Get dashboard stats
+  getDashboardStats: async (timeRange?: number) => {
+    const params = new URLSearchParams();
+    if (timeRange) params.set('timeRange', timeRange.toString());
+    
+    const url = `/api/dashboard/stats${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await apiRequest('GET', url);
+    return response.json();
   }
 };

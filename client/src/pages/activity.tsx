@@ -97,12 +97,13 @@ export default function Activity() {
 
   const { data: campaigns } = useQuery({
     queryKey: ["/api/campaigns"],
-    queryFn: api.getCampaigns,
   });
 
   const filteredActivities = activities?.filter((activity: any) => {
-    const matchesSearch = activity.message.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = typeFilter === "all" || activity.type === typeFilter;
+    const matchesSearch = activity.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         activity.eventType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         activity.action?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = typeFilter === "all" || activity.eventType === typeFilter;
     return matchesSearch && matchesType;
   }) || [];
 
@@ -110,7 +111,7 @@ export default function Activity() {
     if (!activities) return {};
     
     const stats = activities.reduce((acc: any, activity: any) => {
-      acc[activity.type] = (acc[activity.type] || 0) + 1;
+      acc[activity.eventType] = (acc[activity.eventType] || 0) + 1;
       return acc;
     }, {});
 
@@ -352,9 +353,9 @@ export default function Activity() {
             ) : filteredActivities.length > 0 ? (
               <div className="space-y-3">
                 {filteredActivities.map((activity: any) => {
-                  const Icon = activityIcons[activity.type as keyof typeof activityIcons] || Clock;
-                  const colorClass = activityColors[activity.type as keyof typeof activityColors] || "text-slate-600 bg-slate-100 border-slate-200";
-                  const label = activityLabels[activity.type as keyof typeof activityLabels] || activity.type;
+                  const Icon = activityIcons[activity.eventType as keyof typeof activityIcons] || Clock;
+                  const colorClass = activityColors[activity.eventType as keyof typeof activityColors] || "text-slate-600 bg-slate-100 border-slate-200";
+                  const label = activityLabels[activity.eventType as keyof typeof activityLabels] || activity.eventType;
                   const campaign = campaigns?.find((c: any) => c.id === activity.campaignId);
                   
                   return (
@@ -374,7 +375,7 @@ export default function Activity() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-slate-800 mb-1">{activity.message}</p>
+                        <p className="text-sm text-slate-800 mb-1">{activity.description}</p>
                         <div className="flex items-center space-x-4 text-xs text-slate-500">
                           <span>{formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}</span>
                           <span>{format(new Date(activity.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
