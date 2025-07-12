@@ -970,6 +970,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google OAuth callback
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code) {
+        return res.status(400).send("Authorization code missing");
+      }
+
+      // Exchange code for tokens
+      const result = await googleAuthService.exchangeCodeForTokens(code as string);
+      
+      // Create or update Google account record
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        // If no user session, redirect to login
+        return res.redirect("/?error=login_required");
+      }
+
+      const googleAccount = await storage.createGoogleAccount({
+        userId,
+        email: result.userInfo.email,
+        name: result.userInfo.name,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: result.expiresAt,
+        isActive: true,
+        status: "connected"
+      });
+
+      // Log successful connection
+      await storage.createActivityLog({
+        type: "oauth_connected",
+        googleAccountId: googleAccount.id,
+        message: `Google account ${result.userInfo.email} connected successfully`,
+        metadata: { email: result.userInfo.email, name: result.userInfo.name }
+      });
+
+      // Redirect to success page
+      res.redirect("/?oauth=success&account=" + encodeURIComponent(result.userInfo.email));
+      
+    } catch (error) {
+      console.error("OAuth callback error:", error);
+      res.redirect("/?error=oauth_failed");
+    }
+  });
+
   app.post("/api/oauth-calendar/test-invite", requireAuth, async (req, res) => {
     try {
       const { prospectEmail, eventTitle, eventDescription, accountId } = req.body;

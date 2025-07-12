@@ -19,6 +19,11 @@ export class GoogleServiceAuthService {
 
   private async initializeServiceAccount() {
     try {
+      // DISABLED: Service account authentication disabled due to deleted project #571943054804
+      // Will fall back to OAuth authentication
+      console.log("Service account authentication disabled - using OAuth only");
+      return;
+      
       // Try environment variables first
       const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
       const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');

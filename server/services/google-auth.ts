@@ -2,8 +2,9 @@ import { google } from "googleapis";
 import { storage } from "../storage";
 import type { GoogleAccount } from "@shared/schema";
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "378868803078-50gj80qdtcji129idk73mb5kjtski9da.apps.googleusercontent.com";
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
+// Use working OAuth credentials from the "Kally" project
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "571943054804-92fbh828cm03laha4j5o44bk887ubm0s.apps.googleusercontent.com";
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
 // Dynamic redirect URI based on environment
 const getRedirectUri = () => {
   if (process.env.GOOGLE_REDIRECT_URI) {
@@ -15,8 +16,8 @@ const getRedirectUri = () => {
     return "https://invite.deploy2030.com/api/auth/google/callback";
   }
   
-  // Default to development URL
-  return "https://6a2391b4-c08c-4318-89e8-f4587ae39044-00-3u78hq3a9p26b.worf.replit.dev/api/auth/google/callback";
+  // Default to current Replit URL
+  return `https://${process.env.REPL_SLUG || '6a2391b4-c08c-4318-89e8-f4587ae39044-00-3u78hq3a9p26b'}.${process.env.REPL_OWNER || 'worf'}.replit.dev/api/auth/google/callback`;
 };
 
 const REDIRECT_URI = getRedirectUri();
