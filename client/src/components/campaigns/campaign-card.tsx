@@ -13,7 +13,8 @@ import {
   Trash2,
   Clock,
   AlertTriangle,
-  Eye
+  Eye,
+  Users
 } from "lucide-react";
 import { 
   DropdownMenu,
@@ -175,6 +176,12 @@ export function CampaignCard({
                 <span className="text-orange-600 flex items-center">
                   <Clock size={14} className="mr-1" />
                   {campaign.pendingInvites + campaign.processingInvites} pending
+                </span>
+              )}
+              {campaign.sdrEmail && (
+                <span className="text-blue-600 flex items-center">
+                  <Users size={14} className="mr-1" />
+                  SDR: {campaign.sdrEmail}
                 </span>
               )}
             </div>

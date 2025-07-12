@@ -313,6 +313,7 @@ export class CampaignProcessor {
         endTime,
         timeZone: campaign.timeZone,
         subjectLine: subjectLine,
+        sdrEmail: campaign.sdrEmail || undefined,
       });
 
       // Update invite with event ID and status

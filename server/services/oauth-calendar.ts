@@ -11,6 +11,7 @@ export interface OAuthEventDetails {
   endTime: Date;
   timeZone: string;
   subjectLine?: string;
+  sdrEmail?: string;
 }
 
 export class OAuthCalendarService {
@@ -38,6 +39,7 @@ export class OAuthCalendarService {
       },
       attendees: [
         { email: eventDetails.attendeeEmail },
+        ...(eventDetails.sdrEmail ? [{ email: eventDetails.sdrEmail }] : []),
       ],
       reminders: {
         useDefault: false,

@@ -104,6 +104,7 @@ export const campaigns = pgTable("campaigns", {
   timeWindowEnd: text("time_window_end"), // e.g., "17:00"
   schedulingTimezone: text("scheduling_timezone").notNull().default("UTC"), // Timezone for scheduling logic
   randomizedSlots: jsonb("randomized_slots"), // Pre-calculated random time slots for this campaign
+  sdrEmail: text("sdr_email"), // Optional SDR email to CC on all invites
   
   status: text("status").notNull().default("active"), // active, paused, completed
   isActive: boolean("is_active").notNull().default(true),

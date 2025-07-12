@@ -107,6 +107,7 @@ export default function CreateCampaignPage() {
       maxInvitesPerInbox: 20,
       maxDailyCampaignInvites: 100,
       selectedInboxes: [],
+      sdrEmail: "",
     },
   });
 
@@ -605,6 +606,32 @@ export default function CreateCampaignPage() {
                       )}
                     />
 
+                    <Separator />
+
+                    <FormField
+                      control={form.control}
+                      name="sdrEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            SDR Email (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="email"
+                              placeholder="sdr@company.com"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            If provided, this email will be CC'd as an attendee on all calendar invites sent through this campaign.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <div className="flex justify-between">
                       <Button
                         type="button"
@@ -945,6 +972,19 @@ export default function CreateCampaignPage() {
                         <div>
                           <Label className="text-sm font-medium text-gray-500">Selected Inboxes</Label>
                           <div className="text-sm">{form.watch("selectedInboxes").length} inboxes</div>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-500">SDR Email</Label>
+                          <div className="text-sm">
+                            {form.watch("sdrEmail") ? (
+                              <span className="flex items-center gap-2">
+                                <Users className="h-3 w-3" />
+                                {form.watch("sdrEmail")}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">Not configured</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

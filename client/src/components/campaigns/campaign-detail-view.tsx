@@ -97,6 +97,7 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
     eventDescriptionTemplate: "",
     confirmationEmailTemplate: "",
     senderName: "",
+    sdrEmail: "",
     timeZone: "",
     eventDuration: 30,
     selectedInboxes: [] as number[],
@@ -194,6 +195,7 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
         eventDescriptionTemplate: campaign.eventDescriptionTemplate || "",
         confirmationEmailTemplate: campaign.confirmationEmailTemplate || "",
         senderName: campaign.senderName || "",
+        sdrEmail: campaign.sdrEmail || "",
         timeZone: campaign.timeZone || "UTC",
         eventDuration: campaign.eventDuration || 30,
         selectedInboxes: campaign.selectedInboxes || [],
@@ -226,6 +228,7 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
         eventDescriptionTemplate: campaign.eventDescriptionTemplate || "",
         confirmationEmailTemplate: campaign.confirmationEmailTemplate || "",
         senderName: campaign.senderName || "",
+        sdrEmail: campaign.sdrEmail || "",
         timeZone: campaign.timeZone || "UTC",
         eventDuration: campaign.eventDuration || 30,
         selectedInboxes: campaign.selectedInboxes || [],
@@ -619,6 +622,25 @@ export function CampaignDetailView({ open, onOpenChange, campaign }: CampaignDet
                       <p className="mt-1 text-sm">{campaign.senderName || "Not set"}</p>
                     )}
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="sdr-email">SDR Email (Optional)</Label>
+                  {editing.messaging ? (
+                    <Input
+                      id="sdr-email"
+                      type="email"
+                      value={formData.sdrEmail}
+                      onChange={(e) => setFormData(prev => ({ ...prev, sdrEmail: e.target.value }))}
+                      className="mt-1"
+                      placeholder="sdr@company.com"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm">{campaign.sdrEmail || "Not set"}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    If provided, the SDR will be automatically added as an attendee to all calendar invites
+                  </p>
                 </div>
 
                 <div>
