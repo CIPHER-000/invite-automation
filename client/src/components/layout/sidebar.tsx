@@ -11,7 +11,8 @@ import {
   Key,
   LogOut,
   FileText,
-  Server
+  Server,
+  HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -108,21 +109,39 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User Info and Logout */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="mb-3">
-          <p className="text-xs text-gray-500">Logged in as:</p>
-          <p className="text-sm font-medium text-gray-700 truncate">{user?.email}</p>
+      {/* Help Center and User Info */}
+      <div className="p-4 border-t border-gray-200 space-y-3">
+        {/* Help Center Button */}
+        <Link href="/help-center" asChild>
+          <a
+            className={cn(
+              "flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium w-full",
+              location === "/help-center"
+                ? "bg-blue-50 text-blue-600 border-l-4 border-blue-600"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            )}
+          >
+            <HelpCircle size={20} />
+            <span>Help Center</span>
+          </a>
+        </Link>
+        
+        {/* User Info and Logout */}
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs text-gray-500">Logged in as:</p>
+            <p className="text-sm font-medium text-gray-700 truncate">{user?.email}</p>
+          </div>
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            size="sm"
+            className="w-full flex items-center gap-2"
+          >
+            <LogOut size={16} />
+            Logout
+          </Button>
         </div>
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          size="sm"
-          className="w-full flex items-center gap-2"
-        >
-          <LogOut size={16} />
-          Logout
-        </Button>
       </div>
     </aside>
   );

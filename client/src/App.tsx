@@ -16,6 +16,7 @@ import InboxManagement from "@/pages/inbox-management";
 import Settings from "@/pages/settings";
 import ServiceAccountSetup from "@/pages/service-account-setup";
 import InboxSetup from "@/pages/oauth-calendar";
+import HelpCenter from "@/pages/help-center";
 import Auth from "@/pages/auth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -67,6 +68,7 @@ function Router() {
               <Route path="/activity" component={Activity} />
               <Route path="/activity-log" component={ActivityLog} />
               <Route path="/settings" component={Settings} />
+              <Route path="/help-center" component={HelpCenter} />
               <Route path="/service-account" component={ServiceAccountSetup} />
               <Route component={NotFound} />
             </Switch>
