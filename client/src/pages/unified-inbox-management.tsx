@@ -371,6 +371,19 @@ export default function UnifiedInboxManagement() {
   const disconnectedAccounts = accounts.filter(acc => acc.status === 'disconnected').length;
   const errorAccounts = accounts.filter(acc => acc.status === 'error').length;
 
+  // Debug logging
+  console.log('Unified Inbox Management - Debug Info:', {
+    accountsLength: accounts.length,
+    oauthAccountsLength: oauthAccounts.length,
+    microsoftAccountsLength: microsoftAccounts.length,
+    totalAccounts,
+    connectedAccounts,
+    accountsLoading,
+    oauthLoading,
+    accounts: accounts.slice(0, 2), // Show first 2 accounts for debugging
+    oauthAccounts: oauthAccounts.slice(0, 2)
+  });
+
   if (accountsLoading) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
