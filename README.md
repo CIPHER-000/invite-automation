@@ -1,3 +1,4 @@
+
 # Shady 5.0 - Calendar Invite Campaign Automation System
 
 A comprehensive multi-provider calendar automation platform that supports both Google Workspace and Microsoft 365/Outlook integration. The system provides intelligent campaign management, smart time slot scheduling, advanced load balancing, and multi-provider email capabilities.
