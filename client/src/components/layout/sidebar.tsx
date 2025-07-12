@@ -8,6 +8,7 @@ import {
   Settings,
   Users,
   Mail,
+  Inbox,
   Key,
   LogOut,
   FileText,
@@ -45,6 +46,11 @@ const navigation = [
     name: "Data Enrichment",
     href: "/prospect-validation",
     icon: Search,
+  },
+  {
+    name: "Confirmation Emails",
+    href: "/confirmation-emails",
+    icon: Mail,
   },
   {
     name: "Activity Log",

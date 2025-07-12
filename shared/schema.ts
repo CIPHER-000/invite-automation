@@ -139,6 +139,9 @@ export const invites = pgTable("invites", {
   webhookReceived: boolean("webhook_received").notNull().default(false), // True if status came from webhook
   confirmationSent: boolean("confirmation_sent").notNull().default(false),
   confirmationSentAt: timestamp("confirmation_sent_at"),
+  confirmationEmailStatus: text("confirmation_email_status").default("pending"), // 'pending', 'sent', 'skipped', 'failed'
+  confirmationEmailSentAt: timestamp("confirmation_email_sent_at"),
+  confirmationEmailTemplate: text("confirmation_email_template"), // Custom template for this invite
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -1951,6 +1951,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register prospect validation routes
   app.use("/api/prospect-validation", prospectValidationRouter);
 
+  // Register confirmation email routes
+  const confirmationEmailRouter = await import("./routes/confirmation-emails");
+  app.use("/api/confirmation-emails", confirmationEmailRouter.default);
+
   const httpServer = createServer(app);
   return httpServer;
 }
