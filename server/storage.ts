@@ -31,7 +31,7 @@ import {
   type AccountWithStatus,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count } from "drizzle-orm";
+import { eq, desc, and, sql, count, isNull } from "drizzle-orm";
 import * as schema from "@shared/schema";
 
 export interface IStorage {
@@ -934,7 +934,7 @@ class PostgresStorage implements IStorage {
         .returning();
       console.log(`Deleted ${deletedQueue.length} queue items`);
       
-      // Get all invites for this campaign to delete their RSVP events
+      // Get all invites for this campaign to delete their related records
       const campaignInvites = await this.db.select({ id: schema.invites.id })
         .from(schema.invites)
         .where(and(
@@ -942,20 +942,32 @@ class PostgresStorage implements IStorage {
           eq(schema.invites.userId, userId)
         ));
       
-      // Delete RSVP events for these invites
+      // Delete related records for these invites
       if (campaignInvites.length > 0) {
         const inviteIds = campaignInvites.map(invite => invite.id);
         let deletedRsvpEventsCount = 0;
+        let deletedActivityLogsCount = 0;
         
-        // Delete RSVP events one by one if there are multiple invites, or use inArray for batch delete
+        // Delete RSVP events and activity logs for each invite
         for (const inviteId of inviteIds) {
+          // Delete RSVP events first
           const deletedRsvpEvents = await this.db.delete(schema.rsvpEvents)
             .where(eq(schema.rsvpEvents.inviteId, inviteId))
             .returning();
           deletedRsvpEventsCount += deletedRsvpEvents.length;
+          
+          // Delete activity logs that reference this invite
+          const deletedActivityLogs = await this.db.delete(schema.activityLogs)
+            .where(and(
+              eq(schema.activityLogs.inviteId, inviteId),
+              eq(schema.activityLogs.userId, userId)
+            ))
+            .returning();
+          deletedActivityLogsCount += deletedActivityLogs.length;
         }
         
         console.log(`Deleted ${deletedRsvpEventsCount} RSVP events`);
+        console.log(`Deleted ${deletedActivityLogsCount} activity logs linked to invites`);
       }
       
       // Delete invites
@@ -967,14 +979,15 @@ class PostgresStorage implements IStorage {
         .returning();
       console.log(`Deleted ${deletedInvites.length} invites`);
       
-      // Delete activity logs
+      // Delete remaining activity logs (those not linked to specific invites)
       const deletedLogs = await this.db.delete(schema.activityLogs)
         .where(and(
           eq(schema.activityLogs.campaignId, id),
-          eq(schema.activityLogs.userId, userId)
+          eq(schema.activityLogs.userId, userId),
+          isNull(schema.activityLogs.inviteId) // Only delete logs without invite references
         ))
         .returning();
-      console.log(`Deleted ${deletedLogs.length} activity logs`);
+      console.log(`Deleted ${deletedLogs.length} remaining activity logs`);
       
       // Finally delete the campaign (with user filtering)
       console.log(`Deleting campaign ${id}...`);
