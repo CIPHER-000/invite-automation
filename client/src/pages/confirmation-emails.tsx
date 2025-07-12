@@ -14,16 +14,16 @@ import { format } from "date-fns";
 
 interface PendingConfirmationEmail {
   id: number;
-  recipientName: string;
-  recipientEmail: string;
-  meetingTime: string;
-  campaignName: string;
-  confirmationEmailStatus: 'pending' | 'sent' | 'skipped' | 'failed';
-  confirmationEmailTemplate?: string;
-  eventId: string;
-  mergeData: any;
-  rsvpStatus: string;
-  acceptedAt?: string;
+  recipient_name: string;
+  recipient_email: string;
+  meeting_time: string;
+  campaign_name: string;
+  confirmation_email_status: 'pending' | 'sent' | 'skipped' | 'failed';
+  confirmation_email_template?: string;
+  event_id: string;
+  merge_data: any;
+  rsvp_status: string;
+  accepted_at?: string;
 }
 
 interface EmailTemplate {
@@ -133,7 +133,7 @@ export default function ConfirmationEmails() {
 
   const renderEmailPreview = (invite: PendingConfirmationEmail) => {
     const defaultTemplate = templates.find((t: EmailTemplate) => t.isDefault);
-    const template = invite.confirmationEmailTemplate || defaultTemplate?.body || 
+    const template = invite.confirmation_email_template || defaultTemplate?.body || 
       `Dear {{name}},
 
 Thank you for accepting our meeting invitation! 
@@ -149,11 +149,11 @@ Best regards,
 
     // Replace variables with actual data
     const processedTemplate = template
-      .replace(/{{name}}/g, invite.recipientName || invite.recipientEmail)
-      .replace(/{{meeting_time}}/g, format(new Date(invite.meetingTime), 'PPpp'))
-      .replace(/{{meeting_link}}/g, invite.mergeData?.meetingLink || '[Meeting Link]')
-      .replace(/{{sender_name}}/g, invite.mergeData?.senderName || '[Sender Name]')
-      .replace(/{{company}}/g, invite.mergeData?.company || '[Company]');
+      .replace(/{{name}}/g, invite.recipient_name || invite.recipient_email)
+      .replace(/{{meeting_time}}/g, invite.meeting_time ? format(new Date(invite.meeting_time), 'PPpp') : '[Meeting Time]')
+      .replace(/{{meeting_link}}/g, invite.merge_data?.meetingLink || '[Meeting Link]')
+      .replace(/{{sender_name}}/g, invite.merge_data?.senderName || '[Sender Name]')
+      .replace(/{{company}}/g, invite.merge_data?.company || '[Company]');
 
     return processedTemplate;
   };
@@ -161,7 +161,7 @@ Best regards,
   const handleEditEmail = (invite: PendingConfirmationEmail) => {
     setSelectedInvite(invite);
     const defaultTemplate = templates.find((t: EmailTemplate) => t.isDefault);
-    setCustomTemplate(invite.confirmationEmailTemplate || defaultTemplate?.body || "");
+    setCustomTemplate(invite.confirmation_email_template || defaultTemplate?.body || "");
     setCustomSubject(defaultTemplate?.subject || "Meeting Confirmation");
     setIsEditDialogOpen(true);
   };
@@ -234,25 +234,25 @@ Best regards,
                   <TableRow key={invite.id}>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium">{invite.recipientName}</span>
-                        <span className="text-sm text-muted-foreground">{invite.recipientEmail}</span>
+                        <span className="font-medium">{invite.recipient_name}</span>
+                        <span className="text-sm text-muted-foreground">{invite.recipient_email}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span>{format(new Date(invite.meetingTime), 'PPP')}</span>
+                        <span>{invite.meeting_time ? format(new Date(invite.meeting_time), 'PPP') : 'TBD'}</span>
                         <span className="text-sm text-muted-foreground">
-                          {format(new Date(invite.meetingTime), 'p')}
+                          {invite.meeting_time ? format(new Date(invite.meeting_time), 'p') : ''}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">{invite.campaignName}</span>
+                      <span className="text-sm">{invite.campaign_name}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {getStatusIcon(invite.confirmationEmailStatus)}
-                        {getStatusBadge(invite.confirmationEmailStatus)}
+                        {getStatusIcon(invite.confirmation_email_status)}
+                        {getStatusBadge(invite.confirmation_email_status)}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -268,14 +268,14 @@ Best regards,
                           size="sm"
                           variant="outline"
                           onClick={() => handleEditEmail(invite)}
-                          disabled={invite.confirmationEmailStatus === 'sent'}
+                          disabled={invite.confirmation_email_status === 'sent'}
                         >
                           <Edit3 className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
                           onClick={() => handleSendEmail(invite)}
-                          disabled={invite.confirmationEmailStatus === 'sent' || sendEmailMutation.isPending}
+                          disabled={invite.confirmation_email_status === 'sent' || sendEmailMutation.isPending}
                         >
                           <Send className="h-4 w-4" />
                         </Button>
@@ -283,7 +283,7 @@ Best regards,
                           size="sm"
                           variant="outline"
                           onClick={() => handleSkipEmail(invite)}
-                          disabled={invite.confirmationEmailStatus === 'sent'}
+                          disabled={invite.confirmation_email_status === 'sent'}
                         >
                           <SkipForward className="h-4 w-4" />
                         </Button>
@@ -303,7 +303,7 @@ Best regards,
           <DialogHeader>
             <DialogTitle>Edit Confirmation Email</DialogTitle>
             <DialogDescription>
-              Customize the confirmation email for {selectedInvite?.recipientName}
+              Customize the confirmation email for {selectedInvite?.recipient_name}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -351,13 +351,13 @@ Best regards,
           <DialogHeader>
             <DialogTitle>Email Preview</DialogTitle>
             <DialogDescription>
-              Preview of confirmation email for {selectedInvite?.recipientName}
+              Preview of confirmation email for {selectedInvite?.recipient_name}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-gray-50 p-4 rounded-md">
               <div className="text-sm text-muted-foreground mb-2">
-                <strong>To:</strong> {selectedInvite?.recipientEmail}
+                <strong>To:</strong> {selectedInvite?.recipient_email}
               </div>
               <div className="text-sm text-muted-foreground mb-4">
                 <strong>Subject:</strong> Meeting Confirmation

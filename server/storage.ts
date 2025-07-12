@@ -2144,29 +2144,34 @@ class PostgresStorage implements IStorage {
 
   // Confirmation Email Methods
   async getPendingConfirmationEmails(userId: string): Promise<any[]> {
-    const query = `
-      SELECT 
-        i.id,
-        i.recipient_name,
-        i.recipient_email,
-        i.meeting_time,
-        i.confirmation_email_status,
-        i.confirmation_email_template,
-        i.event_id,
-        i.merge_data,
-        i.rsvp_status,
-        i.rsvp_response_at as accepted_at,
-        c.name as campaign_name
-      FROM invites i
-      JOIN campaigns c ON i.campaign_id = c.id
-      WHERE i.user_id = $1 
-        AND i.rsvp_status = 'accepted'
-        AND (i.confirmation_email_status IS NULL OR i.confirmation_email_status = 'pending' OR i.confirmation_email_status = 'failed')
-      ORDER BY i.rsvp_response_at DESC
-    `;
-    
-    const result = await this.db.execute(sql.raw(query, [userId]));
-    return result.rows;
+    try {
+      const query = `
+        SELECT 
+          i.id,
+          i.prospect_name as recipient_name,
+          i.prospect_email as recipient_email,
+          i.sent_at as meeting_time,
+          COALESCE(i.confirmation_email_status, 'pending') as confirmation_email_status,
+          i.confirmation_email_template,
+          i.event_id,
+          i.merge_data,
+          i.rsvp_status,
+          i.rsvp_response_at as accepted_at,
+          c.name as campaign_name
+        FROM invites i
+        JOIN campaigns c ON i.campaign_id = c.id
+        WHERE i.user_id = $1 
+          AND i.rsvp_status = 'accepted'
+          AND (i.confirmation_email_status IS NULL OR i.confirmation_email_status = 'pending' OR i.confirmation_email_status = 'failed')
+        ORDER BY i.rsvp_response_at DESC
+      `;
+      
+      const result = await this.db.execute(sql.raw(query, [userId]));
+      return result.rows;
+    } catch (error) {
+      console.error("Error getting pending confirmation emails:", error);
+      return [];
+    }
   }
 }
 
