@@ -23,29 +23,25 @@ export const api = {
 
   // Delete Google account
   deleteAccount: async (accountId: number) => {
-    const response = await apiRequest(`/api/accounts/${accountId}`, {
-      method: 'DELETE'
-    });
+    const response = await apiRequest('DELETE', `/api/accounts/${accountId}`);
     return response;
   },
 
   // Delete Microsoft account  
   deleteMicrosoftAccount: async (accountId: number) => {
-    const response = await apiRequest(`/api/microsoft/accounts/${accountId}`, {
-      method: 'DELETE'
-    });
+    const response = await apiRequest('DELETE', `/api/microsoft/accounts/${accountId}`);
     return response;
   },
 
   // Get Google auth URL
   getGoogleAuthUrl: async () => {
-    const response = await apiRequest('/api/auth/google/url');
+    const response = await apiRequest('GET', '/api/auth/google/url');
     return response;
   },
 
   // Get Microsoft auth URL
   getMicrosoftAuthUrl: async () => {
-    const response = await apiRequest('/api/microsoft/auth/url');
+    const response = await apiRequest('GET', '/api/microsoft/auth/url');
     return response;
   },
 

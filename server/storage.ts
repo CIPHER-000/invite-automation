@@ -1570,10 +1570,11 @@ class PostgresStorage implements IStorage {
 
   // Dashboard
   async getDashboardStats(userId: string, timeRange?: { start: Date; end: Date }): Promise<DashboardStats> {
+    // Count ALL campaigns (active + paused, excluding deleted)
     const campaigns = await this.db.select({ count: count() }).from(schema.campaigns)
       .where(and(
         eq(schema.campaigns.userId, userId),
-        eq(schema.campaigns.status, 'active')
+        sql`status != 'deleted'`
       ));
     const activeCampaigns = campaigns[0]?.count || 0;
 
@@ -1605,8 +1606,20 @@ class PostgresStorage implements IStorage {
         .where(and(...acceptedConditions));
       acceptedInvites = acceptedInRange[0]?.count || 0;
     } else {
-      invitesToday = await this.getInvitesToday(userId);
-      acceptedInvites = await this.getAcceptedInvites(userId);
+      // For dashboard, show ALL historical data instead of just today
+      const totalInvites = await this.db.select({ count: count() }).from(schema.invites)
+        .where(and(
+          eq(schema.invites.userId, userId),
+          eq(schema.invites.status, 'sent')
+        ));
+      invitesToday = totalInvites[0]?.count || 0;
+      
+      const totalAccepted = await this.db.select({ count: count() }).from(schema.invites)
+        .where(and(
+          eq(schema.invites.userId, userId),
+          eq(schema.invites.rsvpStatus, 'accepted')
+        ));
+      acceptedInvites = totalAccepted[0]?.count || 0;
     }
     
     const accounts = await this.db.select({ count: count() }).from(schema.googleAccounts)
