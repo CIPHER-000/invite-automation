@@ -5,6 +5,7 @@ import { CampaignCard } from "@/components/campaigns/campaign-card";
 import { CampaignDetailView } from "@/components/campaigns/campaign-detail-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TimeRangeSelector } from "@/components/ui/time-range-selector";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +15,7 @@ import type { CampaignWithStats } from "@shared/schema";
 export default function Dashboard() {
   const [viewingCampaign, setViewingCampaign] = useState<CampaignWithStats | null>(null);
   const [showDetailView, setShowDetailView] = useState(false);
+  const [timeRange, setTimeRange] = useState<number | null>(null);
 
   const { data: campaigns, isLoading: campaignsLoading } = useQuery({
     queryKey: ["/api/campaigns"],
@@ -27,12 +29,19 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Monitor your calendar invite campaigns</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-2">Monitor your calendar invite campaigns</p>
+        </div>
+        <TimeRangeSelector
+          value={timeRange}
+          onChange={setTimeRange}
+          className="flex-shrink-0"
+        />
       </div>
 
-      <StatsGrid />
+      <StatsGrid timeRange={timeRange} />
 
       {/* Active Campaigns Section */}
       <Card>

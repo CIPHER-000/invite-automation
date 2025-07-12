@@ -31,7 +31,7 @@ import {
   type AccountWithStatus,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count, isNull } from "drizzle-orm";
+import { eq, desc, and, sql, count, isNull, gte, lte } from "drizzle-orm";
 import * as schema from "@shared/schema";
 
 export interface IStorage {
@@ -86,7 +86,7 @@ export interface IStorage {
   markWebhookProcessed(id: number, success: boolean, error?: string): Promise<void>;
 
   // Activity Logs
-  getActivityLogs(limit?: number, userId?: string): Promise<ActivityLog[]>;
+  getActivityLogs(limit?: number, userId?: string, timeRange?: { start: Date; end: Date }): Promise<ActivityLog[]>;
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
   cleanupActivityLogsForAccount(accountId: number): Promise<void>;
   cleanupInvitesForAccount(accountId: number): Promise<void>;
@@ -102,7 +102,7 @@ export interface IStorage {
   getNextQueueItem(): Promise<InviteQueue | undefined>;
 
   // Dashboard
-  getDashboardStats(userId: string): Promise<DashboardStats>;
+  getDashboardStats(userId: string, timeRange?: { start: Date; end: Date }): Promise<DashboardStats>;
   
   // Campaign Analytics
   getCampaignInboxStats(campaignId: number, userId: string): Promise<Array<{
@@ -1271,11 +1271,22 @@ class PostgresStorage implements IStorage {
   }
 
   // Activity Logs
-  async getActivityLogs(limit = 50, userId?: string): Promise<ActivityLog[]> {
+  async getActivityLogs(limit = 50, userId?: string, timeRange?: { start: Date; end: Date }): Promise<ActivityLog[]> {
     let query = this.db.select().from(schema.activityLogs);
     
+    const conditions = [];
+    
     if (userId) {
-      query = query.where(eq(schema.activityLogs.userId, userId));
+      conditions.push(eq(schema.activityLogs.userId, userId));
+    }
+    
+    if (timeRange) {
+      conditions.push(gte(schema.activityLogs.createdAt, timeRange.start));
+      conditions.push(lte(schema.activityLogs.createdAt, timeRange.end));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
     }
     
     return await query
@@ -1353,7 +1364,7 @@ class PostgresStorage implements IStorage {
   }
 
   // Dashboard
-  async getDashboardStats(userId: string): Promise<DashboardStats> {
+  async getDashboardStats(userId: string, timeRange?: { start: Date; end: Date }): Promise<DashboardStats> {
     const campaigns = await this.db.select({ count: count() }).from(schema.campaigns)
       .where(and(
         eq(schema.campaigns.userId, userId),
@@ -1361,8 +1372,37 @@ class PostgresStorage implements IStorage {
       ));
     const activeCampaigns = campaigns[0]?.count || 0;
 
-    const invitesToday = await this.getInvitesToday(userId);
-    const acceptedInvites = await this.getAcceptedInvites(userId);
+    // Use time range for invites counting if provided, otherwise default to today
+    let invitesToday: number;
+    let acceptedInvites: number;
+    
+    if (timeRange) {
+      // Count invites within the time range
+      const inviteConditions = [
+        eq(schema.invites.userId, userId),
+        gte(schema.invites.sentAt, timeRange.start),
+        lte(schema.invites.sentAt, timeRange.end)
+      ];
+      
+      const invitesInRange = await this.db.select({ count: count() }).from(schema.invites)
+        .where(and(...inviteConditions));
+      invitesToday = invitesInRange[0]?.count || 0;
+      
+      // Count accepted invites within the time range
+      const acceptedConditions = [
+        eq(schema.invites.userId, userId),
+        eq(schema.invites.rsvpStatus, 'accepted'),
+        gte(schema.invites.rsvpResponseAt, timeRange.start),
+        lte(schema.invites.rsvpResponseAt, timeRange.end)
+      ];
+      
+      const acceptedInRange = await this.db.select({ count: count() }).from(schema.invites)
+        .where(and(...acceptedConditions));
+      acceptedInvites = acceptedInRange[0]?.count || 0;
+    } else {
+      invitesToday = await this.getInvitesToday(userId);
+      acceptedInvites = await this.getAcceptedInvites(userId);
+    }
     
     const accounts = await this.db.select({ count: count() }).from(schema.googleAccounts)
       .where(eq(schema.googleAccounts.userId, userId));

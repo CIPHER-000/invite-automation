@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TimeRangeSelector } from "@/components/ui/time-range-selector";
 import { 
   Select,
   SelectContent,
@@ -86,10 +87,11 @@ export default function Activity() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [limit, setLimit] = useState(50);
+  const [timeRange, setTimeRange] = useState<number | null>(null);
 
   const { data: activities, isLoading, refetch } = useQuery({
-    queryKey: ["/api/activity", { limit }],
-    queryFn: () => api.getActivity(limit),
+    queryKey: ["/api/activity", { limit, timeRange }],
+    queryFn: () => api.getActivity(limit, timeRange || undefined),
     refetchInterval: 15000, // Refresh every 15 seconds
   });
 
@@ -119,9 +121,16 @@ export default function Activity() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Activity Log</h1>
-        <p className="text-gray-600 mt-2">Monitor all system activities and events</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Activity Log</h1>
+          <p className="text-gray-600 mt-2">Monitor all system activities and events</p>
+        </div>
+        <TimeRangeSelector
+          value={timeRange}
+          onChange={setTimeRange}
+          className="flex-shrink-0"
+        />
       </div>
 
       <div className="space-y-6">

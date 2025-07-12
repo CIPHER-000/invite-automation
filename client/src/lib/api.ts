@@ -2,7 +2,10 @@ import { apiRequest } from "./queryClient";
 
 export const api = {
   // Dashboard
-  getDashboardStats: () => fetch("/api/dashboard/stats").then(res => res.json()),
+  getDashboardStats: (days?: number) => {
+    const url = days ? `/api/dashboard/stats?days=${days}` : "/api/dashboard/stats";
+    return fetch(url).then(res => res.json());
+  },
 
   // Google Auth
   getGoogleAuthUrl: () => fetch("/api/auth/google").then(res => res.json()),
@@ -28,8 +31,11 @@ export const api = {
   },
 
   // Activity
-  getActivity: (limit?: number) => {
-    const url = limit ? `/api/activity?limit=${limit}` : "/api/activity";
+  getActivity: (limit?: number, days?: number) => {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    if (days) params.append("days", days.toString());
+    const url = params.toString() ? `/api/activity?${params.toString()}` : "/api/activity";
     return fetch(url).then(res => res.json());
   },
 

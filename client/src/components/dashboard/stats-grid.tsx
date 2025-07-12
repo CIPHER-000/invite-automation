@@ -7,11 +7,19 @@ import {
   TrendingUp,
   ArrowUp
 } from "lucide-react";
-import { useRealtimeStats } from "@/hooks/use-realtime";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function StatsGrid() {
-  const { data: stats, isLoading } = useRealtimeStats();
+interface StatsGridProps {
+  timeRange?: number | null;
+}
+
+export function StatsGrid({ timeRange }: StatsGridProps) {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["/api/dashboard/stats", timeRange],
+    queryFn: () => api.getDashboardStats(timeRange || undefined),
+  });
 
   if (isLoading) {
     return (

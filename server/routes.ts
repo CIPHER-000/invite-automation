@@ -136,7 +136,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
       const userId = (req as any).user.id;
-      const stats = await storage.getDashboardStats(userId);
+      const { days } = req.query;
+      
+      let timeRange: { start: Date; end: Date } | undefined;
+      
+      if (days) {
+        const daysNum = parseInt(days as string);
+        if (!isNaN(daysNum) && daysNum > 0) {
+          const end = new Date();
+          const start = new Date();
+          start.setDate(start.getDate() - daysNum);
+          timeRange = { start, end };
+        }
+      }
+      
+      const stats = await storage.getDashboardStats(userId, timeRange);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to get dashboard stats" });
@@ -1156,10 +1170,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/activity", requireAuth, async (req, res) => {
     try {
       const userId = (req as any).user.id;
-      const { limit, type } = req.query;
+      const { limit, type, days } = req.query;
+      
+      let timeRange: { start: Date; end: Date } | undefined;
+      
+      if (days) {
+        const daysNum = parseInt(days as string);
+        if (!isNaN(daysNum) && daysNum > 0) {
+          const end = new Date();
+          const start = new Date();
+          start.setDate(start.getDate() - daysNum);
+          timeRange = { start, end };
+        }
+      }
+      
       let logs = await storage.getActivityLogs(
         limit ? parseInt(limit as string) : undefined,
-        userId
+        userId,
+        timeRange
       );
       
       // Filter by type if specified
