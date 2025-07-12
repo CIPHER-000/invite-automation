@@ -37,12 +37,12 @@ const navigation = [
     icon: Mail,
   },
   {
-    name: "Scheduling",
+    name: "Scheduling Logic",
     href: "/scheduling",
     icon: Calendar,
   },
   {
-    name: "Prospect Validation",
+    name: "Data Enrichment",
     href: "/prospect-validation",
     icon: Search,
   },

@@ -50,7 +50,7 @@ interface BatchWithProspects {
   prospects: Prospect[];
 }
 
-export default function ProspectValidation() {
+export default function DataEnrichment() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [targetIndustry, setTargetIndustry] = useState("");
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
@@ -267,9 +267,9 @@ export default function ProspectValidation() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Prospect Validation</h1>
+          <h1 className="text-3xl font-bold">Data Enrichment</h1>
           <p className="text-muted-foreground">
-            Upload prospect lists for AI-powered industry validation and competitor discovery
+            Upload prospect lists for AI-powered industry enrichment and competitor discovery
           </p>
         </div>
         <Button onClick={downloadTemplate} variant="outline">

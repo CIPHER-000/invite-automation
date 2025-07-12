@@ -205,6 +205,10 @@ export class MemStorage implements IStorage {
   private activityLogs: Map<number, ActivityLog> = new Map();
   private systemSettings: SystemSettings;
   private inviteQueue: Map<number, InviteQueue> = new Map();
+  private prospectBatches: Map<number, ProspectBatch> = new Map();
+  private prospects: Map<number, Prospect> = new Map();
+  private industryTemplates: Map<number, IndustryTemplate> = new Map();
+  private prospectProcessingLogs: Map<number, ProspectProcessingLog> = new Map();
   private currentId = 1;
 
   constructor() {
@@ -1983,6 +1987,159 @@ class PostgresStorage implements IStorage {
     await this.db
       .delete(calendarSlots)
       .where(eq(calendarSlots.id, id));
+  }
+
+  // Prospect Validation Methods
+  async getProspectBatches(userId: string): Promise<ProspectBatch[]> {
+    return await this.db
+      .select()
+      .from(schema.prospectBatches)
+      .where(eq(schema.prospectBatches.userId, userId))
+      .orderBy(desc(schema.prospectBatches.createdAt));
+  }
+
+  async getProspectBatch(id: number, userId: string): Promise<ProspectBatch | undefined> {
+    const result = await this.db
+      .select()
+      .from(schema.prospectBatches)
+      .where(and(eq(schema.prospectBatches.id, id), eq(schema.prospectBatches.userId, userId)))
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async createProspectBatch(batch: InsertProspectBatch): Promise<ProspectBatch> {
+    const result = await this.db
+      .insert(schema.prospectBatches)
+      .values(batch)
+      .returning();
+    
+    return result[0];
+  }
+
+  async updateProspectBatch(id: number, updates: Partial<ProspectBatch>): Promise<ProspectBatch> {
+    const result = await this.db
+      .update(schema.prospectBatches)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.prospectBatches.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteProspectBatch(id: number, userId: string): Promise<void> {
+    await this.db
+      .delete(schema.prospectBatches)
+      .where(and(eq(schema.prospectBatches.id, id), eq(schema.prospectBatches.userId, userId)));
+  }
+
+  async getProspectsByBatch(batchId: number, userId: string): Promise<Prospect[]> {
+    return await this.db
+      .select()
+      .from(schema.prospects)
+      .where(and(eq(schema.prospects.batchId, batchId), eq(schema.prospects.userId, userId)))
+      .orderBy(schema.prospects.order);
+  }
+
+  async getProspect(id: number, userId: string): Promise<Prospect | undefined> {
+    const result = await this.db
+      .select()
+      .from(schema.prospects)
+      .where(and(eq(schema.prospects.id, id), eq(schema.prospects.userId, userId)))
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async createProspect(prospect: InsertProspect): Promise<Prospect> {
+    const result = await this.db
+      .insert(schema.prospects)
+      .values(prospect)
+      .returning();
+    
+    return result[0];
+  }
+
+  async updateProspect(id: number, updates: Partial<Prospect>): Promise<Prospect> {
+    const result = await this.db
+      .update(schema.prospects)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.prospects.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async getIndustryTemplates(userId: string): Promise<IndustryTemplate[]> {
+    return await this.db
+      .select()
+      .from(schema.industryTemplates)
+      .where(eq(schema.industryTemplates.userId, userId))
+      .orderBy(schema.industryTemplates.name);
+  }
+
+  async getIndustryTemplate(id: number, userId: string): Promise<IndustryTemplate | undefined> {
+    const result = await this.db
+      .select()
+      .from(schema.industryTemplates)
+      .where(and(eq(schema.industryTemplates.id, id), eq(schema.industryTemplates.userId, userId)))
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async createIndustryTemplate(template: InsertIndustryTemplate): Promise<IndustryTemplate> {
+    const result = await this.db
+      .insert(schema.industryTemplates)
+      .values(template)
+      .returning();
+    
+    return result[0];
+  }
+
+  async updateIndustryTemplate(id: number, updates: Partial<IndustryTemplate>, userId: string): Promise<IndustryTemplate> {
+    const result = await this.db
+      .update(schema.industryTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(schema.industryTemplates.id, id), eq(schema.industryTemplates.userId, userId)))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteIndustryTemplate(id: number, userId: string): Promise<void> {
+    await this.db
+      .delete(schema.industryTemplates)
+      .where(and(eq(schema.industryTemplates.id, id), eq(schema.industryTemplates.userId, userId)));
+  }
+
+  async createProspectProcessingLog(log: InsertProspectProcessingLog): Promise<ProspectProcessingLog> {
+    const result = await this.db
+      .insert(schema.prospectProcessingLogs)
+      .values(log)
+      .returning();
+    
+    return result[0];
+  }
+
+  async getProspectProcessingLogs(batchId?: number, userId?: string): Promise<ProspectProcessingLog[]> {
+    let whereConditions: any[] = [];
+    
+    if (batchId) {
+      whereConditions.push(eq(schema.prospectProcessingLogs.batchId, batchId));
+    }
+    
+    if (userId) {
+      whereConditions.push(eq(schema.prospectProcessingLogs.userId, userId));
+    }
+
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    
+    return await this.db
+      .select()
+      .from(schema.prospectProcessingLogs)
+      .where(whereClause)
+      .orderBy(desc(schema.prospectProcessingLogs.createdAt));
   }
 }
 
