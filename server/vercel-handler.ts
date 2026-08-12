@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { initApp } from "../server/create-server";
+import { initApp } from "./create-server";
 
 const app = express();
 app.use(express.json());
@@ -16,7 +16,9 @@ function ensureReady() {
   return initPromise;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   await ensureReady();
   return app(req, res);
 }
+
+export default handler;
