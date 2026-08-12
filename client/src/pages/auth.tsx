@@ -9,6 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, Lock, UserPlus, LogIn } from "lucide-react";
 import logoPath from "@assets/shady5_no_bg_cropped_strict_1751311214067.png";
 
+const DEMO_EMAIL = "demo@shady.app";
+const DEMO_PASSWORD = "demo123";
+
 export default function Auth() {
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [signupForm, setSignupForm] = useState({ email: "", password: "", confirmPassword: "" });
@@ -139,6 +142,26 @@ export default function Auth() {
                   </Button>
                 </form>
 
+                <div className="mt-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                  <p className="font-medium text-gray-800">Demo access</p>
+                  <p className="mt-1">
+                    Email: <span className="font-mono">{DEMO_EMAIL}</span>
+                  </p>
+                  <p>
+                    Password: <span className="font-mono">{DEMO_PASSWORD}</span>
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full"
+                    onClick={() =>
+                      setLoginForm({ email: DEMO_EMAIL, password: DEMO_PASSWORD })
+                    }
+                  >
+                    Fill demo credentials
+                  </Button>
+                </div>
 
               </CardContent>
             </Card>

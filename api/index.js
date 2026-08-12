@@ -6,11 +6,73 @@ import createMemoryStore from "memorystore";
 
 // server/preview-routes.ts
 import { createServer } from "http";
-var mockUser = {
-  id: "preview-user",
-  email: "preview@example.com",
-  createdAt: (/* @__PURE__ */ new Date()).toISOString()
+
+// server/demo-auth.ts
+import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
+var DEMO_CREDENTIALS = {
+  email: "demo@shady.app",
+  password: "demo123"
 };
+var usersById = /* @__PURE__ */ new Map();
+var usersByEmail = /* @__PURE__ */ new Map();
+var seeded = false;
+async function seedDemoUser() {
+  if (seeded) return;
+  const passwordHash = await bcrypt.hash(DEMO_CREDENTIALS.password, 10);
+  const demoUser = {
+    id: "demo-user-001",
+    email: DEMO_CREDENTIALS.email,
+    passwordHash,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  usersById.set(demoUser.id, demoUser);
+  usersByEmail.set(demoUser.email, demoUser);
+  seeded = true;
+}
+async function ensureDemoUsers() {
+  await seedDemoUser();
+}
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+function validatePassword(password) {
+  if (password.length < 6) {
+    return { valid: false, message: "Password must be at least 6 characters long" };
+  }
+  return { valid: true };
+}
+async function createDemoUser(email, password) {
+  await ensureDemoUsers();
+  const normalizedEmail = email.toLowerCase();
+  if (usersByEmail.has(normalizedEmail)) {
+    throw new Error("USER_EXISTS");
+  }
+  const user = {
+    id: randomUUID(),
+    email: normalizedEmail,
+    passwordHash: await bcrypt.hash(password, 10),
+    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  usersById.set(user.id, user);
+  usersByEmail.set(user.email, user);
+  return user;
+}
+async function authenticateDemoUser(email, password) {
+  await ensureDemoUsers();
+  const user = usersByEmail.get(email.toLowerCase());
+  if (!user) return null;
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  return valid ? user : null;
+}
+function getDemoUserById(id) {
+  return usersById.get(id);
+}
+function toPublicUser(user) {
+  return { id: user.id, email: user.email, createdAt: user.createdAt };
+}
+
+// server/preview-routes.ts
 var emptyStats = {
   activeCampaigns: 0,
   invitesToday: 0,
@@ -21,7 +83,69 @@ var emptyStats = {
   apiUsage: 12
 };
 function registerPreviewRoutes(app2) {
-  app2.get("/api/me", (_req, res) => res.json(mockUser));
+  app2.get("/api/me", (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const user = getDemoUserById(req.session.userId);
+    if (!user) {
+      req.session.userId = void 0;
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    res.json(toPublicUser(user));
+  });
+  app2.post("/api/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      const user = await authenticateDemoUser(email, password);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      req.session.userId = user.id;
+      res.json({
+        message: "Login successful",
+        user: toPublicUser(user)
+      });
+    } catch (error) {
+      console.error("Demo login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+  app2.post("/api/signup", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      if (!validateEmail(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ message: passwordValidation.message });
+      }
+      const user = await createDemoUser(email, password);
+      req.session.userId = user.id;
+      res.status(201).json({
+        message: "Account created successfully",
+        user: toPublicUser(user)
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "USER_EXISTS") {
+        return res.status(409).json({ message: "User already exists with this email" });
+      }
+      console.error("Demo signup error:", error);
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+  app2.post("/api/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
   app2.get("/api/dashboard/stats", (_req, res) => res.json(emptyStats));
   app2.get("/api/campaigns", (_req, res) => res.json([]));
   app2.get("/api/accounts", (_req, res) => res.json([]));
@@ -41,22 +165,10 @@ function registerPreviewRoutes(app2) {
     "/api/auth/service-account/status",
     (_req, res) => res.json({ configured: false, available: false })
   );
-  app2.post("/api/login", (req, res) => {
-    req.session.userId = mockUser.id;
-    res.json(mockUser);
-  });
-  app2.post("/api/signup", (req, res) => {
-    req.session.userId = mockUser.id;
-    res.json(mockUser);
-  });
-  app2.post("/api/logout", (req, res) => {
-    req.session.destroy(() => {
-      res.json({ success: true });
-    });
-  });
   app2.use("/api", (_req, res) => {
     res.json([]);
   });
+  void ensureDemoUsers();
   return createServer(app2);
 }
 
