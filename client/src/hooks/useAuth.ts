@@ -36,19 +36,29 @@ export function useAuth() {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      return apiRequest("POST", "/api/login", credentials);
+      const response = await apiRequest("POST", "/api/login", credentials);
+      return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+    onSuccess: (data) => {
+      if (data?.user) {
+        queryClient.setQueryData(["/api/me"], data.user);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      }
     },
   });
 
   const signupMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      return apiRequest("POST", "/api/signup", credentials);
+      const response = await apiRequest("POST", "/api/signup", credentials);
+      return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+    onSuccess: (data) => {
+      if (data?.user) {
+        queryClient.setQueryData(["/api/me"], data.user);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      }
     },
   });
 

@@ -3,8 +3,8 @@ import type { Server } from "http";
 import { createServer } from "http";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import createMemoryStore from "memorystore";
 import { registerPreviewRoutes } from "./preview-routes";
+import { configureDemoSession } from "./demo-session";
 import { log } from "./log";
 import { gmailAppPasswordService } from "./services/gmail-app-password";
 
@@ -40,21 +40,8 @@ async function configureSessions(app: Express, isProduction: boolean, hasDatabas
     return;
   }
 
-  console.warn("DATABASE_URL not set — using preview mode with in-memory sessions");
-  const MemoryStore = createMemoryStore(session);
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "shady-5-session-secret-key",
-      store: new MemoryStore({ checkPeriod: 86400000 }),
-      resave: false,
-      saveUninitialized: true,
-      cookie: {
-        secure: isProduction,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-      },
-    }),
-  );
+  console.warn("DATABASE_URL not set — using preview mode with cookie sessions");
+  configureDemoSession(app);
 }
 
 export async function initApp(app: Express, options: InitOptions = {}): Promise<void> {

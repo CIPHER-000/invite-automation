@@ -1,8 +1,42 @@
 // server/vercel-handler.ts
 import "dotenv/config";
 import express from "express";
-import session from "express-session";
-import createMemoryStore from "memorystore";
+
+// server/demo-session.ts
+import cookieSession from "cookie-session";
+function configureDemoSession(app2) {
+  app2.use(
+    cookieSession({
+      name: "shady-demo-session",
+      keys: [process.env.SESSION_SECRET || "shady-5-session-secret-key"],
+      maxAge: 7 * 24 * 60 * 60 * 1e3,
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/"
+    })
+  );
+}
+function setSessionUser(req, user) {
+  req.session = {
+    userId: user.id,
+    email: user.email,
+    createdAt: user.createdAt
+  };
+}
+function clearDemoSession(req) {
+  req.session = null;
+}
+function getSessionUser(req) {
+  if (!req.session?.userId || !req.session.email) {
+    return null;
+  }
+  return {
+    id: req.session.userId,
+    email: req.session.email,
+    createdAt: req.session.createdAt || (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
 
 // server/preview-routes.ts
 import { createServer } from "http";
@@ -65,9 +99,6 @@ async function authenticateDemoUser(email, password) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   return valid ? user : null;
 }
-function getDemoUserById(id) {
-  return usersById.get(id);
-}
 function toPublicUser(user) {
   return { id: user.id, email: user.email, createdAt: user.createdAt };
 }
@@ -84,15 +115,11 @@ var emptyStats = {
 };
 function registerPreviewRoutes(app2) {
   app2.get("/api/me", (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-    const user = getDemoUserById(req.session.userId);
+    const user = getSessionUser(req);
     if (!user) {
-      req.session.userId = void 0;
       return res.status(401).json({ message: "Authentication required" });
     }
-    res.json(toPublicUser(user));
+    res.json(user);
   });
   app2.post("/api/login", async (req, res) => {
     try {
@@ -104,10 +131,11 @@ function registerPreviewRoutes(app2) {
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
-      req.session.userId = user.id;
+      const publicUser = toPublicUser(user);
+      setSessionUser(req, publicUser);
       res.json({
         message: "Login successful",
-        user: toPublicUser(user)
+        user: publicUser
       });
     } catch (error) {
       console.error("Demo login error:", error);
@@ -128,10 +156,11 @@ function registerPreviewRoutes(app2) {
         return res.status(400).json({ message: passwordValidation.message });
       }
       const user = await createDemoUser(email, password);
-      req.session.userId = user.id;
+      const publicUser = toPublicUser(user);
+      setSessionUser(req, publicUser);
       res.status(201).json({
         message: "Account created successfully",
-        user: toPublicUser(user)
+        user: publicUser
       });
     } catch (error) {
       if (error instanceof Error && error.message === "USER_EXISTS") {
@@ -142,9 +171,8 @@ function registerPreviewRoutes(app2) {
     }
   });
   app2.post("/api/logout", (req, res) => {
-    req.session.destroy(() => {
-      res.json({ success: true });
-    });
+    clearDemoSession(req);
+    res.json({ success: true });
   });
   app2.get("/api/dashboard/stats", (_req, res) => res.json(emptyStats));
   app2.get("/api/campaigns", (_req, res) => res.json([]));
@@ -176,20 +204,7 @@ function registerPreviewRoutes(app2) {
 var app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-var MemoryStore = createMemoryStore(session);
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "shady-5-session-secret-key",
-    store: new MemoryStore({ checkPeriod: 864e5 }),
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1e3,
-      httpOnly: true
-    }
-  })
-);
+configureDemoSession(app);
 var ready = false;
 function ensureReady() {
   if (!ready) {

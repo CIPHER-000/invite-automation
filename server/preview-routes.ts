@@ -1,14 +1,14 @@
-import type { Express, Request, Response } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
 import {
   authenticateDemoUser,
   createDemoUser,
   ensureDemoUsers,
-  getDemoUserById,
   toPublicUser,
   validateEmail,
   validatePassword,
 } from "./demo-auth";
+import { clearDemoSession, getSessionUser, setSessionUser } from "./demo-session";
 
 const emptyStats = {
   activeCampaigns: 0,
@@ -22,15 +22,11 @@ const emptyStats = {
 
 export function registerPreviewRoutes(app: Express): Server {
   app.get("/api/me", (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-    const user = getDemoUserById(req.session.userId);
+    const user = getSessionUser(req);
     if (!user) {
-      req.session.userId = undefined;
       return res.status(401).json({ message: "Authentication required" });
     }
-    res.json(toPublicUser(user));
+    res.json(user);
   });
 
   app.post("/api/login", async (req, res) => {
@@ -45,10 +41,11 @@ export function registerPreviewRoutes(app: Express): Server {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      req.session.userId = user.id;
+      const publicUser = toPublicUser(user);
+      setSessionUser(req, publicUser);
       res.json({
         message: "Login successful",
-        user: toPublicUser(user),
+        user: publicUser,
       });
     } catch (error) {
       console.error("Demo login error:", error);
@@ -71,10 +68,11 @@ export function registerPreviewRoutes(app: Express): Server {
       }
 
       const user = await createDemoUser(email, password);
-      req.session.userId = user.id;
+      const publicUser = toPublicUser(user);
+      setSessionUser(req, publicUser);
       res.status(201).json({
         message: "Account created successfully",
-        user: toPublicUser(user),
+        user: publicUser,
       });
     } catch (error) {
       if (error instanceof Error && error.message === "USER_EXISTS") {
@@ -86,9 +84,8 @@ export function registerPreviewRoutes(app: Express): Server {
   });
 
   app.post("/api/logout", (req, res) => {
-    req.session.destroy(() => {
-      res.json({ success: true });
-    });
+    clearDemoSession(req);
+    res.json({ success: true });
   });
 
   app.get("/api/dashboard/stats", (_req, res) => res.json(emptyStats));
