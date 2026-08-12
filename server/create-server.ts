@@ -5,7 +5,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import createMemoryStore from "memorystore";
 import { registerPreviewRoutes } from "./preview-routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { log } from "./log";
 import { gmailAppPasswordService } from "./services/gmail-app-password";
 
 export { log };
@@ -91,6 +91,7 @@ export async function createServerApp(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   const isProduction = process.env.NODE_ENV === "production";
+  const { setupVite, serveStatic } = await import("./vite");
 
   if (!isProduction) {
     await setupVite(app, httpServer);
